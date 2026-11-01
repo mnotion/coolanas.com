@@ -614,8 +614,9 @@
     @media(hover:hover) and (pointer:fine){.hero-orbit:hover{filter:brightness(1.08) saturate(1.12)}}
  .stats-grid{gap:20px!important}.stat-card{min-height:170px!important;padding:27px 28px!important;border-radius:21px!important}.stat-top{margin-bottom:12px}.stat-label{font-size:12px}.stat-value{font-size:30px;margin:19px 0 12px}.stat-foot{font-size:11px;line-height:1.6}.quote-author{margin-top:15px;color:#7189a3;opacity:.48;font-size:12px;font-weight:600;letter-spacing:.025em}.hero-orbit:hover{filter:none!important}@media(max-width:620px){.stats-grid{gap:12px!important}.stat-card{min-height:145px!important;padding:19px!important}}\n
 /* Performance pass: preserve the glass look with cheaper compositing. */
+:root{--user-glass-blur:3px}
 .liquid-glass{
-  -webkit-backdrop-filter:blur(3px) saturate(112%)!important;
+  -webkit-backdrop-filter:blur(var(--user-glass-blur,3px)) saturate(112%)!important;
   backdrop-filter:blur(3px) saturate(112%)!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.82),0 7px 20px rgba(44,105,181,.07)!important;
 }
@@ -741,7 +742,6 @@
 <div class="search-scrim" id="ai-search" aria-hidden="true"><section class="search-dialog liquid-glass" role="dialog" aria-modal="true" aria-labelledby="search-title"><div class="search-head"><div class="search-title" id="search-title">Search your dashboard</div><button class="search-close" id="ai-close" type="button">✕</button></div><form class="search-form" id="search-form"><input id="search-input" type="search" placeholder="Search this space…" aria-label="Search this dashboard"></form><p class="search-note">Search pages and sections in this space.</p><div class="search-results" id="search-results"><div class="search-empty">Start typing to find a section.</div></div></section></div>
 <script>
 const today=new Intl.DateTimeFormat("en-GB",{weekday:"long",day:"numeric",month:"long"}).format(new Date());document.getElementById("top-date").textContent=today;
-fetch("https://dummyjson.com/quotes?limit=1000").then(r=>{if(!r.ok)throw Error();return r.json()}).then(d=>{if(!d.quotes?.length)throw Error();const q=d.quotes[Math.floor(Math.random()*d.quotes.length)];document.getElementById("dashboard-title").textContent="“"+q.quote+"”";document.getElementById("quote-author").textContent="— "+q.author}).catch(()=>{document.getElementById("dashboard-title").textContent="“Make room for the things that matter.”";document.getElementById("quote-author").textContent="— coolanas"});
 const scrim=document.getElementById("ai-search"),openButton=document.getElementById("ai-open"),closeButton=document.getElementById("ai-close"),input=document.getElementById("search-input"),results=document.getElementById("search-results");
 function openSearch(){scrim.classList.add("is-open");scrim.setAttribute("aria-hidden","false");openButton.setAttribute("aria-expanded","true");input.focus()}
 function closeSearch(){scrim.classList.remove("is-open");scrim.setAttribute("aria-hidden","true");openButton.setAttribute("aria-expanded","false");openButton.focus()}
