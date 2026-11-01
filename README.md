@@ -1,2 +1,0 @@
-# coolanas.com
-my portfolio
