@@ -517,6 +517,21 @@
 .hero::before,.hero::after{content:none!important;display:none!important;animation:none!important}
 .hero{width:min(760px,100%);margin-right:auto}
 @media(max-width:720px){.hero{width:100%}}
+
+/* Hug the welcome panel to its text: equal left and right breathing room. */
+.hero{
+  display:inline-grid!important;
+  width:fit-content!important;
+  max-width:100%!important;
+  margin-right:auto!important;
+}
+.hero-copy{width:max-content!important;max-width:100%!important}
+.hero h1{max-width:none!important;white-space:nowrap}
+@media(max-width:720px){
+  .hero{display:grid!important;width:100%!important}
+  .hero-copy{width:auto!important}
+  .hero h1{white-space:normal}
+}
 </style>
 </head>
 <body id="top">
