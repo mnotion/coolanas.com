@@ -1,0 +1,3 @@
+
+const form=document.getElementById("pin-form"),field=document.getElementById("pin"),error=document.getElementById("pin-error");
+form.addEventListener("submit",async event=>{event.preventDefault();error.textContent="";const value=field.value.trim().toUpperCase();const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value));const hash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");if(hash==="bcd147460adf0408dd4f6fd86ce70c22461924debb0607aa649a1e02eabd4240"){sessionStorage.setItem("coolanas-pin-unlocked","1");location.href="../../dashboard.html"}else{error.textContent="That PIN isn't correct. Try again.";field.value="";field.focus()}});
