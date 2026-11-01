@@ -600,7 +600,30 @@
       .reveal { opacity: 1; transform: none; }
       .search-dialog { transform: none; }
     }
-  .side-link .nav-icon,.dock .nav-icon{display:grid;place-items:center;width:18px;height:18px;flex:0 0 auto}.side-link .nav-icon svg,.dock .nav-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.side-link{gap:11px}\n</style></head><body id="top"><div class="app-shell">
+  .side-link .nav-icon,.dock .nav-icon{display:grid;place-items:center;width:18px;height:18px;flex:0 0 auto}.side-link .nav-icon svg,.dock .nav-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.side-link{gap:11px}\n
+/* Performance pass: preserve the glass look with cheaper compositing. */
+.liquid-glass{
+  -webkit-backdrop-filter:blur(3px) saturate(112%)!important;
+  backdrop-filter:blur(3px) saturate(112%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.82),0 7px 20px rgba(44,105,181,.07)!important;
+}
+.liquid-glass::after{
+  background:linear-gradient(145deg,rgba(255,255,255,.28),transparent 35%,rgba(75,151,243,.07))!important;
+  opacity:.82!important;
+  mix-blend-mode:normal!important;
+}
+.liquid-glass .liquid-glass,
+.panel .folder.liquid-glass,
+.hero .hero-aside.liquid-glass{
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+}
+@media(hover:hover) and (pointer:fine){
+  .liquid-glass:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 9px 22px rgba(44,105,181,.09)!important}
+}
+.settings-card,.analytics-panel,.stat-card,.panel{contain:layout paint}
+
+</style></head><body id="top"><div class="app-shell">
 <aside class="sidebar liquid-glass reveal"><a class="brand" href="index.html"><span class="brand-mark">c.</span><span>coolanas</span></a><div class="side-caption">Workspace</div><nav class="side-nav" aria-label="Workspace">
 <a class="side-link" href="dashboard.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span>Overview</span></a>
 <a class="side-link" href="activity.html" aria-current="page"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span><span>Activity</span></a>
