@@ -612,7 +612,15 @@
 @keyframes orbital-turn{to{transform:rotate(360deg)}}
     @keyframes orbital-counter{to{transform:rotate(-360deg)}}
     @media(hover:hover) and (pointer:fine){.hero-orbit:hover{filter:brightness(1.08) saturate(1.12)}}
- .stats-grid{gap:20px!important}.stat-card{min-height:170px!important;padding:27px 28px!important;border-radius:21px!important}.stat-top{margin-bottom:12px}.stat-label{font-size:12px}.stat-value{font-size:30px;margin:19px 0 12px}.stat-foot{font-size:11px;line-height:1.6}.quote-author{margin-top:15px;color:#7189a3;opacity:.48;font-size:12px;font-weight:600;letter-spacing:.025em}.hero-orbit:hover{filter:none!important}@media(max-width:620px){.stats-grid{gap:12px!important}.stat-card{min-height:145px!important;padding:19px!important}}\n</style></head>
+ .stats-grid{gap:22px!important;align-items:stretch}
+.stats-grid .stat-card{min-height:218px!important;padding:32px 34px!important;border-radius:24px!important;display:flex;flex-direction:column;justify-content:flex-start}
+.stats-grid .stat-top{margin-bottom:22px;min-height:24px}
+.stats-grid .stat-label{font-size:14px;letter-spacing:.01em}
+.stats-grid .stat-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:12px;background:rgba(220,238,255,.55);font-size:16px}
+.stats-grid .stat-value{font-size:38px;line-height:1.1;margin:18px 0 15px}
+.stats-grid .stat-foot{font-size:12px;line-height:1.65;margin-top:auto}
+@media(max-width:1050px){.stats-grid .stat-card{min-height:195px!important;padding:27px!important}}
+@media(max-width:620px){.stats-grid{gap:14px!important}.stats-grid .stat-card{min-height:165px!important;padding:20px!important}.stats-grid .stat-top{margin-bottom:14px}.stats-grid .stat-value{font-size:30px;margin:12px 0}.stats-grid .stat-label{font-size:12px}.stats-grid .stat-foot{font-size:10px}}.quote-author{margin-top:15px;color:#7189a3;opacity:.48;font-size:12px;font-weight:600;letter-spacing:.025em}.hero-orbit:hover{filter:none!important}@media(max-width:620px){.stats-grid{gap:12px!important}.stat-card{min-height:145px!important;padding:19px!important}}\n</style></head>
 <body id="top"><div class="app-shell">
 <aside class="sidebar liquid-glass reveal"><a class="brand" href="index.html"><span class="brand-mark">c.</span><span>coolanas</span></a>
 <div class="side-caption">Workspace</div><nav class="side-nav" aria-label="Workspace">
