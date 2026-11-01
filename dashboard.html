@@ -723,29 +723,28 @@
 }
 
 
-/* Vertically centre the quote block within the left text column. */
-.dashboard-main .hero{
-  align-items:center!important;
-}
+/* Precisely centre quote content vertically in the left side of the existing panel. */
+.dashboard-main .hero{position:relative!important}
 .dashboard-main .hero-copy{
-  align-self:center!important;
-  display:flex!important;
-  flex-direction:column!important;
-  justify-content:center!important;
-  min-height:150px!important;
-  max-width:min(590px,68%)!important;
+  position:absolute!important;
+  left:36px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  display:block!important;
+  width:min(590px,calc(100% - 260px))!important;
+  max-width:none!important;
+  min-height:0!important;
   margin:0!important;
+  z-index:2!important;
 }
-.dashboard-main .quote-title{
-  margin:0!important;
+.dashboard-main .quote-title{margin:0!important}
+.dashboard-main .quote-author{margin-top:10px!important}
+@media(max-width:820px){
+  .dashboard-main .hero-copy{left:27px!important;width:calc(100% - 205px)!important}
 }
-.dashboard-main .quote-author{
-  margin-top:12px!important;
+@media(max-width:520px){
+  .dashboard-main .hero-copy{left:20px!important;width:calc(100% - 115px)!important}
 }
-@media(max-width:620px){
-  .dashboard-main .hero-copy{max-width:78%!important;min-height:120px!important}
-}
-
 </style></head>
 <body id="top"><div class="app-shell">
 <aside class="sidebar liquid-glass reveal"><a class="brand" href="index.html"><span class="brand-mark">c.</span><span>coolanas</span></a>
