@@ -620,7 +620,30 @@
 .stats-grid .stat-value{font-size:38px;line-height:1.1;margin:18px 0 15px}
 .stats-grid .stat-foot{font-size:12px;line-height:1.65;margin-top:auto}
 @media(max-width:1050px){.stats-grid .stat-card{min-height:195px!important;padding:27px!important}}
-@media(max-width:620px){.stats-grid{gap:14px!important}.stats-grid .stat-card{min-height:165px!important;padding:20px!important}.stats-grid .stat-top{margin-bottom:14px}.stats-grid .stat-value{font-size:30px;margin:12px 0}.stats-grid .stat-label{font-size:12px}.stats-grid .stat-foot{font-size:10px}}.quote-author{margin-top:15px;color:#7189a3;opacity:.48;font-size:12px;font-weight:600;letter-spacing:.025em}.hero-orbit:hover{filter:none!important}@media(max-width:620px){.stats-grid{gap:12px!important}.stat-card{min-height:145px!important;padding:19px!important}}\n</style></head>
+@media(max-width:620px){.stats-grid{gap:14px!important}.stats-grid .stat-card{min-height:165px!important;padding:20px!important}.stats-grid .stat-top{margin-bottom:14px}.stats-grid .stat-value{font-size:30px;margin:12px 0}.stats-grid .stat-label{font-size:12px}.stats-grid .stat-foot{font-size:10px}}.quote-author{margin-top:15px;color:#7189a3;opacity:.48;font-size:12px;font-weight:600;letter-spacing:.025em}.hero-orbit:hover{filter:none!important}@media(max-width:620px){.stats-grid{gap:12px!important}.stat-card{min-height:145px!important;padding:19px!important}}\n
+/* Performance pass: preserve the glass look with cheaper compositing. */
+.liquid-glass{
+  -webkit-backdrop-filter:blur(3px) saturate(112%)!important;
+  backdrop-filter:blur(3px) saturate(112%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.82),0 7px 20px rgba(44,105,181,.07)!important;
+}
+.liquid-glass::after{
+  background:linear-gradient(145deg,rgba(255,255,255,.28),transparent 35%,rgba(75,151,243,.07))!important;
+  opacity:.82!important;
+  mix-blend-mode:normal!important;
+}
+.liquid-glass .liquid-glass,
+.panel .folder.liquid-glass,
+.hero .hero-aside.liquid-glass{
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+}
+@media(hover:hover) and (pointer:fine){
+  .liquid-glass:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.86),0 9px 22px rgba(44,105,181,.09)!important}
+}
+.settings-card,.analytics-panel,.stat-card,.panel{contain:layout paint}
+
+</style></head>
 <body id="top"><div class="app-shell">
 <aside class="sidebar liquid-glass reveal"><a class="brand" href="index.html"><span class="brand-mark">c.</span><span>coolanas</span></a>
 <div class="side-caption">Workspace</div><nav class="side-nav" aria-label="Workspace">
