@@ -512,7 +512,12 @@
 .hero-copy{max-width:min(650px,72%);align-self:center}
     .hero h1{max-width:100%}
     @media(max-width:720px){.hero{min-height:205px;padding:27px 24px}.hero-copy{max-width:100%}}
-    </style>
+    
+/* Simplify the welcome panel: remove the decorative orb and shorten its right edge. */
+.hero::before,.hero::after{content:none!important;display:none!important;animation:none!important}
+.hero{width:min(900px,100%);margin-right:auto}
+@media(max-width:720px){.hero{width:100%}}
+</style>
 </head>
 <body id="top">
   <header class="shell topbar reveal" style="--delay:40ms">
