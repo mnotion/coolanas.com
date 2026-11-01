@@ -95,11 +95,12 @@
     .hero {
       position: relative;
       display: grid;
-      grid-template-columns: 1.35fr .65fr;
+      grid-template-columns: 1fr;
       align-items: center;
-      min-height: 330px;
-      padding: 48px;
+      min-height: 245px;
+      padding: 40px 48px;
       border-radius: 30px;
+      overflow: hidden;
     }
     .hero::before {
       content: "";
@@ -455,7 +456,7 @@
       .topbar { height: 70px; }
       .top-note { display: none; }
       main { padding-top: 28px; }
-      .hero { grid-template-columns: 1fr; min-height: 355px; padding: 31px 27px; }
+      .hero { grid-template-columns: 1fr; min-height: 215px; padding: 30px 27px; }
       .hero-aside { justify-self: start; width: 175px; margin-top: 27px; padding: 14px 16px; }
       .hero::before { right: -155px; top: -20px; }
       .hero::after { right: 6%; bottom: 18%; }
@@ -508,7 +509,10 @@
 
 @media(prefers-reduced-transparency:reduce){.liquid-glass{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}}
 @media(max-width:720px){.liquid-glass{-webkit-backdrop-filter:blur(2px) saturate(108%)!important;backdrop-filter:blur(2px) saturate(108%)!important}}
-</style>
+.hero-copy{max-width:min(650px,72%);align-self:center}
+    .hero h1{max-width:100%}
+    @media(max-width:720px){.hero{min-height:205px;padding:27px 24px}.hero-copy{max-width:100%}}
+    </style>
 </head>
 <body id="top">
   <header class="shell topbar reveal" style="--delay:40ms">
@@ -528,11 +532,6 @@
         <h1 id="welcome-title">Hello stranger</h1>
         <p>This is my land - you can inspect it and also do some stuff</p>
       </div>
-      <aside class="hero-aside liquid-glass float-gently" aria-label="Today's date">
-        <div class="aside-label">Today is</div>
-        <div class="date" id="today">A new day</div>
-        <div class="aside-bottom"><span class="sparkle" aria-hidden="true">✳</span> Make yourself at home</div>
-      </aside>
     </section>
 
     <section id="links" aria-labelledby="links-title" class="reveal" style="--delay:340ms">
@@ -586,11 +585,6 @@
   </div>
 
   <script>
-    const today = new Intl.DateTimeFormat("en-GB", {
-      weekday: "short", day: "numeric", month: "short"
-    }).format(new Date());
-    document.getElementById("today").textContent = today;
-
     const scrim = document.getElementById("ai-search");
     const openButton = document.getElementById("ai-open");
     const closeButton = document.getElementById("ai-close");
