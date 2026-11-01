@@ -87,7 +87,10 @@
       font-size: 9px;
       font-weight: 800;
       letter-spacing: .15em;
-      text-transform: uppercase;
+      text-transform: none;
+      letter-spacing: .04em;
+      font-size: 11px;
+      font-weight: 700;
     }
     .side-nav { display: grid; gap: 4px; }
     .side-link {
@@ -700,7 +703,7 @@
 <a class="side-link" href="settings.html"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.5.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.5-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.8l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.5-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.5.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.8Z"/></svg></span><span>Settings</span></a></nav>
 <div class="side-spacer"></div></aside>
 <main class="dashboard-main" id="analytics">
-<header class="main-topbar"><div class="top-actions"><span class="section-hint" id="top-date">A new day</span><a class="home-link liquid-glass" href="dashboard.html" aria-label="Overview"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg><span>Overview</span></a></div></header>
+<header class="main-topbar"><div class="top-actions"><a class="home-link liquid-glass" href="dashboard.html" aria-label="Overview"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg><span>Overview</span></a></div></header>
 <div class="section-heading"><h2>Workspace analytics</h2><span class="section-hint">Preview · No activity data connected</span></div>
 <section class="analytics-sheet panel liquid-glass reveal" aria-label="Workspace analytics overview">
   <div class="analytics-header">
@@ -744,7 +747,7 @@
 <button class="dock-search" id="ai-open" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="ai-search"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span>Search</span></button></nav></div>
 <div class="search-scrim" id="ai-search" aria-hidden="true"><section class="search-dialog liquid-glass" role="dialog" aria-modal="true" aria-labelledby="search-title"><div class="search-head"><div class="search-title" id="search-title">Search your dashboard</div><button class="search-close" id="ai-close" type="button">✕</button></div><form class="search-form" id="search-form"><input id="search-input" type="search" placeholder="Search this space…" aria-label="Search this dashboard"></form><p class="search-note">Search pages and sections in this space.</p><div class="search-results" id="search-results"><div class="search-empty">Start typing to find a section.</div></div></section></div>
 <script>
-const today=new Intl.DateTimeFormat("en-GB",{weekday:"long",day:"numeric",month:"long"}).format(new Date());document.getElementById("top-date").textContent=today;
+const today=new Intl.DateTimeFormat("en-GB",{weekday:"long",day:"numeric",month:"long"}).format(new Date());
 const scrim=document.getElementById("ai-search"),openButton=document.getElementById("ai-open"),closeButton=document.getElementById("ai-close"),input=document.getElementById("search-input"),results=document.getElementById("search-results");
 function openSearch(){scrim.classList.add("is-open");scrim.setAttribute("aria-hidden","false");openButton.setAttribute("aria-expanded","true");input.focus()}
 function closeSearch(){scrim.classList.remove("is-open");scrim.setAttribute("aria-hidden","true");openButton.setAttribute("aria-expanded","false");openButton.focus()}
