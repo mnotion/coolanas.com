@@ -509,13 +509,13 @@
 
 @media(prefers-reduced-transparency:reduce){.liquid-glass{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}}
 @media(max-width:720px){.liquid-glass{-webkit-backdrop-filter:blur(2px) saturate(108%)!important;backdrop-filter:blur(2px) saturate(108%)!important}}
-.hero-copy{max-width:min(650px,72%);align-self:center}
+.hero-copy{max-width:100%;align-self:center}
     .hero h1{max-width:100%}
     @media(max-width:720px){.hero{min-height:205px;padding:27px 24px}.hero-copy{max-width:100%}}
     
 /* Simplify the welcome panel: remove the decorative orb and shorten its right edge. */
 .hero::before,.hero::after{content:none!important;display:none!important;animation:none!important}
-.hero{width:min(620px,100%);margin-right:auto}
+.hero{width:min(760px,100%);margin-right:auto}
 @media(max-width:720px){.hero{width:100%}}
 </style>
 </head>
@@ -525,7 +525,7 @@
       <span class="mark">c.</span><span>coolanas</span>
     </a>
     <div class="top-right">
-      <span class="top-note">your little corner of the internet</span>
+      
       <a class="login liquid-glass" href="dashboard.html" data-searchable>Login <span aria-hidden="true">↗</span></a>
     </div>
   </header>
@@ -541,8 +541,8 @@
 
     <section id="links" aria-labelledby="links-title" class="reveal" style="--delay:340ms">
       <div class="section-head">
-        <h2 id="links-title">One place to find</h2>
-        <span class="section-hint">Elsewhere on the internet</span>
+        
+        
       </div>
       <div class="shortcut-grid">
         <a class="shortcut liquid-glass hover-float" href="https://github.com/mnotion/coolanas.com" target="_blank" rel="noopener noreferrer" data-searchable>
