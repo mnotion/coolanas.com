@@ -602,8 +602,9 @@
     }
   .side-link .nav-icon,.dock .nav-icon{display:grid;place-items:center;width:18px;height:18px;flex:0 0 auto}.side-link .nav-icon svg,.dock .nav-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.side-link{gap:11px}\n
 /* Performance pass: preserve the glass look with cheaper compositing. */
+:root{--user-glass-blur:3px}
 .liquid-glass{
-  -webkit-backdrop-filter:blur(3px) saturate(112%)!important;
+  -webkit-backdrop-filter:blur(var(--user-glass-blur,3px)) saturate(112%)!important;
   backdrop-filter:blur(3px) saturate(112%)!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.82),0 7px 20px rgba(44,105,181,.07)!important;
 }
