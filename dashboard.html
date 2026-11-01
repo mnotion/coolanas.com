@@ -644,6 +644,9 @@
 }
 .settings-card,.analytics-panel,.stat-card,.panel{contain:layout paint}
 
+
+@media(prefers-reduced-transparency:reduce){.liquid-glass{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}}
+@media(max-width:720px){.liquid-glass{-webkit-backdrop-filter:blur(2px) saturate(108%)!important;backdrop-filter:blur(2px) saturate(108%)!important}}
 </style></head>
 <body id="top"><div class="app-shell">
 <aside class="sidebar liquid-glass reveal"><a class="brand" href="index.html"><span class="brand-mark">c.</span><span>coolanas</span></a>
