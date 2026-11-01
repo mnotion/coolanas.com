@@ -212,9 +212,11 @@
       border-radius: 46% 54% 52% 48% / 44% 42% 58% 56%;
       background: radial-gradient(circle at 34% 30%, rgba(255,255,255,.9), rgba(196,225,255,.42) 52%, rgba(112,177,244,.12));
       box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 0 55px rgba(72,150,228,.12);
-      animation: none;
+      animation: orbital-turn var(--orbit-speed) linear infinite;
     }
-    .hero-orbit::before, .hero-orbit::after { animation: orbital-turn 18s linear infinite; }\n    .hero-orbit::after { animation-direction: reverse; animation-duration: 25s; }\n    .hero-orbit::before, .hero-orbit::after {
+    .hero-orbit::before, .hero-orbit::after { animation: orbital-turn 18s linear infinite; }
+    .hero-orbit::after { animation-direction: reverse; animation-duration: 25s; }
+    .hero-orbit::before, .hero-orbit::after {
       content: "";
       position: absolute;
       border: 1px solid rgba(255,255,255,.72);
@@ -234,7 +236,7 @@
       color: #2e79c2;
       font-size: 23px;
       box-shadow: inset 0 1px 0 #fff, 0 8px 25px rgba(59,126,196,.18);
-      animation: none;
+      animation: orbital-counter 12s linear infinite;
     }
     .hero-meta {
       position: absolute;
@@ -254,7 +256,10 @@
     }
     h2 { margin: 0; color: #2a4866; font-size: 12px; font-weight: 800; letter-spacing: -.015em; }
     .section-hint { color: #8b9eb2; font-size: 9px; }
-    .stats-grid { gap:16px; }\n    .stat-card { min-height:145px; padding:22px 23px; min-height:145px; padding:22px 23px; }\n    .stat-value { margin:17px 0 9px; }\n    .stats-grid { display: grid; gap:16px; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 11px; }
+    .stats-grid { gap:16px; }
+    .stat-card { min-height:145px; padding:22px 23px; min-height:145px; padding:22px 23px; }
+    .stat-value { margin:17px 0 9px; }
+    .stats-grid { display: grid; gap:16px; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 11px; }
     .stat-card {
       min-height: 113px;
       padding: 15px;
@@ -407,7 +412,9 @@
       animation: reveal-in .85s cubic-bezier(.2,.8,.2,1) forwards;
       animation-delay: var(--delay, 0ms);
     }
-    @keyframes orbital-turn {to{transform:rotate(360deg)}}\n    @keyframes orbital-counter {to{transform:rotate(-360deg)}}\n    @keyframes reveal-in { to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes orbital-turn {to{transform:rotate(360deg)}}
+    @keyframes orbital-counter {to{transform:rotate(-360deg)}}
+    @keyframes reveal-in { to { opacity: 1; transform: translateY(0) scale(1); } }
     @keyframes atmosphere-drift {
       0% { transform: translate3d(-2%,-1%,0) rotate(-4deg) scale(1); }
       100% { transform: translate3d(2%,2%,0) rotate(4deg) scale(1.08); }
@@ -601,7 +608,11 @@
       .reveal { opacity: 1; transform: none; }
       .search-dialog { transform: none; }
     }
-  .side-link .nav-icon,.dock .nav-icon{display:grid;place-items:center;width:18px;height:18px;flex:0 0 auto}.side-link .nav-icon svg,.dock .nav-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.side-link{gap:11px}\n@keyframes orbital-turn{to{transform:rotate(360deg)}}\n    @keyframes orbital-counter{to{transform:rotate(-360deg)}}\n    @media(hover:hover) and (pointer:fine){.hero-orbit:hover{filter:brightness(1.08) saturate(1.12)}}\n</style></head>
+  .side-link .nav-icon,.dock .nav-icon{display:grid;place-items:center;width:18px;height:18px;flex:0 0 auto}.side-link .nav-icon svg,.dock .nav-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.side-link{gap:11px}
+@keyframes orbital-turn{to{transform:rotate(360deg)}}
+    @keyframes orbital-counter{to{transform:rotate(-360deg)}}
+    @media(hover:hover) and (pointer:fine){.hero-orbit:hover{filter:brightness(1.08) saturate(1.12)}}
+</style></head>
 <body id="top"><div class="app-shell">
 <aside class="sidebar liquid-glass reveal"><a class="brand" href="index.html"><span class="brand-mark">c.</span><span>coolanas</span></a>
 <div class="side-caption">Workspace</div><nav class="side-nav" aria-label="Workspace">
