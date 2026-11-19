@@ -841,3 +841,12 @@ img, svg, picture, .hero-orbit, .orbit-core,
   background: rgba(255,255,255,.96) !important;
   backdrop-filter: none !important;
 }
+
+/* Remove remaining pseudo-element ornaments and force neutral surfaces. */
+*::before, *::after { content: none !important; }
+* { background-color: #fff !important; border-color: #000 !important; }
+button:hover, a:hover, .side-link[aria-current="page"],
+.dock a[aria-current="page"], .settings-menu a.active {
+  background-color: #eee !important;
+}
+.brand::after, .wordmark::after { content: "coolanas" !important; }
