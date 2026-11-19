@@ -1,17 +1,6 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.119.0";
-
 const SUPABASE_URL = "https://nacwftrsdpglzrhasmit.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
 const OWNER_USER_ID = "bfc1c21b-11a1-4020-9a2f-2846dd4069bf";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    experimental: { passkey: true }
-  }
-});
 
 const passkeyButton = document.getElementById("passkey-login");
 const passkeyStatus = document.getElementById("passkey-status");
@@ -26,6 +15,8 @@ function setStatus(node, message, kind = "") {
   node.dataset.kind = kind;
 }
 
+let supabase = null;
+
 showPinButton.addEventListener("click", () => {
   pinForm.hidden = !pinForm.hidden;
   showPinButton.textContent = pinForm.hidden ? "Use PIN instead" : "Hide PIN login";
@@ -33,6 +24,15 @@ showPinButton.addEventListener("click", () => {
 });
 
 passkeyButton.addEventListener("click", async () => {
+  if (!supabase) {
+    setStatus(passkeyStatus, "Passkey service is still loading. Refresh the page and try again.", "error");
+    return;
+  }
+  if (!window.isSecureContext || !navigator.credentials || !window.PublicKeyCredential) {
+    setStatus(passkeyStatus, "This browser does not support passkey sign-in on this page.", "error");
+    return;
+  }
+
   passkeyButton.disabled = true;
   setStatus(passkeyStatus, "Waiting for your device's passkey prompt…");
   try {
@@ -59,7 +59,14 @@ pinForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   setStatus(pinError, "");
   const pin = pinField.value.trim().toUpperCase();
-  if (!pin) return;
+  if (!pin) {
+    setStatus(pinError, "Enter your PIN first.", "error");
+    return;
+  }
+  if (!supabase) {
+    setStatus(pinError, "Login service is still loading. Refresh the page and try again.", "error");
+    return;
+  }
 
   pinSubmit.disabled = true;
   pinSubmit.textContent = "Checking…";
@@ -75,8 +82,8 @@ pinForm.addEventListener("submit", async (event) => {
     pinField.value = "";
     setStatus(pinError, "PIN accepted. Check your email for the one-time sign-in link.", "success");
     pinSubmit.textContent = "Email sent";
-  } catch {
-    setStatus(pinError, "Connection failed. Try again.", "error");
+  } catch (error) {
+    setStatus(pinError, error?.message || "Connection failed. Try again.", "error");
   } finally {
     if (pinSubmit.textContent !== "Email sent") {
       pinSubmit.disabled = false;
@@ -84,3 +91,24 @@ pinForm.addEventListener("submit", async (event) => {
     }
   }
 });
+
+async function initialise() {
+  setStatus(passkeyStatus, "Loading passkey sign-in…");
+  try {
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+    supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        experimental: { passkey: true }
+      }
+    });
+    setStatus(passkeyStatus, "Ready. Use your device's saved passkey.");
+  } catch (error) {
+    setStatus(passkeyStatus, "Could not load the login service: " + (error?.message || "module load failed"), "error");
+    passkeyButton.disabled = true;
+  }
+}
+
+initialise();
