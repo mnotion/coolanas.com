@@ -11,9 +11,9 @@
   <main class="pin-card">
     <h1>Welcome back</h1>
     <p>Enter your PIN to continue.</p>
-    <form id="pin-form">
+    <form id="pin-form" novalidate>
       <label for="pin">Your PIN</label>
-      <input id="pin" name="pin" type="password" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="16" required aria-describedby="pin-error" autofocus>
+      <input id="pin" name="pin" type="password" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="16" aria-describedby="pin-error" autofocus>
       <button type="submit">Continue</button>
       <div class="error" id="pin-error" role="alert" aria-live="polite"></div>
     </form>
