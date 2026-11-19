@@ -2,6 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.119.0";
 
 const SUPABASE_URL = "https://nacwftrsdpglzrhasmit.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
+const OWNER_USER_ID = "bfc1c21b-11a1-4020-9a2f-2846dd4069bf";
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
@@ -11,61 +13,74 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   }
 });
 
-const form = document.getElementById("pin-form");
-const field = document.getElementById("pin");
-const error = document.getElementById("pin-error");
-const card = document.querySelector(".pin-card");
-const submitButton = form.querySelector('button[type="submit"]');
-let feedbackTimer;
+const passkeyButton = document.getElementById("passkey-login");
+const passkeyStatus = document.getElementById("passkey-status");
+const showPinButton = document.getElementById("show-pin");
+const pinForm = document.getElementById("pin-form");
+const pinField = document.getElementById("pin");
+const pinError = document.getElementById("pin-error");
+const pinSubmit = document.getElementById("pin-submit");
 
-function showWrongPin() {
-  document.body.classList.remove("wrong-pin");
-  card.classList.remove("wrong-pin");
-  void document.body.offsetWidth;
-  document.body.classList.add("wrong-pin");
-  card.classList.add("wrong-pin");
-  clearTimeout(feedbackTimer);
-  feedbackTimer = setTimeout(() => {
-    document.body.classList.remove("wrong-pin");
-    card.classList.remove("wrong-pin");
-  }, 700);
+function setStatus(node, message, kind = "") {
+  node.textContent = message;
+  node.dataset.kind = kind;
 }
 
-form.addEventListener("submit", async (event) => {
+showPinButton.addEventListener("click", () => {
+  pinForm.hidden = !pinForm.hidden;
+  showPinButton.textContent = pinForm.hidden ? "Use PIN instead" : "Hide PIN login";
+  if (!pinForm.hidden) pinField.focus();
+});
+
+passkeyButton.addEventListener("click", async () => {
+  passkeyButton.disabled = true;
+  setStatus(passkeyStatus, "Waiting for your device's passkey prompt…");
+  try {
+    const { data, error } = await supabase.auth.signInWithPasskey();
+    if (error) {
+      setStatus(passkeyStatus, error.message || "Passkey sign-in failed.", "error");
+      return;
+    }
+    if (data.user?.id !== OWNER_USER_ID) {
+      await supabase.auth.signOut();
+      setStatus(passkeyStatus, "This passkey is not authorised for this site.", "error");
+      return;
+    }
+    sessionStorage.setItem("coolanas-pin-unlocked", "1");
+    location.replace("dashboard.html");
+  } catch (error) {
+    setStatus(passkeyStatus, error?.message || "Passkey sign-in was cancelled or failed.", "error");
+  } finally {
+    passkeyButton.disabled = false;
+  }
+});
+
+pinForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  error.textContent = "";
-  const pin = field.value.trim().toUpperCase();
+  setStatus(pinError, "");
+  const pin = pinField.value.trim().toUpperCase();
   if (!pin) return;
 
-  submitButton.disabled = true;
-  submitButton.textContent = "Checking…";
-
+  pinSubmit.disabled = true;
+  pinSubmit.textContent = "Checking…";
   try {
-    const { data, error: functionError } = await supabase.functions.invoke(
+    const { data, error } = await supabase.functions.invoke(
       "coolanas-pin-passkey-session",
       { body: { pin } }
     );
-
-    if (functionError || !data?.sent) {
-      const message = data?.error || functionError?.message || "Could not verify the PIN.";
-      error.textContent = message;
-      if (functionError?.context?.status === 401 || message === "Incorrect PIN.") {
-        field.value = "";
-        showWrongPin();
-      }
+    if (error || !data?.sent) {
+      setStatus(pinError, data?.error || error?.message || "Could not verify the PIN.", "error");
       return;
     }
-
-    field.value = "";
-    error.textContent = "PIN verified. Check your email for the one-time sign-in link.";
-    submitButton.textContent = "Email sent";
+    pinField.value = "";
+    setStatus(pinError, "PIN accepted. Check your email for the one-time sign-in link.", "success");
+    pinSubmit.textContent = "Email sent";
   } catch {
-    error.textContent = "Connection failed. Check your connection and try again.";
+    setStatus(pinError, "Connection failed. Try again.", "error");
   } finally {
-    if (submitButton.textContent !== "Email sent") {
-      submitButton.disabled = false;
-      submitButton.textContent = "Continue";
-      field.focus();
+    if (pinSubmit.textContent !== "Email sent") {
+      pinSubmit.disabled = false;
+      pinSubmit.textContent = "Continue with PIN";
     }
   }
 });
