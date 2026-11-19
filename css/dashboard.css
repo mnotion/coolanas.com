@@ -850,3 +850,60 @@ button:hover, a:hover, .side-link[aria-current="page"],
   background-color: #eee !important;
 }
 .brand::after, .wordmark::after { content: "coolanas" !important; }
+
+
+/* Softer spacing and modest corner rounding for usable controls and panels. */
+.dashboard-main .sidebar,
+.dashboard-main .sidebar.liquid-glass {
+  padding: 16px !important;
+  border-radius: 12px !important;
+}
+.dashboard-main .side-link {
+  padding: 10px 13px !important;
+  border-radius: 8px !important;
+}
+.dashboard-main .home-link {
+  padding: 9px 14px !important;
+  border-radius: 8px !important;
+}
+.dock-wrap .dock {
+  padding: 8px !important;
+  border-radius: 12px !important;
+}
+.dock-wrap .dock a,
+.dock-wrap .dock-search {
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+}
+button,
+button.dock-search,
+.search-close {
+  padding: 9px 13px !important;
+  border-radius: 8px !important;
+}
+.search-dialog {
+  padding: 20px !important;
+  border-radius: 12px !important;
+}
+.search-form {
+  padding: 12px 14px !important;
+  border-radius: 8px !important;
+}
+.search-form input {
+  padding: 5px 2px !important;
+  border-radius: 6px !important;
+}
+.search-result {
+  padding: 10px 13px !important;
+  border-radius: 8px !important;
+}
+.search-close {
+  min-width: 34px;
+  min-height: 34px;
+}
+@media (max-width: 620px) {
+  .dashboard-main .sidebar { padding: 11px !important; }
+  .dock-wrap .dock a,
+  .dock-wrap .dock-search { padding: 8px 10px !important; }
+  .search-dialog { padding: 15px !important; }
+}
