@@ -635,3 +635,92 @@
 .brand{min-height:132px;padding-left:0!important}
 @media(max-width:720px){.brand-logo{width:220px;height:124px}.wordmark .brand-logo{width:220px;height:124px}}
 \n.top-actions{margin-left:auto}\n
+
+/* Monochrome reset: remove decorative effects and artwork. */
+:root {
+  color-scheme: light !important;
+  --ink: #000 !important;
+  --muted: #333 !important;
+  --paper: #fff !important;
+  --blue: #000 !important;
+  --line: #000 !important;
+}
+html, body {
+  color: #000 !important;
+  background: #fff !important;
+  background-image: none !important;
+}
+body::before, body::after,
+.liquid-glass::before, .liquid-glass::after,
+*::before, *::after {
+  background-image: none !important;
+  box-shadow: none !important;
+  animation: none !important;
+  transition: none !important;
+}
+* {
+  color: #000 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+body, main, header, footer, aside, section, article, nav,
+.panel, .hero, .sidebar, .stat-card, .settings-card,
+.settings-menu, .settings-content, .liquid-glass,
+.search-dialog, .search-form, .search-result, .dock,
+.folder, .file-row, .collection-card, .shortcut,
+.pin-card {
+  color: #000 !important;
+  background: #fff !important;
+  background-image: none !important;
+  border: 1px solid #000 !important;
+}
+a, a:hover, a:visited, button, input, select, textarea, output,
+h1, h2, h3, p, strong, small, span, label {
+  color: #000 !important;
+}
+button, input, select, textarea, .settings-button,
+.home-link, .side-link, .dock a, .dock-search {
+  background: #fff !important;
+  border: 1px solid #000 !important;
+  color: #000 !important;
+}
+button:hover, a:hover, .side-link[aria-current="page"],
+.dock a[aria-current="page"], .settings-menu a.active {
+  background: #eee !important;
+  color: #000 !important;
+}
+input, select, textarea {
+  accent-color: #000 !important;
+}
+img, svg, picture, .hero-orbit, .orbit-core,
+.brand-mark, .avatar, .stat-icon, .panel-symbol,
+.shortcut-icon, .collection-art, .collection-arrow,
+.folder-mark, .mini-dot, .eyebrow::before {
+  display: none !important;
+}
+.brand, .wordmark {
+  min-height: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 8px !important;
+}
+.brand::after, .wordmark::after {
+  content: "coolanas" !important;
+  display: inline-block !important;
+  color: #000 !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+}
+.reveal, .hover-float, .search-dialog, .liquid-glass {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+.search-scrim {
+  background: rgba(255,255,255,.96) !important;
+  backdrop-filter: none !important;
+}
