@@ -42,11 +42,12 @@ function showOwnerPanel() {
 }
 
 function readableAuthError(error) {
+  const code = String(error?.code || "").toLowerCase();
   const message = String(error?.message || "").toLowerCase();
-  if (message.includes("passkey_disabled")) {
+  if (code === "passkey_disabled" || message.includes("passkey_disabled")) {
     return "Passkey authentication is not enabled in this Supabase project yet. The project owner must enable Authentication → Passkeys and configure the relying-party domain before registration.";
   }
-  if (message.includes("too_many_passkeys") || message.includes("one-time passkey registration has already been used")) {
+  if (code === "too_many_passkeys" || message.includes("too_many_passkeys") || message.includes("one-time passkey registration has already been used")) {
     return "The one-time registration has already been used. No further passkeys can be registered.";
   }
   if (message.includes("not allowed") || message.includes("restricted to the designated owner")) {
