@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fff">
+  <title>Files · mnotion</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:#fff;color:#171717;font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .shell{width:min(920px,calc(100% - 40px));margin:0 auto;padding:34px 0 70px}
+    header{display:flex;align-items:center;gap:14px;margin-bottom:42px}
+    .back{width:38px;height:38px;display:grid;place-items:center;border:1px solid #e8e8e8;border-radius:12px;background:#fafafa;color:#333;text-decoration:none;transition:background .15s,transform .15s}
+    .back:hover{background:#eee;transform:translateX(-2px)}
+    .brand{font-size:14px;font-weight:650;letter-spacing:-.02em}
+    h1{font-size:28px;letter-spacing:-.045em;line-height:1.15;margin:0 0 7px}
+    .sub{margin:0;color:#888;font-size:13px}
+    .topline{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:24px}
+    .upload{display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:10px 15px;border:1px solid #dedede;border-radius:11px;background:#f7f7f7;color:#222;font:600 13px inherit;cursor:pointer;transition:background .15s,border-color .15s}
+    .upload:hover{background:#eee;border-color:#ccc}
+    .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+    .search{width:100%;height:42px;padding:0 13px;border:1px solid #e6e6e6;border-radius:10px;background:#fff;outline:none;font:inherit}
+    .search:focus{border-color:#aaa}
+    .count{flex:none;color:#999;font-size:12px}
+    .drop{border:1px dashed #d9d9d9;border-radius:15px;min-height:230px;display:grid;place-items:center;text-align:center;padding:28px;background:#fcfcfc;transition:background .15s,border-color .15s}
+    .drop.dragover{background:#f1f1f1;border-color:#999}
+    .empty-icon{width:38px;height:38px;color:#999;margin:0 auto 12px}
+    .empty-title{font-weight:600;margin-bottom:4px}
+    .empty-note{font-size:12px;color:#999}
+    .file-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px}
+    .file-card{display:flex;align-items:center;gap:11px;min-width:0;padding:13px;border:1px solid #ececec;border-radius:12px;background:#fff}
+    .file-icon{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:10px;background:#f3f3f3;color:#777}
+    .file-meta{min-width:0}
+    .file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:550}
+    .file-size{font-size:11px;color:#999}
+    .hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+    @media(max-width:560px){.shell{width:calc(100% - 28px);padding-top:22px}.topline{align-items:start;flex-direction:column}.upload{width:100%}h1{font-size:25px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <a class="back" href="dashboard.html" aria-label="Back to dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg>
+      </a>
+      <div class="brand">mnotion</div>
+    </header>
+    <section>
+      <div class="topline">
+        <div><h1>Files</h1><p class="sub">Your file space</p></div>
+        <label class="upload" for="picker">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          Add files
+        </label>
+        <input class="hidden" id="picker" type="file" multiple>
+      </div>
+      <div class="toolbar">
+        <input class="search" id="filter" type="search" placeholder="Search files…" autocomplete="off" aria-label="Search files">
+        <span class="count" id="count">0 files</span>
+      </div>
+      <div id="content" class="drop">
+        <div><svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg><div class="empty-title">No files yet</div><div class="empty-note">Add files or drag them into this area</div></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const picker=document.getElementById("picker");
+    const content=document.getElementById("content");
+    const filter=document.getElementById("filter");
+    const count=document.getElementById("count");
+    let files=[];
+    const formatSize=n=>n<1048576?Math.max(1,Math.round(n/1024))+" KB":(n/1048576).toFixed(1)+" MB";
+    function render(){
+      const q=filter.value.trim().toLowerCase();
+      const shown=files.filter(f=>f.name.toLowerCase().includes(q));
+      count.textContent=files.length+" "+(files.length===1?"file":"files");
+      content.className=files.length?"file-grid":"drop";
+      content.replaceChildren();
+      if(!shown.length){
+        const empty=document.createElement("div");
+        empty.className="empty-title";
+        empty.textContent=files.length?"No matching files":"No files yet";
+        const note=document.createElement("div");
+        note.className="empty-note";
+        note.textContent=files.length?"Try a different search":"Add files or drag them into this area";
+        const wrap=document.createElement("div");
+        wrap.append(empty,note);content.append(wrap);return;
+      }
+      shown.forEach(file=>{
+        const card=document.createElement("article");card.className="file-card";
+        const icon=document.createElement("div");icon.className="file-icon";
+        icon.innerHTML='<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h8l4 4V20H6z"/><path d="M14 3.5V8h4M9 13h6M9 16h6"/></svg>';
+        const meta=document.createElement("div");meta.className="file-meta";
+        const name=document.createElement("div");name.className="file-name";name.textContent=file.name;
+        const size=document.createElement("div");size.className="file-size";size.textContent=formatSize(file.size);
+        meta.append(name,size);card.append(icon,meta);content.append(card);
+      });
+    }
+    picker.addEventListener("change",()=>{files.push(...Array.from(picker.files||[]));picker.value="";render();});
+    filter.addEventListener("input",render);
+    ["dragenter","dragover"].forEach(type=>content.addEventListener(type,e=>{e.preventDefault();content.classList.add("dragover");}));
+    ["dragleave","drop"].forEach(type=>content.addEventListener(type,e=>{e.preventDefault();content.classList.remove("dragover");}));
+    content.addEventListener("drop",e=>{files.push(...Array.from(e.dataTransfer.files||[]));render();});
+  </script>
+</body>
+</html>
