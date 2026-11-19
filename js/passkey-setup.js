@@ -8,7 +8,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
     experimental: { passkey: true }
   }
 });
@@ -26,7 +26,6 @@ async function initialise() {
     location.replace("index.html");
     return;
   }
-
   if (!window.isSecureContext || !("PublicKeyCredential" in window)) {
     registerButton.disabled = true;
     setStatus("Passkeys require HTTPS and a browser with WebAuthn support.", "error");
@@ -44,38 +43,35 @@ async function initialise() {
   const { data: credentials, error: listError } = await supabase.auth.passkey.list();
   if (listError) {
     registerButton.disabled = true;
-    setStatus("Could not check the passkey status. " + listError.message, "error");
+    setStatus("Could not check passkey status. " + listError.message, "error");
     return;
   }
-
   if (Array.isArray(credentials) && credentials.length > 0) {
     registerButton.hidden = true;
-    setStatus("A passkey is already registered. The one-time registration is closed.", "success");
+    setStatus("A passkey is already registered. One-time registration is closed.", "success");
     return;
   }
 
-  setStatus("PIN verified. Select the button to register your device passkey.");
+  setStatus("Email verified. Select the button to register your device passkey.");
   registerButton.disabled = false;
 }
 
 registerButton.addEventListener("click", async () => {
   registerButton.disabled = true;
   setStatus("Waiting for your device's passkey prompt…");
-
   try {
-    const { data, error } = await supabase.auth.registerPasskey();
+    const { error } = await supabase.auth.registerPasskey();
     if (error) {
       setStatus(error.message || "Passkey registration failed.", "error");
       registerButton.disabled = false;
       return;
     }
-
-    setStatus("Passkey successfully registered with Supabase. The one-time registration is now closed.", "success");
+    setStatus("Passkey successfully registered with Supabase. One-time registration is now closed.", "success");
     registerButton.hidden = true;
     sessionStorage.removeItem("coolanas-pin-unlocked");
     await supabase.auth.signOut();
   } catch {
-    setStatus("Registration was cancelled or could not be completed. The registration slot remains available.", "error");
+    setStatus("Registration was cancelled or could not be completed. The one-time registration slot remains available.", "error");
     registerButton.disabled = false;
   }
 });
