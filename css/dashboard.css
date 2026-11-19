@@ -907,3 +907,99 @@ button.dock-search,
   .dock-wrap .dock-search { padding: 8px 10px !important; }
   .search-dialog { padding: 15px !important; }
 }
+
+
+/* Architectural framing: consistent structure around every dashboard control and content box. */
+.dashboard-main button,
+.dashboard-main [role="button"],
+.dashboard-main input,
+.dashboard-main select,
+.dashboard-main textarea,
+.dashboard-main .home-link,
+.dashboard-main .side-link,
+.dock-wrap .dock,
+.dock-wrap .dock a,
+.dock-wrap .dock-search,
+.search-dialog,
+.search-form,
+.search-result,
+.sidebar,
+.dashboard-main .hero,
+.dashboard-main .panel,
+.dashboard-main .stat-card,
+.dashboard-main .collection-card,
+.dashboard-main .folder,
+.dashboard-main .file-row,
+.dashboard-main .placeholder-tile,
+.dashboard-main .mini-row,
+.dashboard-main .liquid-glass {
+  border: 1px solid #000 !important;
+  border-radius: 9px !important;
+  outline: 1px solid #000 !important;
+  outline-offset: 3px !important;
+  box-shadow: inset 0 0 0 2px #fff !important;
+}
+.dashboard-main button,
+.dashboard-main [role="button"],
+.dashboard-main .home-link,
+.dashboard-main .side-link,
+.dock-wrap .dock a,
+.dock-wrap .dock-search {
+  min-height: 40px;
+  padding: 10px 15px !important;
+}
+.dashboard-main input,
+.dashboard-main select,
+.dashboard-main textarea,
+.search-form {
+  padding: 11px 14px !important;
+}
+.dashboard-main .panel,
+.dashboard-main .stat-card,
+.dashboard-main .collection-card,
+.dashboard-main .folder,
+.dashboard-main .file-row,
+.dashboard-main .placeholder-tile,
+.dashboard-main .mini-row,
+.search-dialog {
+  padding: 18px !important;
+}
+.dashboard-main .side-nav {
+  gap: 9px !important;
+}
+.dashboard-main .stats-grid,
+.dashboard-main .collection-grid,
+.dashboard-main .two-col,
+.dashboard-main .bottom-grid,
+.dashboard-main .folder-explorer,
+.dashboard-main .placeholder-grid {
+  gap: 18px !important;
+}
+.dashboard-main a:focus-visible,
+.dashboard-main button:focus-visible,
+.dashboard-main input:focus-visible,
+.dashboard-main select:focus-visible,
+.dashboard-main textarea:focus-visible {
+  outline: 2px solid #000 !important;
+  outline-offset: 5px !important;
+}
+@media (max-width: 620px) {
+  .dashboard-main .panel,
+  .dashboard-main .stat-card,
+  .dashboard-main .collection-card,
+  .dashboard-main .folder,
+  .dashboard-main .file-row,
+  .dashboard-main .placeholder-tile,
+  .dashboard-main .mini-row,
+  .search-dialog {
+    padding: 14px !important;
+  }
+  .dashboard-main .stats-grid,
+  .dashboard-main .collection-grid,
+  .dashboard-main .two-col,
+  .dashboard-main .bottom-grid,
+  .dashboard-main .folder-explorer,
+  .dashboard-main .placeholder-grid {
+    gap: 14px !important;
+  }
+}
