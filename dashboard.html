@@ -154,7 +154,13 @@
     }
 
     Object.entries(toggles).forEach(([name, button]) => {
-      button.addEventListener("click", () => togglePanel(name));
+      button.addEventListener("click", () => {
+        if (name === "files") {
+          window.location.href = "files.html";
+          return;
+        }
+        togglePanel(name);
+      });
       button.addEventListener("pointermove", event => {
         if (event.pointerType !== "mouse") return;
         const rect = button.getBoundingClientRect();
