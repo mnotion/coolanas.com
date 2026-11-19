@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>mnotion — Verify email</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { min-height:100vh; margin:0; padding:24px; display:grid; place-items:center; background:#fff; color:#111; font:15px/1.5 Inter,ui-sans-serif,system-ui,sans-serif; }
+    main { width:min(480px,100%); padding:34px; border-radius:16px; background:#fff; box-shadow:0 14px 38px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.05); }
+    h1 { margin:0 0 12px; font-size:28px; letter-spacing:-.04em; }
+    p { color:#555; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Verifying your email</h1>
+    <p id="status" role="status" aria-live="polite">Please wait…</p>
+  </main>
+  <script type="module" src="js/auth-callback.js"></script>
+</body>
+</html>
