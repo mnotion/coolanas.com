@@ -16,6 +16,7 @@
       background: #fff;
       color: #000;
       font: 15px/1.5 Arial, Helvetica, sans-serif;
+      transition: background-color .18s ease, color .18s ease;
     }
     .pin-card {
       width: min(460px, 100%);
@@ -24,6 +25,7 @@
       border: 0;
       border-radius: 14px;
       box-shadow: 0 14px 36px rgba(0,0,0,.13), 0 3px 10px rgba(0,0,0,.07);
+      transition: background-color .18s ease, box-shadow .18s ease, color .18s ease;
     }
     .pin-card h1 {
       margin: 0 0 8px;
@@ -66,6 +68,47 @@
     }
     button:hover { background: #292929; }
     .error { min-height: 18px; margin: 10px 2px 0; color: #000; font-size: 12px; }
+
+    /* Wrong PIN feedback: a brief shake and pale-red inverted palette. */
+    body.wrong-pin {
+      background: #f8dada;
+      color: #650909;
+      animation: screen-shake .62s ease-in-out;
+    }
+    body.wrong-pin .pin-card {
+      background: #fff0f0;
+      color: #650909;
+      box-shadow: 0 14px 36px rgba(125,0,0,.2), 0 0 0 2px #d98b8b;
+      animation: card-shake .62s cubic-bezier(.36,.07,.19,.97);
+    }
+    body.wrong-pin .pin-card h1,
+    body.wrong-pin .pin-prompt,
+    body.wrong-pin label,
+    body.wrong-pin .error { color: #650909; }
+    body.wrong-pin input {
+      background: #ffe1e1;
+      color: #650909;
+      border-color: #9f3434;
+      box-shadow: inset 0 0 0 1px rgba(159,52,52,.12);
+    }
+    body.wrong-pin button {
+      background: #650909;
+      border-color: #650909;
+      color: #fff;
+    }
+    @keyframes screen-shake {
+      0%, 100% { transform: translate(0,0); }
+      15%, 45%, 75% { transform: translate(-5px,2px); }
+      30%, 60%, 90% { transform: translate(5px,-2px); }
+    }
+    @keyframes card-shake {
+      0%, 100% { transform: translateX(0) rotate(0); }
+      15%, 45%, 75% { transform: translateX(-9px) rotate(-.6deg); }
+      30%, 60%, 90% { transform: translateX(9px) rotate(.6deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body.wrong-pin, body.wrong-pin .pin-card { animation: none; }
+    }
     @media (max-width: 480px) { .pin-card { padding: 28px; } }
   </style>
 </head>
