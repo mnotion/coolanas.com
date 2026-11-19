@@ -46,7 +46,7 @@ form.addEventListener("submit", async (event) => {
       { body: { pin } }
     );
 
-    if (functionError || !data?.token_hash) {
+    if (functionError || !data?.sent) {
       const message = data?.error || functionError?.message || "Could not verify the PIN.";
       error.textContent = message;
       if (functionError?.context?.status === 401 || message === "Incorrect PIN.") {
@@ -56,23 +56,16 @@ form.addEventListener("submit", async (event) => {
       return;
     }
 
-    const { error: sessionError } = await supabase.auth.verifyOtp({
-      token_hash: data.token_hash,
-      type: "magiclink"
-    });
-
-    if (sessionError) {
-      error.textContent = "The secure session could not be started. Try again.";
-      return;
-    }
-
-    sessionStorage.setItem("coolanas-pin-unlocked", "1");
-    location.href = "dashboard.html";
+    field.value = "";
+    error.textContent = "PIN verified. Check your email for the one-time sign-in link.";
+    submitButton.textContent = "Email sent";
   } catch {
     error.textContent = "Connection failed. Check your connection and try again.";
   } finally {
-    submitButton.disabled = false;
-    submitButton.textContent = "Continue";
-    field.focus();
+    if (submitButton.textContent !== "Email sent") {
+      submitButton.disabled = false;
+      submitButton.textContent = "Continue";
+      field.focus();
+    }
   }
 });
