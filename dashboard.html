@@ -19,62 +19,80 @@
       backdrop-filter:blur(18px) saturate(150%); -webkit-backdrop-filter:blur(18px) saturate(150%);
     }
     .nav-button {
-      display:flex; align-items:center; justify-content:center;
-      min-height:58px; border:1px solid rgba(0,0,0,.055); border-radius:14px;
+      display:flex; align-items:center; justify-content:center; min-height:58px;
+      border:1px solid rgba(0,0,0,.055); border-radius:14px;
       background:rgba(255,255,255,.48); color:#222; cursor:pointer;
       box-shadow:0 2px 8px rgba(0,0,0,.025), inset 0 1px 0 rgba(255,255,255,.8);
       transition:transform .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
       -webkit-tap-highlight-color:transparent;
     }
-    .nav-button:hover {
-      transform:translateY(-3px);
-      background:rgba(255,255,255,.94);
-      border-color:rgba(0,0,0,.12);
-      box-shadow:0 7px 16px rgba(0,0,0,.09), inset 0 1px 0 #fff;
-    }
+    .nav-button:hover { transform:translateY(-3px); background:rgba(255,255,255,.94); border-color:rgba(0,0,0,.12); box-shadow:0 7px 16px rgba(0,0,0,.09), inset 0 1px 0 #fff; }
     .nav-button:active { transform:translateY(-1px) scale(.98); }
     .nav-button[aria-expanded="true"] { background:rgba(245,245,245,.94); border-color:rgba(0,0,0,.13); }
     .nav-button svg { width:22px; height:22px; }
     .panel {
       position:fixed; z-index:9; left:50%; bottom:112px; transform:translateX(-50%);
-      width:min(420px,calc(100% - 32px)); padding:18px;
+      width:min(420px,calc(100% - 32px)); max-height:min(60vh,520px); overflow:auto; padding:18px;
       border:1px solid rgba(255,255,255,.9); border-radius:18px;
-      background:rgba(255,255,255,.82); backdrop-filter:blur(18px) saturate(150%);
+      background:rgba(255,255,255,.86); backdrop-filter:blur(18px) saturate(150%);
       -webkit-backdrop-filter:blur(18px) saturate(150%);
       box-shadow:0 10px 34px rgba(0,0,0,.11), inset 0 1px 0 #fff;
     }
     .panel[hidden] { display:none; }
+    .panel-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+    .panel-heading h2 { margin:0; font-size:16px; font-weight:700; }
+    .close-button { width:32px; height:32px; border:0; border-radius:9px; background:rgba(0,0,0,.05); cursor:pointer; font-size:20px; line-height:1; }
     .search-input {
       width:100%; height:48px; padding:0 14px; border:1px solid #d5d5d5;
       border-radius:10px; outline:none; font:inherit; background:rgba(255,255,255,.8);
     }
     .search-input:focus { border-color:#111; }
     .menu-list { display:grid; gap:4px; }
-    .menu-item {
-      display:block; width:100%; padding:12px; border:0; border-radius:9px;
-      background:transparent; color:#111; text-align:left; font:500 14px/1.3 inherit;
-      cursor:pointer;
-    }
+    .menu-item { display:block; width:100%; padding:12px; border:0; border-radius:9px; background:transparent; color:#111; text-align:left; font:500 14px/1.3 Inter,ui-sans-serif,system-ui,sans-serif; cursor:pointer; }
     .menu-item:hover { background:rgba(0,0,0,.05); }
-    @media (max-width:480px) {
-      main { padding:16px 16px 104px; }
-      .bottom-nav { bottom:12px; }
-      .panel { bottom:100px; }
+    .upload-button {
+      display:flex; width:100%; min-height:44px; align-items:center; justify-content:center; gap:8px;
+      border:1px solid rgba(0,0,0,.12); border-radius:10px; background:rgba(255,255,255,.8);
+      color:#111; font:600 13px Inter,ui-sans-serif,system-ui,sans-serif; cursor:pointer;
     }
-    @media (prefers-reduced-motion:reduce) {
-      .nav-button { transition:none; }
-      .nav-button:hover,.nav-button:active { transform:none; }
-    }
+    .upload-button:hover { background:#fff; }
+    .empty-state { padding:22px 12px 18px; text-align:center; color:#666; font-size:13px; }
+    .empty-state svg { width:30px; height:30px; margin-bottom:8px; color:#888; }
+    .file-list { display:grid; gap:7px; margin-top:12px; }
+    .file-row { display:flex; align-items:center; gap:10px; padding:10px; border:1px solid rgba(0,0,0,.07); border-radius:10px; background:rgba(255,255,255,.7); }
+    .file-row svg { width:19px; height:19px; flex:none; color:#666; }
+    .file-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+    .file-size { margin-left:auto; flex:none; color:#888; font-size:11px; }
+    .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width:480px) { main { padding:16px 16px 104px; } .bottom-nav { bottom:12px; } .panel { bottom:100px; } }
+    @media (prefers-reduced-motion:reduce) { .nav-button { transition:none; } .nav-button:hover,.nav-button:active { transform:none; } }
   </style>
 </head>
 <body>
   <main aria-label="Dashboard"></main>
 
   <section class="panel" id="search-panel" aria-label="Search" hidden>
+    <div class="panel-heading"><h2>Search</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
     <input class="search-input" id="search-input" type="search" placeholder="Search…" autocomplete="off">
   </section>
 
+  <section class="panel" id="files-panel" aria-label="Files" hidden>
+    <div class="panel-heading"><h2>Files</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
+    <label class="upload-button" for="file-picker">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+      Add files
+    </label>
+    <input class="visually-hidden" id="file-picker" type="file" multiple>
+    <div class="empty-state" id="files-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg>
+      <div>No files selected</div>
+      <div>Choose files to see them listed here.</div>
+    </div>
+    <div class="file-list" id="file-list" aria-live="polite"></div>
+  </section>
+
   <section class="panel" id="menu-panel" aria-label="Menu" hidden>
+    <div class="panel-heading"><h2>Menu</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
     <nav class="menu-list">
       <button class="menu-item" type="button">Home</button>
       <button class="menu-item" type="button">Settings</button>
@@ -85,7 +103,7 @@
     <button class="nav-button" id="search-toggle" type="button" aria-label="Search" aria-expanded="false" aria-controls="search-panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
     </button>
-    <button class="nav-button" id="files-toggle" type="button" aria-label="Files">
+    <button class="nav-button" id="files-toggle" type="button" aria-label="Files" aria-expanded="false" aria-controls="files-panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"></path><path d="M3.5 10h17"></path></svg>
     </button>
     <button class="nav-button" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-panel">
@@ -94,42 +112,71 @@
   </nav>
 
   <script>
-    const searchToggle = document.getElementById("search-toggle");
-    const filesToggle = document.getElementById("files-toggle");
-    const menuToggle = document.getElementById("menu-toggle");
-    const searchPanel = document.getElementById("search-panel");
-    const menuPanel = document.getElementById("menu-panel");
+    const toggles = {
+      search: document.getElementById("search-toggle"),
+      files: document.getElementById("files-toggle"),
+      menu: document.getElementById("menu-toggle")
+    };
+    const panels = {
+      search: document.getElementById("search-panel"),
+      files: document.getElementById("files-panel"),
+      menu: document.getElementById("menu-panel")
+    };
     const searchInput = document.getElementById("search-input");
+    const filePicker = document.getElementById("file-picker");
+    const fileList = document.getElementById("file-list");
+    const filesEmpty = document.getElementById("files-empty");
 
     function closePanels() {
-      searchPanel.hidden = true;
-      menuPanel.hidden = true;
-      searchToggle.setAttribute("aria-expanded", "false");
-      menuToggle.setAttribute("aria-expanded", "false");
+      Object.entries(panels).forEach(([name, panel]) => {
+        panel.hidden = true;
+        toggles[name].setAttribute("aria-expanded", "false");
+      });
     }
 
-    searchToggle.addEventListener("click", () => {
-      const opening = searchPanel.hidden;
+    function togglePanel(name) {
+      const opening = panels[name].hidden;
       closePanels();
       if (opening) {
-        searchPanel.hidden = false;
-        searchToggle.setAttribute("aria-expanded", "true");
-        searchInput.focus();
+        panels[name].hidden = false;
+        toggles[name].setAttribute("aria-expanded", "true");
+        if (name === "search") searchInput.focus();
       }
+    }
+
+    Object.entries(toggles).forEach(([name, button]) => {
+      button.addEventListener("click", () => togglePanel(name));
     });
 
-    filesToggle.addEventListener("click", () => {
-      closePanels();
-      // Files panel will be implemented when its contents are defined.
+    document.querySelectorAll("[data-close]").forEach(button => {
+      button.addEventListener("click", closePanels);
     });
 
-    menuToggle.addEventListener("click", () => {
-      const opening = menuPanel.hidden;
-      closePanels();
-      if (opening) {
-        menuPanel.hidden = false;
-        menuToggle.setAttribute("aria-expanded", "true");
-      }
+    filePicker.addEventListener("change", () => {
+      const files = Array.from(filePicker.files || []);
+      fileList.replaceChildren();
+      filesEmpty.hidden = files.length > 0;
+
+      files.forEach(file => {
+        const row = document.createElement("div");
+        row.className = "file-row";
+        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        icon.setAttribute("viewBox", "0 0 24 24");
+        icon.setAttribute("fill", "none");
+        icon.setAttribute("stroke", "currentColor");
+        icon.setAttribute("stroke-width", "1.7");
+        icon.innerHTML = '<path d="M6 3.5h8l4 4V20H6z"/><path d="M14 3.5V8h4M9 13h6M9 16h6"/>';
+        const name = document.createElement("span");
+        name.className = "file-name";
+        name.textContent = file.name;
+        const size = document.createElement("span");
+        size.className = "file-size";
+        size.textContent = file.size < 1048576
+          ? Math.max(1, Math.round(file.size / 1024)) + " KB"
+          : (file.size / 1048576).toFixed(1) + " MB";
+        row.append(icon, name, size);
+        fileList.append(row);
+      });
     });
 
     document.addEventListener("keydown", event => {
