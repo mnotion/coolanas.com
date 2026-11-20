@@ -338,6 +338,7 @@ function resetCardMotion(){
 function updateSelectionUi(){
   document.body.classList.toggle("has-selection",selectedIds.size>0);
   document.body.classList.toggle("selection-mode",selectionMode);
+  list.querySelectorAll(".file-card").forEach(card=>{card.draggable=!selectionMode;});
   selectModeToggle.textContent=selectionMode?"Done":"Select";
   selectModeToggle.setAttribute("aria-pressed",String(selectionMode));
   bulkDeleteButton.hidden=selectedIds.size===0;
@@ -346,7 +347,9 @@ function updateSelectionUi(){
   selectionCounter.textContent=selectedIds.size+" selected";
   list.querySelectorAll(".file-card").forEach(card=>card.classList.toggle("is-selected",selectedIds.has(card.dataset.id)));
   if(selectedIds.size){
-    showStatus(selectedIds.size+" selected · Drag onto a folder to move · Esc to clear",true);
+    showStatus(selectionMode?selectedIds.size+" selected · Tap more items or Done":selectedIds.size+" selected · Drag onto a folder to move · Esc to clear",true);
+  }else if(selectionMode){
+    showStatus("Tap files and folders to select them. Tap Done when finished.",true);
   }else if(!uploadOverlay.hidden){
     return;
   }else{
@@ -391,7 +394,7 @@ function renderItems(){
     const card=document.createElement("div");
     card.className="file-card";
     card.tabIndex=0;
-    card.draggable=true;
+    card.draggable=!selectionMode;
     card.dataset.id=item.id;
     card.dataset.type=item.item_type;
     card.setAttribute("role","listitem");
