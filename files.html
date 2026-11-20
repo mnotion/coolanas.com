@@ -85,10 +85,8 @@
     .confirm-overlay{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
     .confirm-overlay[hidden]{display:none}
     .confirm-panel{width:min(420px,100%);padding:22px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;box-shadow:0 20px 65px rgba(0,0,0,.2)}
-    .card-settings-panel{width:min(440px,100%);padding:24px;transform-origin:var(--settings-origin-x,50%) var(--settings-origin-y,50%);animation:settings-pop .48s cubic-bezier(.18,.82,.22,1) both}
-    @keyframes settings-pop{0%{transform:scale(.035);opacity:.25;border-radius:50%;filter:blur(2px)}65%{transform:scale(1.025);opacity:1;border-radius:18px;filter:blur(0)}100%{transform:scale(1);opacity:1;border-radius:16px}}
-    #card-settings-overlay{background:rgba(0,0,0,.28);animation:settings-backdrop-in .28s ease both}
-    @keyframes settings-backdrop-in{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,.28)}}
+    .card-settings-panel{width:min(440px,100%);padding:24px}
+    #card-settings-overlay{background:rgba(0,0,0,.28)}
     .settings-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
     .settings-header h2{margin:0;font-size:19px;font-weight:650;color:#171717}
     .settings-subtitle{margin:5px 0 0;color:#858585;font-size:12px}
@@ -349,19 +347,7 @@
     function openCardSettings(item,sourceButton){
       settingsItemId=item.id;
       const overlay=document.getElementById("card-settings-overlay");
-      const panel=overlay.querySelector(".card-settings-panel");
-      const sourceRect=sourceButton?.getBoundingClientRect();
-      if(sourceRect){
-        const panelRect=panel.getBoundingClientRect();
-        panel.style.setProperty("--settings-origin-x",(sourceRect.left+sourceRect.width/2-panelRect.left)+"px");
-        panel.style.setProperty("--settings-origin-y",(sourceRect.top+sourceRect.height/2-panelRect.top)+"px");
-      }else{
-        panel.style.setProperty("--settings-origin-x","50%");
-        panel.style.setProperty("--settings-origin-y","50%");
-      }
-      panel.style.animation="none";
-      void panel.offsetWidth;
-      panel.style.animation="";
+
       const tagInput=document.getElementById("card-tag-input");
       tagInput.value=item.tag||"";
       document.getElementById("folder-color-section").hidden=item.type!=="folder";
