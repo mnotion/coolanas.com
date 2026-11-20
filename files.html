@@ -193,16 +193,58 @@
       if(file)storeBlob(id,file);
       saveItems();renderItems();
     }
+    const previewLibraries={};
+    function loadPreviewLibrary(name,url){
+      if(previewLibraries[name])return previewLibraries[name];
+      previewLibraries[name]=new Promise((resolve,reject)=>{
+        const script=document.createElement("script");script.src=url;script.async=true;
+        script.onload=()=>resolve();
+        script.onerror=()=>{delete previewLibraries[name];reject(new Error("Could not load preview library."));};
+        document.head.append(script);
+      });
+      return previewLibraries[name];
+    }
+    function showPreviewMessage(message){viewerContent.textContent=message;}
+    async function previewWord(file){
+      await loadPreviewLibrary("mammoth","https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.9.0/mammoth.browser.min.js");
+      const result=await window.mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});
+      showPreviewMessage(result.value||"No readable text was found in this document.");
+    }
+    async function previewSpreadsheet(file){
+      await loadPreviewLibrary("xlsx","https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+      const workbook=XLSX.read(await file.arrayBuffer(),{type:"array"}),output=[];
+      for(const name of workbook.SheetNames){output.push("SHEET: "+name,"",XLSX.utils.sheet_to_csv(workbook.Sheets[name]),"");}
+      showPreviewMessage(output.join("\n")||"No readable spreadsheet data was found.");
+    }
+    async function previewPresentation(file){
+      await loadPreviewLibrary("jszip","https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
+      const zip=await JSZip.loadAsync(await file.arrayBuffer());
+      const slides=Object.keys(zip.files).filter(name=>/^ppt\/slides\/slide\d+\.xml$/.test(name)).sort((a,b)=>Number(a.match(/slide(\d+)/)[1])-Number(b.match(/slide(\d+)/)[1]));
+      const output=[];
+      for(let i=0;i<slides.length;i++){
+        const xml=await zip.files[slides[i]].async("text"),doc=new DOMParser().parseFromString(xml,"application/xml");
+        const paragraphs=[...doc.getElementsByTagName("a:p")].map(p=>[...p.getElementsByTagName("a:t")].map(t=>t.textContent).join("")).filter(Boolean);
+        output.push("SLIDE "+(i+1),paragraphs.join("\n"),"");
+      }
+      showPreviewMessage(output.join("\n")||"No readable slide text was found.");
+    }
     async function openFile(item){
-      viewer.hidden=false;viewerTitle.textContent=item.name;viewerContent.textContent="Loading preview…";
+      viewer.hidden=false;viewerTitle.textContent=item.name;showPreviewMessage("Loading preview…");
       const file=await loadBlob(item.id);
-      if(!file){viewerContent.textContent="This item has no stored file contents. Upload the file again to preview it.";return;}
+      if(!file){showPreviewMessage("This item has no stored file contents. Upload the file again to preview it.");return;}
       viewerContent.replaceChildren();
-      const url=URL.createObjectURL(file);
-      if(file.type.startsWith("image/")){const img=document.createElement("img");img.src=url;viewerContent.append(img);}
-      else if(file.type==="application/pdf"){const frame=document.createElement("iframe");frame.src=url;viewerContent.append(frame);}
-      else if(file.type.startsWith("text/")||/\.(txt|md|json|js|css|html|xml|csv|log)$/i.test(item.name)){viewerContent.textContent=await file.text();}
-      else{viewerContent.textContent="Preview is unavailable for this file type. The file is stored in this browser.";}
+      const url=URL.createObjectURL(file),extension=item.name.split(".").pop().toLowerCase();
+      try{
+        if(file.type.startsWith("image/")){const img=document.createElement("img");img.src=url;img.alt=item.name;viewerContent.append(img);}
+        else if(file.type==="application/pdf"||extension==="pdf"){const frame=document.createElement("iframe");frame.src=url;frame.title=item.name;viewerContent.append(frame);}
+        else if(file.type.startsWith("video/")||["mp4","webm","mov","m4v"].includes(extension)){const video=document.createElement("video");video.src=url;video.controls=true;video.style.cssText="display:block;width:100%;max-height:100%;";viewerContent.append(video);}
+        else if(file.type.startsWith("audio/")||["mp3","wav","ogg","m4a","aac","flac"].includes(extension)){const audio=document.createElement("audio");audio.src=url;audio.controls=true;audio.style.cssText="display:block;width:100%;";viewerContent.append(audio);}
+        else if(file.type.startsWith("text/")||/\.(txt|md|json|js|css|html|xml|csv|log|yaml|yml)$/i.test(item.name)){showPreviewMessage(await file.text());}
+        else if(extension==="docx"){showPreviewMessage("Extracting document text…");await previewWord(file);}
+        else if(["xlsx","xls"].includes(extension)){showPreviewMessage("Reading spreadsheet…");await previewSpreadsheet(file);}
+        else if(extension==="pptx"){showPreviewMessage("Extracting slide text…");await previewPresentation(file);}
+        else{showPreviewMessage("Preview is not supported for this file type yet. The file is stored in this browser.");}
+      }catch(error){console.error("File preview failed:",error);showPreviewMessage("Could not read this file. It may be damaged, password-protected, or in an unsupported format.");}
     }
     function closeViewer(){viewer.hidden=true;viewerContent.replaceChildren();}
     document.getElementById("viewer-close").addEventListener("click",closeViewer);
