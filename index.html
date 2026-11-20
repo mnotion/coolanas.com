@@ -171,7 +171,10 @@
         const { error } = await client.auth.signInWithOAuth({
           provider: "google",
           options: {
-            redirectTo: "https://coolanas.com/dashboard.html"
+            redirectTo: "https://coolanas.com/dashboard.html",
+            queryParams: {
+              prompt: "select_account"
+            }
           }
         });
         if (error) throw error;
