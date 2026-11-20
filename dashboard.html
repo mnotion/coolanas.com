@@ -115,9 +115,10 @@
     const accountStatus=document.getElementById("account-status");
     const passkeyStatus=document.getElementById("passkey-status");
     const setupButton=document.getElementById("setup-passkey");
+    const isAuthCallback=new URLSearchParams(location.search).has("code")||location.hash.includes("access_token=");
     const {data:{session},error}=await supabase.auth.getSession();
     if(error||!session){location.replace("index.html");}
-    else if(new URLSearchParams(location.search).has("code")||location.hash.includes("access_token=")){
+    else if(isAuthCallback){
       location.replace("files.html");
     }
     else{
