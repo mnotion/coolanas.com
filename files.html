@@ -26,6 +26,12 @@
     .file-card:focus-visible{outline:2px solid #aaa;outline-offset:3px}
     .file-card.is-pointer-near{box-shadow:0 4px 14px rgba(0,0,0,.085)}
     .file-card.is-selected{background:#eaf2ff;outline:2px solid #4b91f1;outline-offset:-2px;box-shadow:0 3px 12px rgba(59,130,246,.16)}
+    .file-card,.file-card *{-webkit-user-select:none;user-select:none}
+    .file-card.is-selected{z-index:9}
+    .file-card.is-selected .delete-dot{display:none}
+    body.has-selection::after{content:"";position:fixed;inset:0;z-index:8;background:rgba(20,24,32,.18);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);pointer-events:none}
+    .bottom-nav{z-index:10}
+
     .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #3985ed;background:rgba(59,130,246,.16);border-radius:2px}
 
     .file-card{position:relative}
@@ -519,6 +525,7 @@
     let marqueeStart=null,marqueeActive=false,marqueeJustFinished=false;
     function updateCardSelection(){
       list.querySelectorAll(".file-card").forEach(card=>card.classList.toggle("is-selected",selectedCardIds.has(card.dataset.id)));
+      document.body.classList.toggle("has-selection",selectedCardIds.size>0);
     }
     function clearCardSelection(){selectedCardIds.clear();updateCardSelection();}
     function toggleCardSelection(id){
@@ -527,6 +534,7 @@
     }
     list.addEventListener("pointerdown",event=>{
       if(event.button!==0||event.target.closest(".file-card")||event.target.closest(".add-wrap"))return;
+      event.preventDefault();
       marqueeStart={x:event.clientX,y:event.clientY};
       marqueeActive=false;
       if(!event.ctrlKey&&!event.metaKey)clearCardSelection();
