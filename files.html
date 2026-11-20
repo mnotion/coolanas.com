@@ -85,12 +85,28 @@
     .confirm-overlay{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
     .confirm-overlay[hidden]{display:none}
     .confirm-panel{width:min(420px,100%);padding:22px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;box-shadow:0 20px 65px rgba(0,0,0,.2)}
-    .card-settings-panel{width:min(380px,100%)}
-    .settings-label{display:block;margin:15px 0 8px;color:#555;font-size:12px;font-weight:600}
-    .color-options{display:flex;gap:10px;flex-wrap:wrap}
-    .color-choice{width:28px;height:28px;border:2px solid #fff;border-radius:50%;background:var(--swatch);box-shadow:0 0 0 1px #d1d5db;cursor:pointer}
+    .card-settings-panel{width:min(440px,100%);padding:24px}
+    .settings-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .settings-header h2{margin:0;font-size:19px;font-weight:650;color:#171717}
+    .settings-subtitle{margin:5px 0 0;color:#858585;font-size:12px}
+    .settings-accordion{border-top:1px solid #eceef0}
+    .settings-section{border-bottom:1px solid #eceef0}
+    .settings-section>summary{min-height:58px;display:flex;align-items:center;gap:12px;list-style:none;cursor:pointer;user-select:none}
+    .settings-section>summary::-webkit-details-marker{display:none}
+    .settings-section>summary::after{content:"";width:8px;height:8px;margin-left:auto;border-right:1.7px solid #777;border-bottom:1.7px solid #777;transform:rotate(45deg);transition:transform .16s ease}
+    .settings-section[open]>summary::after{transform:rotate(225deg)}
+    .settings-section-title{font-size:14px;font-weight:600;color:#252525}
+    .settings-section-value{margin-left:auto;color:#858b94;font-size:12px}
+    .settings-section>summary:has(.settings-section-title)+.settings-section-content{padding:0 0 18px}
+    .settings-section[open]>summary .settings-section-value{margin-left:auto}
+    .color-options{display:flex;gap:12px;flex-wrap:wrap;padding:3px 2px}
+    .color-choice{width:30px;height:30px;border:2px solid #fff;border-radius:50%;background:var(--swatch);box-shadow:0 0 0 1px #d1d5db;cursor:pointer;transition:transform .14s ease,box-shadow .14s ease}
+    .color-choice:hover{transform:scale(1.1)}
     .color-choice.active{box-shadow:0 0 0 2px #2563eb}
-    .settings-actions{display:flex;justify-content:space-between;gap:8px;margin-top:22px}
+    .settings-section-content .search-input{width:100%;box-sizing:border-box}
+    .settings-delete-copy{margin:0 0 12px;color:#777;font-size:12px;line-height:1.5}
+    .settings-footer{display:flex;justify-content:flex-end;margin-top:18px}
+    .settings-danger-section .settings-section-title{color:#d9363e}
 
     .confirm-title{margin:0 0 8px;font-size:17px;font-weight:650;color:#171717}
     .confirm-message{margin:0;color:#666;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
@@ -173,19 +189,31 @@
   <div class="file-viewer" id="file-viewer" hidden><section class="viewer-panel"><header class="viewer-head"><strong id="viewer-title"></strong><button class="viewer-close" id="viewer-close" type="button" aria-label="Close">×</button></header><div class="viewer-content" id="viewer-content"></div></section></div>
   <div class="confirm-overlay" id="card-settings-overlay" hidden>
     <section class="confirm-panel card-settings-panel" role="dialog" aria-modal="true" aria-labelledby="card-settings-title">
-      <div class="panel-heading"><h2 id="card-settings-title">Card settings</h2><button class="close-button" id="card-settings-close" type="button" aria-label="Close">×</button></div>
-      <label class="settings-label" for="folder-color">Folder icon colour</label>
-      <div class="color-options" id="folder-color-options">
-        <button type="button" class="color-choice" data-color="#e6b325" aria-label="Yellow" style="--swatch:#e6b325"></button>
-        <button type="button" class="color-choice" data-color="#3b82f6" aria-label="Blue" style="--swatch:#3b82f6"></button>
-        <button type="button" class="color-choice" data-color="#22a06b" aria-label="Green" style="--swatch:#22a06b"></button>
-        <button type="button" class="color-choice" data-color="#a855f7" aria-label="Purple" style="--swatch:#a855f7"></button>
-        <button type="button" class="color-choice" data-color="#ef4444" aria-label="Red" style="--swatch:#ef4444"></button>
-        <button type="button" class="color-choice" data-color="#6b7280" aria-label="Gray" style="--swatch:#6b7280"></button>
+      <div class="settings-header"><div><h2 id="card-settings-title">Card settings</h2><p class="settings-subtitle" id="card-settings-name"></p></div><button class="close-button" id="card-settings-close" type="button" aria-label="Close">×</button></div>
+      <div class="settings-accordion">
+        <details class="settings-section" id="folder-color-section">
+          <summary><span class="settings-section-title">Folder colour</span><span class="settings-section-value" id="folder-color-value">Yellow</span></summary>
+          <div class="settings-section-content">
+            <div class="color-options" id="folder-color-options">
+              <button type="button" class="color-choice" data-color="#e6b325" aria-label="Yellow" title="Yellow" style="--swatch:#e6b325"></button>
+              <button type="button" class="color-choice" data-color="#3b82f6" aria-label="Blue" title="Blue" style="--swatch:#3b82f6"></button>
+              <button type="button" class="color-choice" data-color="#22a06b" aria-label="Green" title="Green" style="--swatch:#22a06b"></button>
+              <button type="button" class="color-choice" data-color="#a855f7" aria-label="Purple" title="Purple" style="--swatch:#a855f7"></button>
+              <button type="button" class="color-choice" data-color="#ef4444" aria-label="Red" title="Red" style="--swatch:#ef4444"></button>
+              <button type="button" class="color-choice" data-color="#6b7280" aria-label="Gray" title="Gray" style="--swatch:#6b7280"></button>
+            </div>
+          </div>
+        </details>
+        <details class="settings-section" id="tag-section">
+          <summary><span class="settings-section-title">Tag</span><span class="settings-section-value" id="card-tag-value">None</span></summary>
+          <div class="settings-section-content"><input class="search-input" id="card-tag-input" type="text" maxlength="32" placeholder="Add a tag"></div>
+        </details>
+        <details class="settings-section settings-danger-section" id="delete-section">
+          <summary><span class="settings-section-title">Delete item</span><span class="settings-section-value">Permanent</span></summary>
+          <div class="settings-section-content"><p class="settings-delete-copy">This will delete this item and its contents, if it is a folder.</p><button class="confirm-button danger" id="card-settings-delete" type="button">Delete item</button></div>
+        </details>
       </div>
-      <label class="settings-label" for="card-tag-input">Tag</label>
-      <input class="search-input" id="card-tag-input" type="text" maxlength="32" placeholder="Add a tag">
-      <div class="settings-actions"><button class="confirm-button danger" id="card-settings-delete" type="button">Delete</button><button class="confirm-button" id="card-settings-cancel" type="button">Close</button></div>
+      <div class="settings-footer"><button class="confirm-button" id="card-settings-cancel" type="button">Done</button></div>
     </section>
   </div>
   <div class="confirm-overlay" id="confirm-overlay" hidden><section class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message"><h2 class="confirm-title" id="confirm-title">Delete item?</h2><p class="confirm-message" id="confirm-message"></p><div class="confirm-actions"><button class="confirm-button" id="confirm-cancel" type="button">Cancel</button><button class="confirm-button danger" id="confirm-delete" type="button">Delete</button></div></section></div>
@@ -317,11 +345,20 @@
       const overlay=document.getElementById("card-settings-overlay");
       const tagInput=document.getElementById("card-tag-input");
       tagInput.value=item.tag||"";
+      document.getElementById("card-settings-name").textContent=item.name;
+      document.getElementById("folder-color-section").hidden=item.type!=="folder";
+      document.getElementById("folder-color-section").open=false;
+      document.getElementById("tag-section").open=false;
+      document.getElementById("delete-section").open=false;
+      const selectedColor=item.color||"#e6b325";
       const options=document.querySelectorAll(".color-choice");
       options.forEach(button=>{
-        button.classList.toggle("active",button.dataset.color===(item.color||"#e6b325"));
-        button.hidden=item.type!=="folder";
+        button.classList.toggle("active",button.dataset.color===selectedColor);
+        button.hidden=false;
       });
+      const selectedOption=[...options].find(button=>button.dataset.color===selectedColor);
+      document.getElementById("folder-color-value").textContent=selectedOption?.title||"Yellow";
+      document.getElementById("card-tag-value").textContent=item.tag||"None";
       overlay.hidden=false;
     }
     function closeCardSettings(){document.getElementById("card-settings-overlay").hidden=true;settingsItemId=null;}
@@ -333,11 +370,13 @@
       const item=items.find(entry=>entry.id===settingsItemId);if(!item)return;
       item.color=button.dataset.color;saveItems();renderItems();
       document.querySelectorAll(".color-choice").forEach(choice=>choice.classList.toggle("active",choice===button));
+      document.getElementById("folder-color-value").textContent=button.title;
     });
     document.getElementById("card-tag-input").addEventListener("input",event=>{
       if(!settingsItemId)return;
       const item=items.find(entry=>entry.id===settingsItemId);if(!item)return;
       item.tag=event.target.value.trim();saveItems();
+      document.getElementById("card-tag-value").textContent=item.tag||"None";
       const card=list.querySelector('[data-id="'+CSS.escape(settingsItemId)+'"]');
       if(card){const tag=card.querySelector(".file-tag");if(tag){tag.textContent=item.tag;tag.hidden=!item.tag;}}
     });
