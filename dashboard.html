@@ -117,6 +117,9 @@
     const setupButton=document.getElementById("setup-passkey");
     const {data:{session},error}=await supabase.auth.getSession();
     if(error||!session){location.replace("index.html");}
+    else if(new URLSearchParams(location.search).has("code")||location.hash.includes("access_token=")){
+      location.replace("files.html");
+    }
     else{
       accountStatus.textContent="Signed in to your Coolanas account.";
       try{
