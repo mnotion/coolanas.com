@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffffff">
-  <title>Login — coolanas</title>
+  <title>Coolanas</title>
   <style>
     * { box-sizing: border-box; }
     html { overflow-x: clip; }
@@ -12,58 +12,57 @@
       min-height:100vh; margin:0; padding:24px; display:grid; place-items:center;
       overflow-x:clip; background:#fff; color:#000;
       font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      -webkit-tap-highlight-color:transparent;
     }
     main {
       width:min(600px,100%); padding:44px; background:#fff; border-radius:18px;
       box-shadow:0 14px 36px rgba(0,0,0,.13),0 3px 10px rgba(0,0,0,.07);
     }
-    h1 { margin:0 0 8px; font-size:clamp(3.2rem,9vw,6rem); line-height:1.02; font-weight:800; letter-spacing:-.075em; }
-    p { margin:0 0 30px; }
+    h1 { margin:0 0 30px; font-size:clamp(3.2rem,9vw,6rem); line-height:1.02; font-weight:800; letter-spacing:-.075em; }
     button {
-      display:block; width:100%; min-height:62px; padding:14px 16px; border:1px solid #000;
-      border-radius:10px; background:#000; color:#fff; font:700 15px/1.2 Inter,ui-sans-serif,system-ui,sans-serif; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:12px;
+      width:100%; min-height:58px; padding:14px 18px;
+      border:1px solid #dadce0; border-radius:6px; background:#fff; color:#3c4043;
+      font:600 15px/1.2 Arial,Roboto,sans-serif; cursor:pointer;
+      -webkit-tap-highlight-color:transparent; touch-action:manipulation;
     }
-    button:hover { background:#292929; }
+    button:hover { background:#f8faff; border-color:#d2e3fc; box-shadow:0 1px 2px rgba(60,64,67,.18); }
     button:disabled { opacity:.55; cursor:wait; }
-    .google-button { margin-top:12px; background:#fff; color:#111; border-color:#d5d5d5; }
-    .google-button:hover { background:#f4f4f4; }
-    .status { min-height:38px; margin:14px 2px 0; color:#333; font-size:13px; overflow-wrap:anywhere; }
-    .status[data-kind="error"] { color:#a00000; }
+    button:focus:not(:focus-visible) { outline:none; box-shadow:none; }
+    button:focus-visible { outline:2px solid #777; outline-offset:3px; }
+    .google-logo { width:20px; height:20px; flex:none; }
+    .status { margin:16px 2px 0; color:#a00000; font-size:13px; overflow-wrap:anywhere; }
+    .status[hidden] { display:none; }
     @media(max-width:480px) { main { padding:28px; } }
   </style>
 </head>
 <body>
   <main>
-    <h1>Welcome.</h1>
-    <p>Sign in or create your Coolanas account with your device's passkey.</p>
-    <button id="passkey-login" type="button">Continue with fingerprint</button>
-    <button id="google-login" class="google-button" type="button">Continue with Google</button>
-    <p class="status" id="passkey-status" role="status" aria-live="polite">Loading sign-in options…</p>
+    <h1 id="greeting">Welcome</h1>
+    <button id="google-login" type="button">
+      <svg class="google-logo" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.61l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" transform="translate(0 4)"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.25 5.48-4.73 7.18l7.65 5.94c4.46-4.12 7.12-10.2 7.12-17.59z"/>
+        <path fill="#FBBC05" d="M10.54 28.59a14.4 14.4 0 0 1 0-9.18l-7.98-6.19a23.9 23.9 0 0 0 0 21.56l7.98-6.19z" transform="translate(0 4)"/>
+        <path fill="#34A853" d="M24 48c6.47 0 11.9-2.13 15.86-5.86l-7.65-5.94c-2.13 1.43-4.85 2.28-8.21 2.28-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" transform="translate(0 -4)"/>
+      </svg>
+      <span>Sign in with Google</span>
+    </button>
+    <p class="status" id="login-status" role="status" aria-live="polite" hidden></p>
   </main>
 
   <script type="module">
     const SUPABASE_URL = "https://nacwftrsdpglzrhasmit.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
-    const button = document.getElementById("passkey-login");
     const googleButton = document.getElementById("google-login");
-    const status = document.getElementById("passkey-status");
-    let mode = "sign-in";
+    const status = document.getElementById("login-status");
+    const greetings = [
+      "Welcome", "Hello", "Hey there", "Good to see you", "Nice to see you",
+      "Welcome back", "Hello again", "Good day", "Glad you're here", "Let's get started"
+    ];
+    document.getElementById("greeting").textContent = greetings[Math.floor(Math.random() * greetings.length)];
+
     let supabase;
-
-    function showStatus(message, kind = "") {
-      status.textContent = message;
-      status.dataset.kind = kind;
-    }
-
-    function setMode(nextMode) {
-      mode = nextMode;
-      button.textContent = mode === "create"
-        ? "Create account with fingerprint"
-        : mode === "register"
-          ? "Set up fingerprint"
-          : "Continue with fingerprint";
-    }
-
     async function getClient() {
       if (!supabase) {
         const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.119.0");
@@ -71,117 +70,30 @@
           auth: {
             persistSession: true,
             autoRefreshToken: true,
-            detectSessionInUrl: true,
-            experimental: { passkey: true }
+            detectSessionInUrl: true
           }
         });
       }
       return supabase;
     }
 
-    async function createPasskeyAccount(client) {
-      const response = await fetch(SUPABASE_URL + "/functions/v1/coolanas-create-passkey-account", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": SUPABASE_PUBLISHABLE_KEY
-        },
-        body: "{}"
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || "Could not create a Coolanas account.");
-
-      const { error } = await client.auth.setSession({
-        access_token: payload.access_token,
-        refresh_token: payload.refresh_token
-      });
-      if (error) throw error;
-    }
-
-    async function registerPasskey(client) {
-      showStatus("Follow the prompt from Windows Hello, Google Password Manager, or your device's passkey provider.");
-      const { error } = await client.auth.registerPasskey();
-      if (error) throw error;
-      location.replace("dashboard.html");
-    }
-
-    async function handleButton() {
-      if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials) {
-        showStatus("Passkeys require a supported browser and a secure HTTPS connection.", "error");
-        return;
-      }
-
-      button.disabled = true;
-      try {
-        const client = await getClient();
-
-        if (mode === "create") {
-          showStatus("Creating your Coolanas account…");
-          await createPasskeyAccount(client);
-          setMode("register");
-          await registerPasskey(client);
-          return;
-        }
-
-        if (mode === "register") {
-          await registerPasskey(client);
-          return;
-        }
-
-        showStatus("Waiting for your saved passkey…");
-        const { error } = await client.auth.signInWithPasskey();
-        if (error) throw error;
-
-        location.replace("files.html");
-      } catch (error) {
-        const name = error?.name || "";
-        const code = error?.code || "";
-        const message = error?.message || "Passkey sign-in did not complete.";
-
-        if (mode === "sign-in" && (
-          name === "NotAllowedError" ||
-          code === "webauthn_credential_not_found" ||
-          /no credentials|credential.*not found|notallowederror/i.test(message)
-        )) {
-          setMode("create");
-          showStatus("No passkey sign-in completed. Press the button again to create a new account. Existing data is available when you use a passkey already linked to that account.");
-        } else if (mode === "create") {
-          setMode("create");
-          showStatus(message, "error");
-        } else if (mode === "register") {
-          setMode("register");
-          showStatus("Your account has been created, but passkey setup did not finish. Press the button to retry. " + message, "error");
-        } else {
-          showStatus(message, "error");
-        }
-      } finally {
-        button.disabled = false;
-      }
-    }
-
-    button.addEventListener("click", handleButton);
-
     googleButton.addEventListener("click", async () => {
       googleButton.disabled = true;
-      button.disabled = true;
-      showStatus("Redirecting to Google…");
+      status.hidden = false;
+      status.textContent = "Redirecting to Google…";
       try {
         const client = await getClient();
         const { error } = await client.auth.signInWithOAuth({
           provider: "google",
           options: {
             redirectTo: "https://coolanas.com/dashboard.html",
-            queryParams: {
-              prompt: "select_account"
-            }
+            queryParams: { prompt: "select_account" }
           }
         });
         if (error) throw error;
       } catch (error) {
-        showStatus(error?.message || "Google sign-in could not start. Check that Google is enabled in Supabase.", "error");
+        status.textContent = error?.message || "Google sign-in could not start. Try again.";
         googleButton.disabled = false;
-        button.disabled = false;
       }
     });
 
@@ -190,20 +102,10 @@
         const client = await getClient();
         const { data: { session }, error } = await client.auth.getSession();
         if (error) throw error;
-        if (session) {
-          const { data: passkeys, error: passkeyError } = await client.auth.passkey.list();
-          if (passkeyError) throw passkeyError;
-          if (Array.isArray(passkeys) && passkeys.length > 0) {
-            location.replace("files.html");
-            return;
-          }
-          setMode("register");
-          showStatus("You are already signed in. Set up a passkey to secure this account.");
-        } else {
-          showStatus("Ready. Use Windows Hello, Google Password Manager, or another saved passkey.");
-        }
+        if (session) location.replace("dashboard.html");
       } catch (error) {
-        showStatus(error?.message || "Passkey sign-in is unavailable right now.", "error");
+        status.hidden = false;
+        status.textContent = error?.message || "Could not check your sign-in session.";
       }
     })();
   </script>
