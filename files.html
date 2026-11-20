@@ -192,7 +192,6 @@
 </head>
 <body>
   <main aria-label="Files">
-    <div class="selection-toolbar" aria-label="Selection controls"><span class="selection-counter" id="selection-counter" hidden></span><button class="selection-action" id="select-mode-toggle" type="button" aria-pressed="false">Select</button><button class="selection-action danger" id="bulk-delete" type="button" hidden>Delete selected</button></div>
     <input id="file-picker" type="file" multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <input id="folder-picker" type="file" webkitdirectory multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <div class="files-toolbar" id="files-toolbar" hidden><button class="crumb-button" id="back-folder" type="button">← Back</button><span class="crumb-current" id="current-folder"></span></div>
@@ -426,28 +425,17 @@ function renderItems(){
         event.stopPropagation();
         return;
       }
-      if(selectionMode){event.preventDefault();selectOne(item.id,{toggle:true});return;}
-      if(event.ctrlKey||event.metaKey){event.preventDefault();selectOne(item.id,{toggle:true});return;}
-      if(event.shiftKey){event.preventDefault();selectOne(item.id,{shift:true});return;}
-      if(selectedIds.size>1&&selectedIds.has(item.id)){
-        clearSelection();
-        if(item.item_type==="folder")openFolder(item.id);else openFile(item);
-        return;
-      }
-      clearSelection();
       if(item.item_type==="folder")openFolder(item.id);else openFile(item);
     });
     card.addEventListener("keydown",event=>{
-      if(event.key==="Enter"&&!event.ctrlKey&&!event.metaKey){
+      if(event.key==="Enter"){
         event.preventDefault();
         if(item.item_type==="folder")openFolder(item.id);else openFile(item);
-      }else if(event.key===" "&&(event.ctrlKey||event.metaKey)){
-        event.preventDefault();selectOne(item.id,{toggle:true});
       }
     });
     card.addEventListener("dragstart",event=>{
       // Dragging an unselected card moves only that card; it must not create a visible multiselection.
-      internalDragIds=selectedIds.has(item.id)&&selectedIds.size?[...selectedIds]:[item.id];
+      internalDragIds=[item.id];
       card.dataset.dragged="true";
       event.dataTransfer.effectAllowed="move";
       event.dataTransfer.setData("application/x-coolanas-items",JSON.stringify(internalDragIds));
@@ -744,69 +732,6 @@ async function reorderBefore(ids,targetId){
   }catch(error){alert(error.message);}
 }
 
-selectModeToggle.addEventListener("click",()=>{
-  selectionMode=!selectionMode;
-  if(!selectionMode&&selectedIds.size===0)lastSelectedId=null;
-  updateSelectionUi();
-});
-bulkDeleteButton.addEventListener("click",confirmBulkDelete);
-
-let marqueeMoved=false;
-list.addEventListener("pointerdown",event=>{
-  if(event.button!==0||event.pointerType!=="mouse")return;
-  // The selection rectangle starts on empty canvas space, not on a draggable card.
-  if(event.target.closest(".file-card,.add-wrap,button,input,a,[role='button']"))return;
-  marqueeStart={x:event.clientX,y:event.clientY};
-  marqueeMoved=false;
-  marqueeBase=(event.ctrlKey||event.metaKey)?new Set(selectedIds):new Set();
-  if(!event.ctrlKey&&!event.metaKey)clearSelection();
-  marquee.hidden=false;
-  marquee.style.left=event.clientX+"px";
-  marquee.style.top=event.clientY+"px";
-  marquee.style.width="0px";
-  marquee.style.height="0px";
-  document.body.classList.add("selection-drag-mode");
-  event.preventDefault();
-});
-window.addEventListener("pointermove",event=>{
-  if(!marqueeStart)return;
-  const left=Math.min(marqueeStart.x,event.clientX);
-  const top=Math.min(marqueeStart.y,event.clientY);
-  const width=Math.abs(event.clientX-marqueeStart.x);
-  const height=Math.abs(event.clientY-marqueeStart.y);
-  if(width+height>5)marqueeMoved=true;
-  marquee.style.left=left+"px";
-  marquee.style.top=top+"px";
-  marquee.style.width=width+"px";
-  marquee.style.height=height+"px";
-  if(marqueeMoved){
-    selectedIds.clear();
-    marqueeBase.forEach(id=>selectedIds.add(id));
-    const box={left,top,right:left+width,bottom:top+height};
-    list.querySelectorAll(".file-card").forEach(card=>{
-      const rect=card.getBoundingClientRect();
-      if(rect.left<box.right&&rect.right>box.left&&rect.top<box.bottom&&rect.bottom>box.top){
-        selectedIds.add(card.dataset.id);
-      }
-    });
-    updateSelectionUi();
-  }
-});
-window.addEventListener("pointerup",()=>{
-  if(!marqueeStart)return;
-  marqueeStart=null;
-  marquee.hidden=true;
-  document.body.classList.remove("selection-drag-mode");
-  if(!marqueeMoved&&selectedIds.size===0)clearSelection();
-  updateSelectionUi();
-});
-window.addEventListener("pointercancel",()=>{
-  if(!marqueeStart)return;
-  marqueeStart=null;
-  marquee.hidden=true;
-  document.body.classList.remove("selection-drag-mode");
-  updateSelectionUi();
-});
 
 async function openFile(item){
   viewer.hidden=false;
@@ -840,154 +765,11 @@ function closeViewer(){
 }
 document.getElementById("viewer-close").addEventListener("click",closeViewer);
 viewer.addEventListener("click",event=>{if(event.target===viewer)closeViewer();});
-document.addEventListener("keydown",event=>{if(event.key==="Escape")closeViewer();});
-
-const cardSettingsOverlay=document.getElementById("card-settings-overlay");
-const confirmOverlay=document.getElementById("confirm-overlay");
-const confirmMessage=document.getElementById("confirm-message");
-const confirmDeleteButton=document.getElementById("confirm-delete");
-const colorSection=document.getElementById("folder-color-section");
-const tagInput=document.getElementById("card-tag-input");
-function openCardSettings(item){
-  activeSettingsItem=item;
-  document.getElementById("card-settings-title").textContent=item.name;
-  colorSection.hidden=item.item_type!=="folder";
-  tagInput.value=item.tag||"";
-  document.querySelectorAll(".color-choice").forEach(button=>{
-    button.classList.toggle("active",button.dataset.color===item.folder_color);
-  });
-  cardSettingsOverlay.hidden=false;
-}
-function closeCardSettings(){
-  cardSettingsOverlay.hidden=true;
-  activeSettingsItem=null;
-}
-function closeDeleteConfirmation(){
-  confirmOverlay.hidden=true;
-  pendingDeleteIds=[];
-}
-document.getElementById("card-settings-close").addEventListener("click",closeCardSettings);
-document.getElementById("card-settings-cancel").addEventListener("click",closeCardSettings);
-cardSettingsOverlay.addEventListener("click",event=>{if(event.target===cardSettingsOverlay)closeCardSettings();});
-document.querySelectorAll(".color-choice").forEach(button=>{
-  button.addEventListener("click",async()=>{
-    if(!activeSettingsItem||activeSettingsItem.item_type!=="folder")return;
-    try{
-      const result=await filesAction("update_metadata",{id:activeSettingsItem.id,folder_color:button.dataset.color});
-      activeSettingsItem=result.item;
-      await loadItems();
-      document.querySelectorAll(".color-choice").forEach(choice=>choice.classList.toggle("active",choice===button));
-    }catch(error){alert("Could not save folder colour: "+error.message);}
-  });
-});
-async function saveTag(){
-  if(!activeSettingsItem)return;
-  try{
-    const result=await filesAction("update_metadata",{id:activeSettingsItem.id,tag:tagInput.value.slice(0,32)});
-    activeSettingsItem=result.item;
-    await loadItems();
-  }catch(error){alert("Could not save tag: "+error.message);}
-}
-tagInput.addEventListener("change",saveTag);
-tagInput.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();tagInput.blur();}});
-document.getElementById("card-settings-delete").addEventListener("click",()=>{
-  if(!activeSettingsItem)return;
-  pendingDeleteIds=[activeSettingsItem.id];
-  confirmMessage.textContent=activeSettingsItem.item_type==="folder"
-    ? 'Permanently delete "'+activeSettingsItem.name+'" and everything inside it?'
-    : 'Permanently delete "'+activeSettingsItem.name+'"?';
-  closeCardSettings();
-  confirmOverlay.hidden=false;
-});
-function confirmBulkDelete(){
-  const ids=[...selectedIds];
-  if(!ids.length)return;
-  pendingDeleteIds=ids;
-  confirmMessage.textContent="Permanently delete "+ids.length+" selected item(s), including the contents of selected folders?";
-  confirmOverlay.hidden=false;
-}
-document.getElementById("confirm-cancel").addEventListener("click",closeDeleteConfirmation);
-confirmOverlay.addEventListener("click",event=>{if(event.target===confirmOverlay)closeDeleteConfirmation();});
-confirmDeleteButton.addEventListener("click",async()=>{
-  if(!pendingDeleteIds.length)return;
-  confirmDeleteButton.disabled=true;
-  const roots=await topLevelIds(pendingDeleteIds);
-  try{
-    for(const id of roots)await filesAction("delete",{id});
-    const deleted=new Set(roots);
-    if(deleted.has(currentFolderId))currentFolderId=null;
-    closeDeleteConfirmation();
-    clearSelection();
-    await loadItems();
-  }catch(error){alert("Could not delete items: "+error.message);}
-  finally{confirmDeleteButton.disabled=false;}
-});
-
-list.addEventListener("pointermove",event=>{
-  if(event.pointerType!=="mouse"||marqueeStart||internalDragIds.length)return;
-  const cards=[...list.querySelectorAll(".file-card")];
-  const hovered=event.target.closest(".file-card");
-  if(!hovered){resetCardMotion();return;}
-  const rect=hovered.getBoundingClientRect();
-  const x=rect.left+rect.width/2,y=rect.top+rect.height/2;
-  const nearest=cards.filter(card=>card!==hovered).map(card=>({
-    card,distance:Math.hypot(card.getBoundingClientRect().left+card.offsetWidth/2-x,card.getBoundingClientRect().top+card.offsetHeight/2-y)
-  })).sort((a,b)=>a.distance-b.distance);
-  hovered.style.setProperty("--card-scale","1.09");
-  hovered.style.setProperty("--card-z","5");
-  nearest.forEach((entry,index)=>entry.card.style.setProperty("--card-scale",String(Math.max(.82,1-.025*(index+1)))));
-});
-list.addEventListener("pointerleave",resetCardMotion);
-
-const navSearch=document.getElementById("search-toggle");
-const navFiles=document.getElementById("files-toggle");
-const navMenu=document.getElementById("menu-toggle");
-const searchPanel=document.getElementById("search-panel");
-const menuPanel=document.getElementById("menu-panel");
-const searchInput=document.getElementById("files-search-input");
-function closeNavPanels(){
-  searchPanel.hidden=true;menuPanel.hidden=true;
-  navSearch.setAttribute("aria-expanded","false");
-  navMenu.setAttribute("aria-expanded","false");
-}
-function toggleNavPanel(panel,button){
-  const shouldOpen=panel.hidden;
-  closeNavPanels();
-  if(shouldOpen){
-    panel.hidden=false;
-    button.setAttribute("aria-expanded","true");
-    panel.querySelector("input")?.focus();
-  }
-}
-navSearch.addEventListener("click",()=>toggleNavPanel(searchPanel,navSearch));
-navFiles.addEventListener("click",()=>{closeNavPanels();window.scrollTo({top:0,behavior:"smooth"});});
-navMenu.addEventListener("click",()=>toggleNavPanel(menuPanel,navMenu));
-document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
-document.getElementById("menu-home").addEventListener("click",()=>location.assign("dashboard.html"));
-searchInput.addEventListener("input",()=>{
-  searchQuery=searchInput.value.trim().toLocaleLowerCase();
-  renderItems();
-});
-document.getElementById("signout").addEventListener("click",async()=>{
-  await supabase.auth.signOut();
-  location.replace("index.html");
-});
 document.addEventListener("keydown",event=>{
-  const editing=event.target instanceof HTMLElement && event.target.matches("input,textarea,[contenteditable='true']");
-  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="a"&&!editing){
-    event.preventDefault();
-    visibleItems().forEach(item=>selectedIds.add(item.id));
-    updateSelectionUi();
-  }
   if(event.key==="Escape"){
     closeNavPanels();
-    clearSelection();
     closeCardSettings();
     closeDeleteConfirmation();
-  }
-  if((event.key==="Delete"||event.key==="Backspace")&&selectedIds.size&&cardSettingsOverlay.hidden&&confirmOverlay.hidden&&!editing){
-    event.preventDefault();
-    confirmBulkDelete();
   }
 });
 let migrated={migrated:0,userFolder:""};
