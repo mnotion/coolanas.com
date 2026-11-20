@@ -25,6 +25,11 @@
     .file-card:hover,.file-card.is-pointer-hover{background:#fafafa;box-shadow:0 5px 16px rgba(0,0,0,.10);}
     .file-card:focus-visible{outline:2px solid #aaa;outline-offset:3px}
     .file-card.is-pointer-near{box-shadow:0 4px 14px rgba(0,0,0,.085)}
+    .file-card{position:relative}
+    .delete-dot{position:absolute;top:9px;right:9px;width:13px;height:13px;padding:0;border:0;border-radius:50%;background:#e5484d;box-shadow:0 0 0 2px #fff;cursor:pointer;z-index:5;opacity:.9;transition:transform .14s ease,opacity .14s ease}
+    .delete-dot:hover{transform:scale(1.25);opacity:1}
+    .delete-dot:focus-visible{outline:2px solid #e5484d;outline-offset:3px}
+
     .files-toolbar{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 18px;color:#333}
     .files-toolbar[hidden]{display:none}
     .crumb-button{border:0;background:transparent;padding:5px 8px;border-radius:7px;font:inherit;cursor:pointer}
@@ -180,6 +185,34 @@
       });
     }
     function saveItems(){try{localStorage.setItem(storageKey,JSON.stringify(items));}catch(error){console.warn("Could not save file list.",error);}}
+    async function deleteStoredBlob(id){
+      fileBlobs.delete(id);
+      try{
+        const db=await dbPromise;
+        await new Promise((resolve,reject)=>{
+          const tx=db.transaction("files","readwrite");
+          tx.objectStore("files").delete(id);
+          tx.oncomplete=resolve;
+          tx.onerror=()=>reject(tx.error||new Error("Could not remove stored file content."));
+          tx.onabort=()=>reject(tx.error||new Error("File deletion was cancelled."));
+        });
+      }catch(error){console.warn("Could not delete stored file content:",error);}
+    }
+    async function deleteItem(item){
+      const confirmed=window.confirm('Are you sure you want to delete "'+item.name+'"?'+(item.type==="folder"?" This will also delete everything inside the folder and its subfolders.":""));
+      if(!confirmed)return;
+      const ids=new Set([item.id]);
+      let changed=true;
+      while(changed){
+        changed=false;
+        for(const child of items){if(child.parentId&&ids.has(child.parentId)&&!ids.has(child.id)){ids.add(child.id);changed=true;}}
+      }
+      const removed=items.filter(entry=>ids.has(entry.id));
+      items=items.filter(entry=>!ids.has(entry.id));
+      saveItems();renderItems();
+      await Promise.all(removed.filter(entry=>entry.type==="file").map(entry=>deleteStoredBlob(entry.id)));
+      setUploadStatus("Deleted "+removed.length+" item"+(removed.length===1?"":"s")+".");
+    }
     const addWrap=document.createElement("div");
     addWrap.className="add-wrap";
     addWrap.innerHTML='<button class="add-button" id="add-toggle" type="button" aria-label="Upload files" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button><div class="add-menu" id="add-menu" hidden><button class="add-option" type="button" id="upload-option">Upload files</button><button class="add-option" type="button" id="upload-folder-option">Upload folder</button></div>';
@@ -191,12 +224,17 @@
       currentFolder.textContent=folder?folder.name:"";
       const ordered=visibleItems().sort((x,y)=>(x.type==="folder"?0:1)-(y.type==="folder"?0:1));
       for(const item of ordered){
-        const card=document.createElement("button");
-        card.className="file-card";card.type="button";card.setAttribute("role","listitem");card.dataset.id=item.id;
+        const card=document.createElement("div");
+        card.className="file-card";card.setAttribute("role","listitem");card.dataset.id=item.id;card.tabIndex=0;
         card.innerHTML=item.type==="folder"?folderSvg:fileSvg;
         const name=document.createElement("span");name.className="file-name";name.textContent=item.name;
-        card.append(name);
-        card.addEventListener("click",()=>item.type==="folder"?openFolder(item.id):openFile(item));
+        const remove=document.createElement("button");
+        remove.className="delete-dot";remove.type="button";remove.title="Delete "+item.name;remove.setAttribute("aria-label","Delete "+item.name);
+        remove.addEventListener("click",event=>{event.stopPropagation();deleteItem(item);});
+        card.append(name,remove);
+        const open=()=>item.type==="folder"?openFolder(item.id):openFile(item);
+        card.addEventListener("click",event=>{if(!event.target.closest(".delete-dot"))open();});
+        card.addEventListener("keydown",event=>{if(event.target===card&&(event.key==="Enter"||event.key===" ")){event.preventDefault();open();}});
         list.append(card);
       }
       list.append(addWrap);
