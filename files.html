@@ -25,6 +25,9 @@
     .file-card:hover,.file-card.is-pointer-hover{background:#fafafa;box-shadow:0 5px 16px rgba(0,0,0,.10);}
     .file-card:focus-visible{outline:2px solid #aaa;outline-offset:3px}
     .file-card.is-pointer-near{box-shadow:0 4px 14px rgba(0,0,0,.085)}
+    .file-card.is-selected{background:#eaf2ff;outline:2px solid #4b91f1;outline-offset:-2px;box-shadow:0 3px 12px rgba(59,130,246,.16)}
+    .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #3985ed;background:rgba(59,130,246,.16);border-radius:2px}
+
     .file-card{position:relative}
     .delete-dot{position:absolute;top:9px;right:9px;width:13px;height:13px;padding:0;border:0;border-radius:50%;background:#e5484d;box-shadow:0 0 0 2px #fff;cursor:pointer;z-index:5;opacity:.9;transition:transform .14s ease,opacity .14s ease}
     .delete-dot:hover{transform:scale(1.25);opacity:1}
@@ -117,6 +120,7 @@
     <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
+  <div class="selection-marquee" id="selection-marquee" hidden></div>
   <div class="upload-overlay" id="upload-overlay" hidden aria-live="polite" aria-busy="true"><div class="upload-card"><div class="upload-spinner" aria-hidden="true"></div><p class="upload-title" id="upload-title">Uploading files</p><p class="upload-detail" id="upload-detail">Preparing…</p><div class="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar"></div></div></div></div>
   <div class="file-viewer" id="file-viewer" hidden><section class="viewer-panel"><header class="viewer-head"><strong id="viewer-title"></strong><button class="viewer-close" id="viewer-close" type="button" aria-label="Close">×</button></header><div class="viewer-content" id="viewer-content"></div></section></div>
   <div class="confirm-overlay" id="confirm-overlay" hidden><section class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message"><h2 class="confirm-title" id="confirm-title">Delete item?</h2><p class="confirm-message" id="confirm-message"></p><div class="confirm-actions"><button class="confirm-button" id="confirm-cancel" type="button">Cancel</button><button class="confirm-button danger" id="confirm-delete" type="button">Delete</button></div></section></div>
@@ -220,7 +224,7 @@
       const itemName=document.createElement("span");
       itemName.className="confirm-item-name";
       itemName.textContent=item.name;
-      message.append(itemName,document.createTextNode('"?' ));
+      message.append(itemName,document.createTextNode('"?'));
       overlay.hidden=false;
       confirm.focus();
       return new Promise(resolve=>{
@@ -277,7 +281,12 @@
         remove.addEventListener("click",event=>{event.stopPropagation();deleteItem(item);});
         card.append(name,remove);
         const open=()=>item.type==="folder"?openFolder(item.id):openFile(item);
-        card.addEventListener("click",event=>{if(!event.target.closest(".delete-dot"))open();});
+        card.addEventListener("click",event=>{
+          if(event.target.closest(".delete-dot")||marqueeJustFinished)return;
+          if(event.ctrlKey||event.metaKey){toggleCardSelection(item.id);return;}
+          if(selectedCardIds.size){clearCardSelection();}
+          open();
+        });
         card.addEventListener("keydown",event=>{if(event.target===card&&(event.key==="Enter"||event.key===" ")){event.preventDefault();open();}});
         list.append(card);
       }
@@ -504,6 +513,51 @@
         console.error("Drag-and-drop import failed:",error);
         setUploadStatus("Folder import failed: "+(error.message||"the browser could not read the dropped contents")+". Nothing else was imported.");
       }finally{hideUploadLoading();}
+    });
+    const selectedCardIds=new Set();
+    const selectionMarquee=document.getElementById("selection-marquee");
+    let marqueeStart=null,marqueeActive=false,marqueeJustFinished=false;
+    function updateCardSelection(){
+      list.querySelectorAll(".file-card").forEach(card=>card.classList.toggle("is-selected",selectedCardIds.has(card.dataset.id)));
+    }
+    function clearCardSelection(){selectedCardIds.clear();updateCardSelection();}
+    function toggleCardSelection(id){
+      if(selectedCardIds.has(id))selectedCardIds.delete(id);else selectedCardIds.add(id);
+      updateCardSelection();
+    }
+    list.addEventListener("pointerdown",event=>{
+      if(event.button!==0||event.target.closest(".file-card")||event.target.closest(".add-wrap"))return;
+      marqueeStart={x:event.clientX,y:event.clientY};
+      marqueeActive=false;
+      if(!event.ctrlKey&&!event.metaKey)clearCardSelection();
+    });
+    document.addEventListener("pointermove",event=>{
+      if(!marqueeStart)return;
+      const dx=event.clientX-marqueeStart.x,dy=event.clientY-marqueeStart.y;
+      if(!marqueeActive&&Math.hypot(dx,dy)<5)return;
+      marqueeActive=true;
+      const left=Math.min(event.clientX,marqueeStart.x),top=Math.min(event.clientY,marqueeStart.y);
+      const width=Math.abs(dx),height=Math.abs(dy);
+      selectionMarquee.hidden=false;
+      selectionMarquee.style.left=left+"px";selectionMarquee.style.top=top+"px";
+      selectionMarquee.style.width=width+"px";selectionMarquee.style.height=height+"px";
+      const box={left,right:left+width,top,bottom:top+height};
+      list.querySelectorAll(".file-card").forEach(card=>{
+        const r=card.getBoundingClientRect();
+        const intersects=r.right>=box.left&&r.left<=box.right&&r.bottom>=box.top&&r.top<=box.bottom;
+        if(intersects)selectedCardIds.add(card.dataset.id);
+        else if(!event.ctrlKey&&!event.metaKey)selectedCardIds.delete(card.dataset.id);
+      });
+      updateCardSelection();
+    });
+    document.addEventListener("pointerup",()=>{
+      if(!marqueeStart)return;
+      const didDrag=marqueeActive;
+      marqueeStart=null;marqueeActive=false;selectionMarquee.hidden=true;
+      if(didDrag){marqueeJustFinished=true;requestAnimationFrame(()=>{marqueeJustFinished=false;});}
+    });
+    document.addEventListener("keydown",event=>{
+      if(event.key==="Escape"&&selectedCardIds.size)clearCardSelection();
     });
     function resetCardMotion(){
       list.querySelectorAll(".file-card").forEach(card=>{
