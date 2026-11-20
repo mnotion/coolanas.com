@@ -25,101 +25,160 @@
     }
     button:hover { background:#292929; }
     button:disabled { opacity:.55; cursor:wait; }
-    .status { min-height:18px; margin:14px 2px 0; color:#333; font-size:13px; overflow-wrap:anywhere; }
+    .status { min-height:38px; margin:14px 2px 0; color:#333; font-size:13px; overflow-wrap:anywhere; }
     .status[data-kind="error"] { color:#a00000; }
-    .auth-form{display:grid;gap:10px;margin-top:22px}
-    .auth-form input{width:100%;height:48px;padding:0 13px;border:1px solid #ddd;border-radius:9px;font:inherit}
-    .auth-form button{min-height:48px}
-    .secondary{background:#fff;color:#111}
-    .auth-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .auth-actions button{min-height:44px;font-size:13px}
     @media(max-width:480px) { main { padding:28px; } }
   </style>
 </head>
 <body>
   <main>
     <h1>Welcome.</h1>
-    <p>Sign in with your fingerprint.</p>
+    <p>Sign in or create your Coolanas account with your device's passkey.</p>
     <button id="passkey-login" type="button">Continue with fingerprint</button>
     <p class="status" id="passkey-status" role="status" aria-live="polite">Loading passkey sign-in…</p>
-    <div class="auth-form">
-      <input id="email" type="email" autocomplete="email" placeholder="Email address" required>
-      <input id="password" type="password" autocomplete="current-password" placeholder="Password (at least 8 characters)" minlength="8" required>
-      <div class="auth-actions">
-        <button class="secondary" id="email-login" type="button">Sign in</button>
-        <button id="signup" type="button">Sign up</button>
-      </div>
-      <p class="status" id="email-status" role="status" aria-live="polite">Friends can create their own account here.</p>
-    </div>
   </main>
 
   <script type="module">
     const SUPABASE_URL = "https://nacwftrsdpglzrhasmit.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
-    const OWNER_USER_ID = "bfc1c21b-11a1-4020-9a2f-2846dd4069bf";
-    let supabaseClient;
-    async function getClient(){
-      if(!supabaseClient){
-        const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
-        supabaseClient=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,experimental:{passkey:true}}});
-      }
-      return supabaseClient;
-    }
-    const emailStatus=document.getElementById("email-status");
-    const emailInput=document.getElementById("email");
-    const passwordInput=document.getElementById("password");
-    async function emailAuth(mode){
-      const email=emailInput.value.trim(),password=passwordInput.value;
-      if(!email||password.length<8){emailStatus.textContent="Enter a valid email and a password with at least 8 characters.";emailStatus.dataset.kind="error";return;}
-      const buttons=[document.getElementById("email-login"),document.getElementById("signup")];buttons.forEach(b=>b.disabled=true);
-      try{
-        const client=await getClient();
-        const result=mode==="signup"
-          ? await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+"/dashboard.html"}})
-          : await client.auth.signInWithPassword({email,password});
-        if(result.error)throw result.error;
-        if(mode==="signup"&&!result.data.session){emailStatus.textContent="Account created. Check your email to confirm it, then sign in.";return;}
-        location.replace("dashboard.html");
-      }catch(error){emailStatus.textContent=error.message||"Authentication failed.";emailStatus.dataset.kind="error";}
-      finally{buttons.forEach(b=>b.disabled=false);}
-    }
-    document.getElementById("email-login").addEventListener("click",()=>emailAuth("login"));
-    document.getElementById("signup").addEventListener("click",()=>emailAuth("signup"));
-
     const button = document.getElementById("passkey-login");
     const status = document.getElementById("passkey-status");
-    const showStatus = (message, kind = "") => {
+    let mode = "sign-in";
+    let supabase;
+
+    function showStatus(message, kind = "") {
       status.textContent = message;
       status.dataset.kind = kind;
-    };
+    }
 
-    button.addEventListener("click", async () => {
+    function setMode(nextMode) {
+      mode = nextMode;
+      button.textContent = mode === "create"
+        ? "Create account with fingerprint"
+        : mode === "register"
+          ? "Set up fingerprint"
+          : "Continue with fingerprint";
+    }
+
+    async function getClient() {
+      if (!supabase) {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+        supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            experimental: { passkey: true }
+          }
+        });
+      }
+      return supabase;
+    }
+
+    async function createPasskeyAccount(client) {
+      const response = await fetch(SUPABASE_URL + "/functions/v1/coolanas-create-passkey-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": SUPABASE_PUBLISHABLE_KEY
+        },
+        body: "{}"
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Could not create a Coolanas account.");
+
+      const { error } = await client.auth.setSession({
+        access_token: payload.access_token,
+        refresh_token: payload.refresh_token
+      });
+      if (error) throw error;
+    }
+
+    async function registerPasskey(client) {
+      showStatus("Follow the prompt from Windows Hello, Google Password Manager, or your device's passkey provider.");
+      const { error } = await client.auth.registerPasskey();
+      if (error) throw error;
+      location.replace("dashboard.html");
+    }
+
+    async function handleButton() {
       if (!window.isSecureContext || !window.PublicKeyCredential || !navigator.credentials) {
-        showStatus("Passkeys are not supported by this browser or page.", "error");
+        showStatus("Passkeys require a supported browser and a secure HTTPS connection.", "error");
         return;
       }
 
       button.disabled = true;
-      showStatus("Waiting for your device's passkey prompt…");
       try {
-        const supabase = await getClient();
-        const { data, error } = await supabase.auth.signInWithPasskey();
-        if (error) throw error;
-        if (data.user?.id !== OWNER_USER_ID) {
-          await supabase.auth.signOut();
-          throw new Error("This passkey is not authorised for this site.");
+        const client = await getClient();
+
+        if (mode === "create") {
+          showStatus("Creating your Coolanas account…");
+          await createPasskeyAccount(client);
+          setMode("register");
+          await registerPasskey(client);
+          return;
         }
 
-        sessionStorage.setItem("coolanas-pin-unlocked", "1");
+        if (mode === "register") {
+          await registerPasskey(client);
+          return;
+        }
+
+        showStatus("Waiting for your saved passkey…");
+        const { error } = await client.auth.signInWithPasskey();
+        if (error) throw error;
+
         location.replace("dashboard.html");
       } catch (error) {
-        showStatus(error?.message || "Passkey sign-in failed.", "error");
+        const name = error?.name || "";
+        const code = error?.code || "";
+        const message = error?.message || "Passkey sign-in did not complete.";
+
+        if (mode === "sign-in" && (
+          name === "NotAllowedError" ||
+          code === "webauthn_credential_not_found" ||
+          /no credentials|credential.*not found|notallowederror/i.test(message)
+        )) {
+          setMode("create");
+          showStatus("No passkey sign-in completed. Press the button again to create a new account. Existing data is available when you use a passkey already linked to that account.");
+        } else if (mode === "create") {
+          setMode("create");
+          showStatus(message, "error");
+        } else if (mode === "register") {
+          setMode("register");
+          showStatus("Your account has been created, but passkey setup did not finish. Press the button to retry. " + message, "error");
+        } else {
+          showStatus(message, "error");
+        }
       } finally {
         button.disabled = false;
       }
-    });
+    }
 
-    showStatus("Ready. Use your device's saved passkey.");
+    button.addEventListener("click", handleButton);
+
+    (async () => {
+      try {
+        const client = await getClient();
+        const { data: { session }, error } = await client.auth.getSession();
+        if (error) throw error;
+        if (session) {
+          const { data: passkeys, error: passkeyError } = await client.auth.passkey.list();
+          if (passkeyError) throw passkeyError;
+          if (Array.isArray(passkeys) && passkeys.length > 0) {
+            location.replace("dashboard.html");
+            return;
+          }
+          setMode("register");
+          showStatus("You are already signed in. Set up a passkey to secure this account.");
+        } else {
+          showStatus("Ready. Use Windows Hello, Google Password Manager, or another saved passkey.");
+        }
+      } catch (error) {
+        showStatus(error?.message || "Passkey sign-in is unavailable right now.", "error");
+      }
+    })();
   </script>
 </body>
 </html>
