@@ -194,25 +194,7 @@
   <div class="confirm-overlay" id="card-settings-overlay" hidden>
     <section class="confirm-panel card-settings-panel" role="dialog" aria-modal="true" aria-labelledby="card-settings-title">
       <div class="settings-header"><div><h2 id="card-settings-title">Card settings</h2></div><button class="close-button" id="card-settings-close" type="button" aria-label="Close">×</button></div>
-      <div class="settings-accordion">
-        <details class="settings-section" id="folder-color-section">
-          <summary><span class="settings-section-title">Folder colour</span></summary>
-          <div class="settings-section-content">
-            <div class="color-options" id="folder-color-options">
-              <button type="button" class="color-choice" data-color="#e6b325" aria-label="Yellow" title="Yellow" style="--swatch:#e6b325"></button>
-              <button type="button" class="color-choice" data-color="#3b82f6" aria-label="Blue" title="Blue" style="--swatch:#3b82f6"></button>
-              <button type="button" class="color-choice" data-color="#22a06b" aria-label="Green" title="Green" style="--swatch:#22a06b"></button>
-              <button type="button" class="color-choice" data-color="#a855f7" aria-label="Purple" title="Purple" style="--swatch:#a855f7"></button>
-              <button type="button" class="color-choice" data-color="#ef4444" aria-label="Red" title="Red" style="--swatch:#ef4444"></button>
-              <button type="button" class="color-choice" data-color="#6b7280" aria-label="Gray" title="Gray" style="--swatch:#6b7280"></button>
-            </div>
-          </div>
-        </details>
-        <details class="settings-section" id="tag-section">
-          <summary><span class="settings-section-title">Tag</span></summary>
-          <div class="settings-section-content"><input class="search-input" id="card-tag-input" type="text" maxlength="32" placeholder="Add a tag"></div>
-        </details>
-        <details class="settings-section settings-danger-section" id="delete-section">
+      <div class="settings-accordion"><details class="settings-section settings-danger-section" id="delete-section">
           <summary><span class="settings-section-title">Delete item</span></summary>
           <div class="settings-section-content"><p class="settings-delete-copy">This will delete this item and its contents, if it is a folder.</p><button class="confirm-button danger" id="card-settings-delete" type="button">Delete item</button></div>
         </details>
@@ -257,7 +239,7 @@
     const viewer=document.getElementById("file-viewer");
     const viewerTitle=document.getElementById("viewer-title");
     const viewerContent=document.getElementById("viewer-content");
-    let items=[],currentFolderId=null,searchQuery="";
+    let items=[],currentFolderId=null,searchQuery="",activeSettingsItem=null,pendingDeleteItem=null;
     const status=document.createElement("p");
     status.style.cssText="width:100%;text-align:center;color:#777;font-size:13px";
     async function filesAction(action,payload={}){
@@ -280,10 +262,12 @@
         const card=document.createElement("div");card.className="file-card";card.tabIndex=0;card.dataset.id=item.id;
         card.innerHTML=item.item_type==="folder"?folderSvg:fileSvg;
         const name=document.createElement("span");name.className="file-name";name.textContent=item.name;
+        const settingsButton=document.createElement("button");settingsButton.type="button";settingsButton.className="settings-dot";settingsButton.setAttribute("aria-label","Settings for "+item.name);settingsButton.title="Item settings";
+        settingsButton.addEventListener("click",event=>{event.stopPropagation();openCardSettings(item);});
         const share=document.createElement("button");share.type="button";share.className="share-toggle";share.textContent=item.is_shared?"Shared":"Share";
         share.style.cssText="margin-top:4px;padding:4px 9px;border:1px solid #e5e5e5;border-radius:7px;background:#fafafa;color:#666;font:11px system-ui;cursor:pointer";
         share.addEventListener("click",async e=>{e.stopPropagation();await setShared(item,!item.is_shared);});
-        card.append(name,share);
+        card.append(settingsButton,name,share);
         card.addEventListener("click",()=>item.item_type==="folder"?openFolder(item.id):openFile(item));
         card.addEventListener("keydown",e=>{if(e.key==="Enter")item.item_type==="folder"?openFolder(item.id):openFile(item);});
         list.append(card);
@@ -294,6 +278,52 @@
       try{await filesAction("set_shared",{id:item.id,shared});await loadItems();}
       catch(error){alert(error.message);}
     }
+    const cardSettingsOverlay=document.getElementById("card-settings-overlay");
+    const confirmOverlay=document.getElementById("confirm-overlay");
+    const confirmMessage=document.getElementById("confirm-message");
+    const confirmDeleteButton=document.getElementById("confirm-delete");
+    function openCardSettings(item){
+      activeSettingsItem=item;
+      document.getElementById("card-settings-title").textContent=item.name;
+      cardSettingsOverlay.hidden=false;
+    }
+    function closeCardSettings(){
+      cardSettingsOverlay.hidden=true;
+      activeSettingsItem=null;
+    }
+    function closeDeleteConfirmation(){
+      confirmOverlay.hidden=true;
+      pendingDeleteItem=null;
+    }
+    document.getElementById("card-settings-close").addEventListener("click",closeCardSettings);
+    document.getElementById("card-settings-cancel").addEventListener("click",closeCardSettings);
+    cardSettingsOverlay.addEventListener("click",event=>{if(event.target===cardSettingsOverlay)closeCardSettings();});
+    document.getElementById("card-settings-delete").addEventListener("click",()=>{
+      if(!activeSettingsItem)return;
+      pendingDeleteItem=activeSettingsItem;
+      confirmMessage.textContent=pendingDeleteItem.item_type==="folder"
+        ? 'Permanently delete "'+pendingDeleteItem.name+'" and everything inside it?'
+        : 'Permanently delete "'+pendingDeleteItem.name+'"?';
+      closeCardSettings();
+      confirmOverlay.hidden=false;
+    });
+    document.getElementById("confirm-cancel").addEventListener("click",closeDeleteConfirmation);
+    confirmOverlay.addEventListener("click",event=>{if(event.target===confirmOverlay)closeDeleteConfirmation();});
+    confirmDeleteButton.addEventListener("click",async()=>{
+      if(!pendingDeleteItem)return;
+      const target=pendingDeleteItem;
+      confirmDeleteButton.disabled=true;
+      try{
+        await filesAction("delete",{id:target.id});
+        if(currentFolderId===target.id)currentFolderId=target.parent_id||null;
+        closeDeleteConfirmation();
+        await loadItems();
+      }catch(error){
+        alert("Could not delete item: "+error.message);
+      }finally{
+        confirmDeleteButton.disabled=false;
+      }
+    });
     function openFolder(id){currentFolderId=id;renderItems();}
     document.getElementById("back-folder").addEventListener("click",()=>{currentFolderId=items.find(x=>x.id===currentFolderId)?.parent_id||null;renderItems();});
     const addWrap=document.createElement("div");addWrap.className="add-wrap";
