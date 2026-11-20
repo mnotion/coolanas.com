@@ -898,6 +898,7 @@ viewer.addEventListener("click",event=>{if(event.target===viewer)closeViewer();}
 document.addEventListener("keydown",event=>{
   if(event.key==="Escape"){
     closeNavPanels();
+    clearSelection();
     closeCardSettings();
     closeDeleteConfirmation();
   }
