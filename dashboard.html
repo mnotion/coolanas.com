@@ -79,7 +79,8 @@
   </style>
 </head>
 <body>
-  <main aria-label="Dashboard"><div id="account-panel" style="max-width:520px;margin:36px auto;padding:24px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.07)"><h1 style="margin:0 0 8px;font-size:28px">Your dashboard</h1><p id="account-status" style="color:#666">Checking your account…</p><button id="setup-passkey" type="button" hidden style="margin:0 0 12px;padding:10px 16px;border:1px solid #111;border-radius:9px;background:#111;color:#fff;cursor:pointer">Set up Windows Hello / passkey</button><p id="passkey-status" role="status" aria-live="polite" style="font-size:13px;color:#444"></p><button id="signout" type="button" style="padding:10px 16px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer">Sign out</button></div></main>
+  <main aria-label="Dashboard"><div id="account-panel" style="max-width:520px;margin:36px auto;padding:24px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.07)"><h1 style="margin:0 0 8px;font-size:28px">Your dashboard</h1><p id="account-status" style="color:#666">Checking your account…</p><button id="setup-passkey" type="button" hidden style="margin:0 0 12px;padding:10px 16px;border:1px solid #111;border-radius:9px;background:#111;color:#fff;cursor:pointer">Set up Windows Hello / passkey</button><p id="passkey-status" role="status" aria-live="polite" style="font-size:13px;color:#444"></p>
+<form id="username-form" hidden style="display:none;margin:18px 0;padding:16px;border:1px solid #e5e5e5;border-radius:12px"><label for="username-input" style="display:block;margin-bottom:8px;font-weight:600">Choose your username</label><input id="username-input" type="text" minlength="4" maxlength="100" autocomplete="username" required style="width:100%;height:44px;padding:0 12px;border:1px solid #ccc;border-radius:8px;font:inherit"><p style="margin:8px 0;color:#666;font-size:12px">4–100 characters. No spaces or emojis. Other characters are allowed.</p><p id="username-error" role="status" style="font-size:12px;color:#a00000"></p><button id="username-submit" type="submit" style="padding:10px 16px;border:1px solid #111;border-radius:9px;background:#111;color:#fff;cursor:pointer">Save username</button></form><button id="signout" type="button" style="padding:10px 16px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer">Sign out</button></div></main>
 
   <section class="panel" id="search-panel" aria-label="Search" hidden>
     <div class="panel-heading"><h2>Search</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
@@ -122,6 +123,10 @@
     const accountStatus=document.getElementById("account-status");
     const passkeyStatus=document.getElementById("passkey-status");
     const setupButton=document.getElementById("setup-passkey");
+    const usernameForm=document.getElementById("username-form");
+    const usernameInput=document.getElementById("username-input");
+    const usernameError=document.getElementById("username-error");
+    const usernameSubmit=document.getElementById("username-submit");
     const signoutButton=document.getElementById("signout");
     const callbackParams=new URLSearchParams(location.search);
     const callbackCode=callbackParams.get("code");
@@ -156,6 +161,53 @@
       return session;
     }
 
+    function validateUsername(value){
+      const length=[...value].length;
+      if(length<4||length>100) return "Username must be 4–100 characters.";
+      if(/\\s/u.test(value)) return "Spaces are not allowed.";
+      if(/[\\p{Extended_Pictographic}\\uFE0F\\u200D\\u{1F1E6}-\\u{1F1FF}\\u{1F3FB}-\\u{1F3FF}]/u.test(value)) return "Emojis are not allowed.";
+      return "";
+    }
+    async function requireUsername(session){
+      const {data:profile,error:profileError}=await supabase.from("profiles").select("username").eq("id",session.user.id).maybeSingle();
+      if(profileError) throw profileError;
+      if(profile?.username) return;
+      accountStatus.textContent="One more step: create your Coolanas username.";
+      usernameForm.hidden=false;
+      usernameForm.style.display="block";
+      setupButton.hidden=true;
+      usernameSubmit.disabled=false;
+      usernameInput.focus();
+      await new Promise((resolve)=>{
+        usernameForm.addEventListener("submit",async(event)=>{
+          event.preventDefault();
+          const username=usernameInput.value;
+          const validation=validateUsername(username);
+          if(validation){usernameError.textContent=validation;return;}
+          usernameSubmit.disabled=true;
+          usernameError.textContent="Checking username…";
+          try{
+            const {data:existing,error:lookupError}=await supabase.from("profiles").select("id").ilike("username",username).neq("id",session.user.id).limit(1);
+            if(lookupError) throw lookupError;
+            if(existing?.length){usernameError.textContent="That username is already taken.";usernameSubmit.disabled=false;return;}
+            const {error:updateError}=await supabase.from("profiles").update({username}).eq("id",session.user.id);
+            if(updateError){
+              if(/duplicate key|profiles_username_lower_key|profiles_username_key/i.test(updateError.message)) throw new Error("That username is already taken.");
+              throw updateError;
+            }
+            const {error:metadataError}=await supabase.auth.updateUser({data:{username}});
+            if(metadataError) console.warn("Username profile saved; auth metadata sync failed:",metadataError.message);
+            usernameError.textContent="";
+            resolve();
+            location.replace("files.html");
+          }catch(error){
+            usernameError.textContent=error?.message||"Could not save username.";
+            usernameSubmit.disabled=false;
+          }
+        },{once:true});
+      });
+    }
+
     async function returnToSignIn(){
       await supabase.auth.signOut();
       location.replace("index.html");
@@ -173,7 +225,7 @@
           throw new Error("Google returned without an active Coolanas session. Return to sign-in and try again.");
         }
         history.replaceState(null,document.title,location.pathname);
-        location.replace("files.html");
+        await requireUsername(session);
       }else{
         const {data:{session:storedSession},error}=await supabase.auth.getSession();
         if(error) throw error;
@@ -186,6 +238,7 @@
           signoutButton.hidden=false;
         }else{
           accountStatus.textContent="Signed in to your Coolanas account.";
+          await requireUsername(session);
           try{
             const {data:passkeys,error:passkeyError}=await supabase.auth.passkey.list();
             if(passkeyError) throw passkeyError;
