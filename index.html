@@ -171,7 +171,7 @@
         const { error } = await client.auth.signInWithOAuth({
           provider: "google",
           options: {
-            redirectTo: location.origin + "/dashboard.html?googleLogin=1"
+            redirectTo: "https://coolanas.com/dashboard.html?googleLogin=1"
           }
         });
         if (error) throw error;
