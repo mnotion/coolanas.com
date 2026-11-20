@@ -111,32 +111,105 @@
     const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
     const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
-    const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,experimental:{passkey:true}}});
+    const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+      auth:{
+        persistSession:true,
+        autoRefreshToken:true,
+        detectSessionInUrl:false,
+        experimental:{passkey:true}
+      }
+    });
     const accountStatus=document.getElementById("account-status");
     const passkeyStatus=document.getElementById("passkey-status");
     const setupButton=document.getElementById("setup-passkey");
-    const isAuthCallback=new URLSearchParams(location.search).has("code")||location.hash.includes("access_token=");
-    const {data:{session},error}=await supabase.auth.getSession();
-    if(error||!session){location.replace("index.html");}
-    else if(isAuthCallback){
-      location.replace("files.html");
-    }
-    else{
-      accountStatus.textContent="Signed in to your Coolanas account.";
-      try{
-        const {data:passkeys,error:passkeyError}=await supabase.auth.passkey.list();
-        if(passkeyError) throw passkeyError;
-        if(Array.isArray(passkeys)&&passkeys.length>0){
-          passkeyStatus.textContent="Passkey sign-in is ready on this account.";
-        }else{
-          passkeyStatus.textContent="This account does not have a passkey yet. Add Windows Hello or Google Password Manager to sign in next time.";
-          setupButton.hidden=false;
-        }
-      }catch(passkeyError){
-        passkeyStatus.textContent="Could not check passkey status: "+(passkeyError.message||"Unknown error");
-        setupButton.hidden=false;
+    const signoutButton=document.getElementById("signout");
+    const callbackParams=new URLSearchParams(location.search);
+    const callbackCode=callbackParams.get("code");
+    const callbackError=callbackParams.get("error_description")||callbackParams.get("error");
+    const hashParams=new URLSearchParams(location.hash.replace(/^#/,""));
+    const isAuthCallback=Boolean(callbackCode||callbackError||hashParams.has("access_token"));
+
+    async function getCallbackSession(){
+      if(callbackError){
+        throw new Error(callbackError);
       }
+
+      if(callbackCode){
+        const {data,error}=await supabase.auth.exchangeCodeForSession(callbackCode);
+        if(error) throw error;
+        return data.session||null;
+      }
+
+      const accessToken=hashParams.get("access_token");
+      const refreshToken=hashParams.get("refresh_token");
+      if(accessToken&&refreshToken){
+        const {data,error}=await supabase.auth.setSession({
+          access_token:accessToken,
+          refresh_token:refreshToken
+        });
+        if(error) throw error;
+        return data.session||null;
+      }
+
+      const {data:{session},error}=await supabase.auth.getSession();
+      if(error) throw error;
+      return session;
     }
+
+    async function returnToSignIn(){
+      await supabase.auth.signOut();
+      location.replace("index.html");
+    }
+
+    signoutButton.addEventListener("click",returnToSignIn);
+    document.getElementById("menu-signout").addEventListener("click",returnToSignIn);
+
+    try{
+      let session;
+      if(isAuthCallback){
+        accountStatus.textContent="Completing Google sign-in…";
+        session=await getCallbackSession();
+        if(!session){
+          throw new Error("Google returned without an active Coolanas session. Return to sign-in and try again.");
+        }
+        history.replaceState(null,document.title,location.pathname);
+        location.replace("files.html");
+      }else{
+        const {data:{session:storedSession},error}=await supabase.auth.getSession();
+        if(error) throw error;
+        session=storedSession;
+        if(!session){
+          accountStatus.textContent="You are not signed in.";
+          passkeyStatus.textContent="Return to the sign-in page and try again.";
+          setupButton.hidden=true;
+          signoutButton.textContent="Return to sign in";
+          signoutButton.hidden=false;
+        }else{
+          accountStatus.textContent="Signed in to your Coolanas account.";
+          try{
+            const {data:passkeys,error:passkeyError}=await supabase.auth.passkey.list();
+            if(passkeyError) throw passkeyError;
+            if(Array.isArray(passkeys)&&passkeys.length>0){
+              passkeyStatus.textContent="Passkey sign-in is ready on this account.";
+            }else{
+              passkeyStatus.textContent="This account does not have a passkey yet. Add Windows Hello or Google Password Manager to sign in next time.";
+              setupButton.hidden=false;
+            }
+          }catch(passkeyError){
+            passkeyStatus.textContent="Could not check passkey status: "+(passkeyError.message||"Unknown error");
+            setupButton.hidden=false;
+          }
+        }
+      }
+    }catch(authError){
+      accountStatus.textContent="Google sign-in could not be completed.";
+      passkeyStatus.textContent=authError?.message||"Authentication failed. Return to sign-in and try again.";
+      setupButton.hidden=true;
+      signoutButton.textContent="Return to sign in";
+      signoutButton.hidden=false;
+      console.error("Coolanas OAuth callback failed:",authError);
+    }
+
     setupButton.addEventListener("click",async()=>{
       setupButton.disabled=true;
       passkeyStatus.textContent="Follow the Windows Hello or passkey prompt…";
@@ -150,12 +223,6 @@
         setupButton.disabled=false;
       }
     });
-    async function signOutAndReturn(){
-      await supabase.auth.signOut();
-      location.replace("index.html");
-    }
-    document.getElementById("signout").addEventListener("click",signOutAndReturn);
-    document.getElementById("menu-signout").addEventListener("click",signOutAndReturn);
 
     const navSearch=document.getElementById("search-toggle");
     const navMenu=document.getElementById("menu-toggle");
