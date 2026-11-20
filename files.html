@@ -181,12 +181,21 @@
     window.addEventListener("drop",async event=>{
       event.preventDefault();dragDepth=0;dropHint.hidden=true;
       const dropped=[];
-      for(const item of [...(event.dataTransfer?.items||[])]){
+      const transferItems=[...(event.dataTransfer?.items||[])];
+      for(const item of transferItems){
+        if(item.kind!=="file")continue;
         const entry=item.webkitGetAsEntry?.();
-        if(entry)dropped.push(...await readEntry(entry));
-        else{const file=item.getAsFile?.();if(file)dropped.push({type:"file",name:file.name});}
+        if(entry?.isDirectory){
+          dropped.push(...await readEntry(entry));
+        }else{
+          const file=item.getAsFile?.();
+          if(file)dropped.push({type:"file",name:file.name});
+          else if(entry?.isFile)dropped.push(...await readEntry(entry));
+        }
       }
-      if(!dropped.length)for(const file of [...(event.dataTransfer?.files||[])])dropped.push({type:"file",name:file.name});
+      if(!dropped.length){
+        for(const file of [...(event.dataTransfer?.files||[])])dropped.push({type:"file",name:file.name});
+      }
       items.push(...dropped);saveItems();renderItems();
     });
     const toggles={search:document.getElementById("search-toggle"),menu:document.getElementById("menu-toggle")};
