@@ -71,6 +71,15 @@
     .bottom-nav{z-index:10}
 
     .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #3985ed;background:rgba(59,130,246,.18);border-radius:2px}
+.selection-actions{position:fixed;z-index:45;display:flex;align-items:center;gap:5px;padding:0;background:transparent;pointer-events:auto;transform:translate(8px,-50%)}
+    .selection-actions[hidden]{display:none}
+    .selection-action{border:0;border-radius:8px;padding:7px 10px;background:transparent;color:#fff;font:600 12px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;text-shadow:0 1px 5px rgba(0,0,0,.35);transition:background .14s ease,transform .14s ease}
+    .selection-action:hover{background:rgba(255,255,255,.17);transform:translateY(-1px)}
+    .selection-action.danger{color:#ffb4b4}
+    .selection-colors{display:flex;align-items:center;gap:7px;margin-left:3px}
+    .selection-colors[hidden]{display:none}
+    .selection-color{width:17px;height:17px;padding:0;border:1.5px solid rgba(255,255,255,.9);border-radius:50%;background:var(--swatch);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.22);transition:transform .14s ease}
+    .selection-color:hover{transform:scale(1.22)}
 
     .file-card{position:relative}
     .settings-dot{position:absolute;top:9px;right:9px;width:13px;height:13px;padding:0;border:0;border-radius:50%;background:#9ca3af;box-shadow:0 0 0 2px #fff;cursor:pointer;z-index:5;opacity:.92;transition:background .12s ease,transform .12s ease}
@@ -195,6 +204,18 @@
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
   <div class="selection-marquee" id="selection-marquee" hidden></div>
+  <div class="selection-actions" id="selection-actions" hidden>
+    <button class="selection-action danger" id="selection-delete" type="button">Delete</button>
+    <button class="selection-action" id="selection-recolour" type="button">Recolour</button>
+    <div class="selection-colors" id="selection-colors" hidden>
+      <button class="selection-color" type="button" data-color="#e6b325" aria-label="Yellow" title="Yellow" style="--swatch:#e6b325"></button>
+      <button class="selection-color" type="button" data-color="#3b82f6" aria-label="Blue" title="Blue" style="--swatch:#3b82f6"></button>
+      <button class="selection-color" type="button" data-color="#22a06b" aria-label="Green" title="Green" style="--swatch:#22a06b"></button>
+      <button class="selection-color" type="button" data-color="#a855f7" aria-label="Purple" title="Purple" style="--swatch:#a855f7"></button>
+      <button class="selection-color" type="button" data-color="#ef4444" aria-label="Red" title="Red" style="--swatch:#ef4444"></button>
+      <button class="selection-color" type="button" data-color="#6b7280" aria-label="Gray" title="Gray" style="--swatch:#6b7280"></button>
+    </div>
+  </div>
   <div class="upload-overlay" id="upload-overlay" hidden aria-live="polite" aria-busy="true"><div class="upload-card"><div class="upload-spinner" aria-hidden="true"></div><p class="upload-title" id="upload-title">Uploading files</p><p class="upload-detail" id="upload-detail">Preparing…</p><div class="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar"></div></div></div></div>
   <div class="file-viewer" id="file-viewer" hidden><section class="viewer-panel"><header class="viewer-head"><strong id="viewer-title"></strong><button class="viewer-close" id="viewer-close" type="button" aria-label="Close">×</button></header><div class="viewer-content" id="viewer-content"></div></section></div>
   <div class="confirm-overlay" id="card-settings-overlay" hidden>
@@ -426,13 +447,62 @@ function resetCardMotion(){
     card.style.setProperty("--card-z","1");
   });
 }
+const selectionActions=document.getElementById("selection-actions");
+const selectionColors=document.getElementById("selection-colors");
+const selectionRecolour=document.getElementById("selection-recolour");
+function positionSelectionActions(){
+  if(!selectedIds.size||marqueeStart){selectionActions.hidden=true;return;}
+  const selectedCards=[...list.querySelectorAll(".file-card.is-selected")];
+  if(!selectedCards.length){selectionActions.hidden=true;return;}
+  const rects=selectedCards.map(card=>card.getBoundingClientRect());
+  const right=Math.max(...rects.map(rect=>rect.right));
+  const top=Math.min(...rects.map(rect=>rect.top));
+  const bottom=Math.max(...rects.map(rect=>rect.bottom));
+  selectionActions.hidden=false;
+  const toolbarHeight=selectionActions.offsetHeight||32;
+  selectionActions.style.left=Math.min(window.innerWidth-220,Math.max(8,right))+"px";
+  selectionActions.style.top=Math.max(12,Math.min(window.innerHeight-toolbarHeight-12,(top+bottom)/2))+"px";
+  const hasFolders=selectedCards.some(card=>card.dataset.type==="folder");
+  selectionRecolour.hidden=!hasFolders;
+}
 function updateSelectionUi(){
   document.body.classList.toggle("has-selection",selectedIds.size>0);
   list.querySelectorAll(".file-card").forEach(card=>{
     card.classList.toggle("is-selected",selectedIds.has(card.dataset.id));
     card.draggable=true;
   });
+  if(!selectedIds.size){selectionActions.hidden=true;selectionColors.hidden=true;}
+  else requestAnimationFrame(positionSelectionActions);
 }
+document.getElementById("selection-recolour").addEventListener("click",()=>{
+  selectionColors.hidden=!selectionColors.hidden;
+});
+document.getElementById("selection-delete").addEventListener("click",async()=>{
+  const ids=await topLevelIds([...selectedIds]);
+  if(!ids.length)return;
+  const count=selectedIds.size;
+  if(!confirm("Delete "+count+" selected item"+(count===1?"":"s")+"? This cannot be undone."))return;
+  try{
+    for(const id of ids)await filesAction("delete",{id});
+    clearSelection();
+    await loadItems();
+  }catch(error){alert("Could not delete the selected items: "+error.message);}
+});
+selectionColors.addEventListener("click",async event=>{
+  const choice=event.target.closest("[data-color]");
+  if(!choice)return;
+  const color=choice.dataset.color;
+  const folders=[...selectedIds].map(id=>items.find(item=>item.id===id)).filter(item=>item?.item_type==="folder");
+  if(!folders.length)return;
+  try{
+    for(const folder of folders)await filesAction("update_metadata",{id:folder.id,folder_color:color});
+    folders.forEach(folder=>folder.folder_color=color);
+    clearSelection();
+    await loadItems();
+  }catch(error){alert("Could not recolour the selected folders: "+error.message);}
+});
+window.addEventListener("resize",()=>{if(selectedIds.size)positionSelectionActions();});
+window.addEventListener("scroll",()=>{if(selectedIds.size)positionSelectionActions();},true);
 function clearSelection(){
   selectedIds.clear();
   document.body.classList.remove("has-selection","selection-drag-mode");
