@@ -306,6 +306,97 @@ async function filesAction(action,payload={}){
   if(data?.error)throw new Error(data.error);
   return data;
 }
+const searchPanel=document.getElementById("search-panel");
+const menuPanel=document.getElementById("menu-panel");
+const searchToggle=document.getElementById("search-toggle");
+const menuToggle=document.getElementById("menu-toggle");
+const settingsOverlay=document.getElementById("card-settings-overlay");
+const tagInput=document.getElementById("card-tag-input");
+const colorSection=document.getElementById("folder-color-section");
+const tagSection=document.getElementById("tag-section");
+function closeNavPanels(){
+  searchPanel.hidden=true;
+  menuPanel.hidden=true;
+  searchToggle.setAttribute("aria-expanded","false");
+  menuToggle.setAttribute("aria-expanded","false");
+}
+function toggleNavPanel(panel,toggle){
+  const shouldOpen=panel.hidden;
+  closeNavPanels();
+  if(shouldOpen){
+    panel.hidden=false;
+    toggle.setAttribute("aria-expanded","true");
+  }
+}
+searchToggle.addEventListener("click",()=>toggleNavPanel(searchPanel,searchToggle));
+menuToggle.addEventListener("click",()=>toggleNavPanel(menuPanel,menuToggle));
+document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
+document.getElementById("menu-home").addEventListener("click",()=>location.href="index.html");
+document.getElementById("signout").addEventListener("click",async()=>{
+  const button=document.getElementById("signout");
+  button.disabled=true;
+  button.textContent="Signing out…";
+  try{
+    const {error}=await supabase.auth.signOut({scope:"local"});
+    if(error)throw error;
+    location.replace("index.html");
+  }catch(error){
+    button.disabled=false;
+    button.textContent="Sign out";
+    alert("Could not sign out: "+(error.message||"Unknown error"));
+  }
+});
+function closeCardSettings(){
+  settingsOverlay.hidden=true;
+  activeSettingsItem=null;
+}
+function openCardSettings(item){
+  activeSettingsItem=item;
+  tagInput.value=item.tag||"";
+  colorSection.hidden=item.item_type!=="folder";
+  settingsOverlay.hidden=false;
+  closeNavPanels();
+}
+document.getElementById("card-settings-close").addEventListener("click",closeCardSettings);
+document.getElementById("card-settings-cancel").addEventListener("click",closeCardSettings);
+settingsOverlay.addEventListener("click",event=>{if(event.target===settingsOverlay)closeCardSettings();});
+document.getElementById("folder-color-options").addEventListener("click",async event=>{
+  const choice=event.target.closest("[data-color]");
+  if(!choice||!activeSettingsItem||activeSettingsItem.item_type!=="folder")return;
+  try{
+    await filesAction("update_metadata",{id:activeSettingsItem.id,folder_color:choice.dataset.color});
+    activeSettingsItem.folder_color=choice.dataset.color;
+    closeCardSettings();
+    await loadItems();
+  }catch(error){alert("Could not update folder colour: "+error.message);}
+});
+tagInput.addEventListener("change",async()=>{
+  if(!activeSettingsItem)return;
+  try{
+    await filesAction("update_metadata",{id:activeSettingsItem.id,tag:tagInput.value.trim()||null});
+    activeSettingsItem.tag=tagInput.value.trim()||null;
+    await loadItems();
+  }catch(error){alert("Could not save tag: "+error.message);}
+});
+document.getElementById("card-settings-delete").addEventListener("click",async()=>{
+  if(!activeSettingsItem)return;
+  const item=activeSettingsItem;
+  const confirmed=confirm("Delete “"+item.name+"”"+(item.item_type==="folder"?" and everything inside it":"")+"?");
+  if(!confirmed)return;
+  try{
+    await filesAction("delete",{id:item.id});
+    closeCardSettings();
+    await loadItems();
+  }catch(error){alert("Could not delete item: "+error.message);}
+});
+document.getElementById("files-search-input").addEventListener("input",event=>{
+  searchQuery=event.target.value.trim().toLocaleLowerCase();
+  renderItems();
+});
+document.getElementById("files-toggle").addEventListener("click",()=>{
+  closeNavPanels();
+  if(currentFolderId)openFolder(null);
+});
 function showStatus(message,visible=true){
   status.textContent=message||"";
   status.hidden=!visible;
