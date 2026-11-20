@@ -28,7 +28,9 @@
     .file-card.is-selected{background:#eaf2ff;outline:2px solid #4b91f1;outline-offset:-2px;box-shadow:0 3px 12px rgba(59,130,246,.16)}
     .file-card,.file-card *{-webkit-user-select:none;user-select:none}
     .file-card.is-selected{z-index:9}
-    .file-card.is-drop-target{outline:2px dashed #3985ed;outline-offset:3px;background:#edf4ff}
+    .file-card[draggable="true"]{cursor:grab}
+    .file-card.is-being-dragged{opacity:.48;cursor:grabbing}
+    .file-card.is-drop-target{outline:2px dashed #3985ed;outline-offset:3px;background:#edf4ff;transform:scale(1.055);box-shadow:0 8px 22px rgba(59,130,246,.2);cursor:copy;transition:transform .14s ease,box-shadow .14s ease,background .14s ease}
     .file-card.is-selected .settings-dot{display:none}
     body.has-selection::after{content:"";position:fixed;inset:0;z-index:8;background:rgba(20,24,32,.20);backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px);pointer-events:none}
     body.selection-drag-mode{overflow:hidden}
@@ -389,7 +391,8 @@
         if(item.type==="folder"){
           card.addEventListener("dragover",event=>{
             if(!event.dataTransfer.types.includes("application/x-coolanas-items"))return;
-            event.preventDefault();event.dataTransfer.dropEffect="move";card.classList.add("is-drop-target");
+            event.preventDefault();event.dataTransfer.dropEffect="move";
+            if(!card.classList.contains("is-drop-target"))card.classList.add("is-drop-target");
           });
           card.addEventListener("dragleave",event=>{
             if(!card.contains(event.relatedTarget))card.classList.remove("is-drop-target");
