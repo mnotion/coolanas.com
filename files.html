@@ -30,6 +30,11 @@
     .file-card.is-selected{z-index:9}
     .file-card.is-selected .delete-dot{display:none}
     body.has-selection::after{content:"";position:fixed;inset:0;z-index:8;background:rgba(20,24,32,.18);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);pointer-events:none}
+    body.selection-drag-mode{overflow:hidden}
+    body.selection-drag-mode main{touch-action:none;overscroll-behavior:contain}
+    body.selection-drag-mode .files-list{touch-action:none}
+    body.selection-drag-mode .selection-marquee{touch-action:none}
+
     .bottom-nav{z-index:10}
 
     .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #3985ed;background:rgba(59,130,246,.16);border-radius:2px}
@@ -523,17 +528,48 @@
     const selectedCardIds=new Set();
     const selectionMarquee=document.getElementById("selection-marquee");
     let marqueeStart=null,marqueeActive=false,marqueeJustFinished=false;
+    let selectionDragMode=false,lastEmptyTapAt=0;
     function updateCardSelection(){
-      list.querySelectorAll(".file-card").forEach(card=>card.classList.toggle("is-selected",selectedCardIds.has(card.dataset.id)));
-      document.body.classList.toggle("has-selection",selectedCardIds.size>0);
+      list.querySelectorAll(".file-card").forEach(card=>{
+        const selected=selectedCardIds.has(card.dataset.id);
+        card.classList.toggle("is-selected",selected);
+      });
+      document.body.classList.toggle("has-selection",selectedCardIds.size>0&&!marqueeActive);
     }
     function clearCardSelection(){selectedCardIds.clear();updateCardSelection();}
     function toggleCardSelection(id){
       if(selectedCardIds.has(id))selectedCardIds.delete(id);else selectedCardIds.add(id);
       updateCardSelection();
     }
+    function setSelectionDragMode(enabled){
+      selectionDragMode=enabled;
+      document.body.classList.toggle("selection-drag-mode",enabled);
+      if(!enabled){marqueeStart=null;marqueeActive=false;selectionMarquee.hidden=true;}
+    }
+    function isEmptySelectionSurface(target){
+      return !target.closest(".file-card")&&!target.closest(".add-wrap")&&!target.closest(".bottom-nav")&&!target.closest("button,input");
+    }
+    list.addEventListener("dblclick",event=>{
+      if(!isEmptySelectionSurface(event.target))return;
+      setSelectionDragMode(!selectionDragMode);
+      lastEmptyTapAt=0;
+    });
     list.addEventListener("pointerdown",event=>{
-      if(event.button!==0||event.target.closest(".file-card")||event.target.closest(".add-wrap"))return;
+      if(event.button!==0||!isEmptySelectionSurface(event.target))return;
+      const now=performance.now();
+      if(event.pointerType==="touch"&&now-lastEmptyTapAt<360){
+        setSelectionDragMode(true);
+        lastEmptyTapAt=0;
+      }else if(event.pointerType==="touch"){
+        lastEmptyTapAt=now;
+        return;
+      }else if(!selectionDragMode){
+        marqueeStart={x:event.clientX,y:event.clientY};
+        marqueeActive=false;
+        if(!event.ctrlKey&&!event.metaKey)clearCardSelection();
+        return;
+      }
+      if(!selectionDragMode)return;
       event.preventDefault();
       marqueeStart={x:event.clientX,y:event.clientY};
       marqueeActive=false;
@@ -541,9 +577,11 @@
     });
     document.addEventListener("pointermove",event=>{
       if(!marqueeStart)return;
+      if(event.pointerType==="touch")event.preventDefault();
       const dx=event.clientX-marqueeStart.x,dy=event.clientY-marqueeStart.y;
       if(!marqueeActive&&Math.hypot(dx,dy)<5)return;
       marqueeActive=true;
+      document.body.classList.remove("has-selection");
       const left=Math.min(event.clientX,marqueeStart.x),top=Math.min(event.clientY,marqueeStart.y);
       const width=Math.abs(dx),height=Math.abs(dy);
       selectionMarquee.hidden=false;
@@ -557,15 +595,20 @@
         else if(!event.ctrlKey&&!event.metaKey)selectedCardIds.delete(card.dataset.id);
       });
       updateCardSelection();
-    });
+      document.body.classList.remove("has-selection");
+    },{passive:false});
     document.addEventListener("pointerup",()=>{
       if(!marqueeStart)return;
       const didDrag=marqueeActive;
       marqueeStart=null;marqueeActive=false;selectionMarquee.hidden=true;
+      updateCardSelection();
       if(didDrag){marqueeJustFinished=true;requestAnimationFrame(()=>{marqueeJustFinished=false;});}
     });
     document.addEventListener("keydown",event=>{
-      if(event.key==="Escape"&&selectedCardIds.size)clearCardSelection();
+      if(event.key==="Escape"){
+        if(selectionDragMode)setSelectionDragMode(false);
+        if(selectedCardIds.size)clearCardSelection();
+      }
     });
     function resetCardMotion(){
       list.querySelectorAll(".file-card").forEach(card=>{
