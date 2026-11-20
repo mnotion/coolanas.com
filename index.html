@@ -26,10 +26,12 @@
       font:600 15px/1.2 Arial,Roboto,sans-serif; cursor:pointer;
       -webkit-tap-highlight-color:transparent; touch-action:manipulation;
     }
-    button:hover { background:#f8faff; border-color:#d2e3fc; box-shadow:0 1px 2px rgba(60,64,67,.18); }
+    @media (hover:hover) and (pointer:fine) { button:hover { background:#f8faff; border-color:#d2e3fc; box-shadow:0 1px 2px rgba(60,64,67,.18); } }
+    button:active { background:#f3f4f4; }
     button:disabled { opacity:.55; cursor:wait; }
     button:focus:not(:focus-visible) { outline:none; box-shadow:none; }
     button:focus-visible { outline:2px solid #777; outline-offset:3px; }
+    @media (hover:none) and (pointer:coarse) { button:focus,button:focus-visible { outline:none!important; box-shadow:none!important; } }
     .google-logo { width:20px; height:20px; flex:none; }
     .status { margin:16px 2px 0; color:#a00000; font-size:13px; overflow-wrap:anywhere; }
     .status[hidden] { display:none; }
@@ -46,7 +48,7 @@
         <path fill="#FBBC05" d="M10.54 28.59a14.4 14.4 0 0 1 0-9.18l-7.98-6.19a23.9 23.9 0 0 0 0 21.56l7.98-6.19z" transform="translate(0 4)"/>
         <path fill="#34A853" d="M24 48c6.47 0 11.9-2.13 15.86-5.86l-7.65-5.94c-2.13 1.43-4.85 2.28-8.21 2.28-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" transform="translate(0 -4)"/>
       </svg>
-      <span>Sign in with Google</span>
+      <span>Continue with Google</span>
     </button>
     <p class="status" id="login-status" role="status" aria-live="polite" hidden></p>
   </main>
