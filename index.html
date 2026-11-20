@@ -25,6 +25,8 @@
     }
     button:hover { background:#292929; }
     button:disabled { opacity:.55; cursor:wait; }
+    .google-button { margin-top:12px; background:#fff; color:#111; border-color:#d5d5d5; }
+    .google-button:hover { background:#f4f4f4; }
     .status { min-height:38px; margin:14px 2px 0; color:#333; font-size:13px; overflow-wrap:anywhere; }
     .status[data-kind="error"] { color:#a00000; }
     @media(max-width:480px) { main { padding:28px; } }
@@ -35,13 +37,15 @@
     <h1>Welcome.</h1>
     <p>Sign in or create your Coolanas account with your device's passkey.</p>
     <button id="passkey-login" type="button">Continue with fingerprint</button>
-    <p class="status" id="passkey-status" role="status" aria-live="polite">Loading passkey sign-in…</p>
+    <button id="google-login" class="google-button" type="button">Continue with Google</button>
+    <p class="status" id="passkey-status" role="status" aria-live="polite">Loading sign-in options…</p>
   </main>
 
   <script type="module">
     const SUPABASE_URL = "https://nacwftrsdpglzrhasmit.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
     const button = document.getElementById("passkey-login");
+    const googleButton = document.getElementById("google-login");
     const status = document.getElementById("passkey-status");
     let mode = "sign-in";
     let supabase;
@@ -157,6 +161,26 @@
     }
 
     button.addEventListener("click", handleButton);
+
+    googleButton.addEventListener("click", async () => {
+      googleButton.disabled = true;
+      button.disabled = true;
+      showStatus("Redirecting to Google…");
+      try {
+        const client = await getClient();
+        const { error } = await client.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: location.origin + "/dashboard.html?googleLogin=1"
+          }
+        });
+        if (error) throw error;
+      } catch (error) {
+        showStatus(error?.message || "Google sign-in could not start. Check that Google is enabled in Supabase.", "error");
+        googleButton.disabled = false;
+        button.disabled = false;
+      }
+    });
 
     (async () => {
       try {
