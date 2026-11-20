@@ -85,7 +85,10 @@
     .confirm-overlay{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
     .confirm-overlay[hidden]{display:none}
     .confirm-panel{width:min(420px,100%);padding:22px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;box-shadow:0 20px 65px rgba(0,0,0,.2)}
-    .card-settings-panel{width:min(440px,100%);padding:24px}
+    .card-settings-panel{width:min(440px,100%);padding:24px;transform-origin:var(--settings-origin-x,50%) var(--settings-origin-y,50%);animation:settings-pop .48s cubic-bezier(.18,.82,.22,1) both}
+    @keyframes settings-pop{0%{transform:scale(.035);opacity:.25;border-radius:50%;filter:blur(2px)}65%{transform:scale(1.025);opacity:1;border-radius:18px;filter:blur(0)}100%{transform:scale(1);opacity:1;border-radius:16px}}
+    #card-settings-overlay{background:rgba(0,0,0,.28);animation:settings-backdrop-in .28s ease both}
+    @keyframes settings-backdrop-in{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,.28)}}
     .settings-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
     .settings-header h2{margin:0;font-size:19px;font-weight:650;color:#171717}
     .settings-subtitle{margin:5px 0 0;color:#858585;font-size:12px}
@@ -93,6 +96,9 @@
     .settings-section{border-bottom:1px solid #eceef0}
     .settings-section>summary{min-height:58px;display:flex;align-items:center;gap:12px;list-style:none;cursor:pointer;user-select:none}
     .settings-section>summary::-webkit-details-marker{display:none}
+    .settings-section-content{display:grid;grid-template-rows:0fr;opacity:0;overflow:hidden;padding:0!important;transition:grid-template-rows .28s cubic-bezier(.2,.8,.2,1),opacity .2s ease,padding .28s ease}
+    .settings-section-content>*{min-height:0}
+    .settings-section[open]>.settings-section-content{grid-template-rows:1fr;opacity:1;padding:0 0 18px!important}
     .settings-section>summary::after{content:"";width:8px;height:8px;margin-left:auto;border-right:1.7px solid #777;border-bottom:1.7px solid #777;transform:rotate(45deg);transition:transform .16s ease}
     .settings-section[open]>summary::after{transform:rotate(225deg)}
     .settings-section-title{font-size:14px;font-weight:600;color:#252525}
@@ -189,10 +195,10 @@
   <div class="file-viewer" id="file-viewer" hidden><section class="viewer-panel"><header class="viewer-head"><strong id="viewer-title"></strong><button class="viewer-close" id="viewer-close" type="button" aria-label="Close">×</button></header><div class="viewer-content" id="viewer-content"></div></section></div>
   <div class="confirm-overlay" id="card-settings-overlay" hidden>
     <section class="confirm-panel card-settings-panel" role="dialog" aria-modal="true" aria-labelledby="card-settings-title">
-      <div class="settings-header"><div><h2 id="card-settings-title">Card settings</h2><p class="settings-subtitle" id="card-settings-name"></p></div><button class="close-button" id="card-settings-close" type="button" aria-label="Close">×</button></div>
+      <div class="settings-header"><div><h2 id="card-settings-title">Card settings</h2></div><button class="close-button" id="card-settings-close" type="button" aria-label="Close">×</button></div>
       <div class="settings-accordion">
         <details class="settings-section" id="folder-color-section">
-          <summary><span class="settings-section-title">Folder colour</span><span class="settings-section-value" id="folder-color-value">Yellow</span></summary>
+          <summary><span class="settings-section-title">Folder colour</span></summary>
           <div class="settings-section-content">
             <div class="color-options" id="folder-color-options">
               <button type="button" class="color-choice" data-color="#e6b325" aria-label="Yellow" title="Yellow" style="--swatch:#e6b325"></button>
@@ -205,11 +211,11 @@
           </div>
         </details>
         <details class="settings-section" id="tag-section">
-          <summary><span class="settings-section-title">Tag</span><span class="settings-section-value" id="card-tag-value">None</span></summary>
+          <summary><span class="settings-section-title">Tag</span></summary>
           <div class="settings-section-content"><input class="search-input" id="card-tag-input" type="text" maxlength="32" placeholder="Add a tag"></div>
         </details>
         <details class="settings-section settings-danger-section" id="delete-section">
-          <summary><span class="settings-section-title">Delete item</span><span class="settings-section-value">Permanent</span></summary>
+          <summary><span class="settings-section-title">Delete item</span></summary>
           <div class="settings-section-content"><p class="settings-delete-copy">This will delete this item and its contents, if it is a folder.</p><button class="confirm-button danger" id="card-settings-delete" type="button">Delete item</button></div>
         </details>
       </div>
@@ -340,9 +346,22 @@
       });
     }
     let settingsItemId=null;
-    function openCardSettings(item){
+    function openCardSettings(item,sourceButton){
       settingsItemId=item.id;
       const overlay=document.getElementById("card-settings-overlay");
+      const panel=overlay.querySelector(".card-settings-panel");
+      const sourceRect=sourceButton?.getBoundingClientRect();
+      if(sourceRect){
+        const panelRect=panel.getBoundingClientRect();
+        panel.style.setProperty("--settings-origin-x",(sourceRect.left+sourceRect.width/2-panelRect.left)+"px");
+        panel.style.setProperty("--settings-origin-y",(sourceRect.top+sourceRect.height/2-panelRect.top)+"px");
+      }else{
+        panel.style.setProperty("--settings-origin-x","50%");
+        panel.style.setProperty("--settings-origin-y","50%");
+      }
+      panel.style.animation="none";
+      void panel.offsetWidth;
+      panel.style.animation="";
       const tagInput=document.getElementById("card-tag-input");
       tagInput.value=item.tag||"";
       document.getElementById("card-settings-name").textContent=item.name;
@@ -356,9 +375,6 @@
         button.classList.toggle("active",button.dataset.color===selectedColor);
         button.hidden=false;
       });
-      const selectedOption=[...options].find(button=>button.dataset.color===selectedColor);
-      document.getElementById("folder-color-value").textContent=selectedOption?.title||"Yellow";
-      document.getElementById("card-tag-value").textContent=item.tag||"None";
       overlay.hidden=false;
     }
     function closeCardSettings(){document.getElementById("card-settings-overlay").hidden=true;settingsItemId=null;}
@@ -370,13 +386,11 @@
       const item=items.find(entry=>entry.id===settingsItemId);if(!item)return;
       item.color=button.dataset.color;saveItems();renderItems();
       document.querySelectorAll(".color-choice").forEach(choice=>choice.classList.toggle("active",choice===button));
-      document.getElementById("folder-color-value").textContent=button.title;
     });
     document.getElementById("card-tag-input").addEventListener("input",event=>{
       if(!settingsItemId)return;
       const item=items.find(entry=>entry.id===settingsItemId);if(!item)return;
       item.tag=event.target.value.trim();saveItems();
-      document.getElementById("card-tag-value").textContent=item.tag||"None";
       const card=list.querySelector('[data-id="'+CSS.escape(settingsItemId)+'"]');
       if(card){const tag=card.querySelector(".file-tag");if(tag){tag.textContent=item.tag;tag.hidden=!item.tag;}}
     });
@@ -458,7 +472,7 @@
         tag.className="file-tag";tag.textContent=item.tag||"";tag.hidden=!item.tag;
         const settings=document.createElement("button");
         settings.className="settings-dot";settings.type="button";settings.title="Card settings";settings.setAttribute("aria-label","Settings for "+item.name);
-        settings.addEventListener("click",event=>{event.stopPropagation();openCardSettings(item);});
+        settings.addEventListener("click",event=>{event.stopPropagation();openCardSettings(item,settings);});
         card.append(name,tag,settings);
         card.addEventListener("dragstart",event=>{
           if(event.target.closest(".settings-dot")){event.preventDefault();return;}
