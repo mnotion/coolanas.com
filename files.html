@@ -37,6 +37,17 @@
     .crumb-current{font-size:14px;color:#777}
     .file-viewer{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:rgba(20,20,20,.24);backdrop-filter:blur(5px)}
     .file-viewer[hidden]{display:none}
+    .confirm-overlay{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+    .confirm-overlay[hidden]{display:none}
+    .confirm-panel{width:min(420px,100%);padding:22px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;box-shadow:0 20px 65px rgba(0,0,0,.2)}
+    .confirm-title{margin:0 0 8px;font-size:17px;font-weight:650;color:#171717}
+    .confirm-message{margin:0;color:#666;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+    .confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
+    .confirm-button{min-width:82px;padding:9px 15px;border:1px solid #e5e5e5;border-radius:9px;background:#f7f7f7;color:#333;font:inherit;font-size:13px;cursor:pointer}
+    .confirm-button:hover{background:#eee}
+    .confirm-button.danger{border-color:#d9363e;background:#d9363e;color:#fff}
+    .confirm-button.danger:hover{background:#c52d35}
+
     .viewer-panel{width:min(900px,100%);height:min(720px,90vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid #eee;border-radius:16px;background:#fff;box-shadow:0 18px 60px rgba(0,0,0,.18)}
     .viewer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #eee}
     .viewer-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -107,6 +118,7 @@
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
   <div class="upload-overlay" id="upload-overlay" hidden aria-live="polite" aria-busy="true"><div class="upload-card"><div class="upload-spinner" aria-hidden="true"></div><p class="upload-title" id="upload-title">Uploading files</p><p class="upload-detail" id="upload-detail">Preparing…</p><div class="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar"></div></div></div></div>
   <div class="file-viewer" id="file-viewer" hidden><section class="viewer-panel"><header class="viewer-head"><strong id="viewer-title"></strong><button class="viewer-close" id="viewer-close" type="button" aria-label="Close">×</button></header><div class="viewer-content" id="viewer-content"></div></section></div>
+  <div class="confirm-overlay" id="confirm-overlay" hidden><section class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message"><h2 class="confirm-title" id="confirm-title">Delete item?</h2><p class="confirm-message" id="confirm-message"></p><div class="confirm-actions"><button class="confirm-button" id="confirm-cancel" type="button">Cancel</button><button class="confirm-button danger" id="confirm-delete" type="button">Delete</button></div></section></div>
   <section class="panel" id="search-panel" aria-label="Search" hidden>
     <div class="panel-heading"><h2>Search</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
     <input class="search-input" type="search" placeholder="Search…" autocomplete="off">
@@ -198,8 +210,35 @@
         });
       }catch(error){console.warn("Could not delete stored file content:",error);}
     }
+    function askDeleteConfirmation(item){
+      const overlay=document.getElementById("confirm-overlay");
+      const message=document.getElementById("confirm-message");
+      const cancel=document.getElementById("confirm-cancel");
+      const confirm=document.getElementById("confirm-delete");
+      message.textContent='Are you sure you want to delete "'+item.name+'"?'+(item.type==="folder"?" Everything inside this folder and its subfolders will also be deleted.":" This action cannot be undone.");
+      overlay.hidden=false;
+      confirm.focus();
+      return new Promise(resolve=>{
+        const finish=value=>{
+          overlay.hidden=true;
+          cancel.removeEventListener("click",onCancel);
+          confirm.removeEventListener("click",onConfirm);
+          overlay.removeEventListener("click",onBackdrop);
+          document.removeEventListener("keydown",onKey);
+          resolve(value);
+        };
+        const onCancel=()=>finish(false);
+        const onConfirm=()=>finish(true);
+        const onBackdrop=event=>{if(event.target===overlay)finish(false);};
+        const onKey=event=>{if(event.key==="Escape"){event.preventDefault();finish(false);}};
+        cancel.addEventListener("click",onCancel);
+        confirm.addEventListener("click",onConfirm);
+        overlay.addEventListener("click",onBackdrop);
+        document.addEventListener("keydown",onKey);
+      });
+    }
     async function deleteItem(item){
-      const confirmed=window.confirm('Are you sure you want to delete "'+item.name+'"?'+(item.type==="folder"?" This will also delete everything inside the folder and its subfolders.":""));
+      const confirmed=await askDeleteConfirmation(item);
       if(!confirmed)return;
       const ids=new Set([item.id]);
       let changed=true;
