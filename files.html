@@ -564,9 +564,20 @@
       finally{hideUploadLoading();}
     });
     const dropHint=document.getElementById("drop-hint");let dragDepth=0;
-    window.addEventListener("dragenter",event=>{if(!event.dataTransfer)return;event.preventDefault();dragDepth++;dropHint.hidden=false;});
-    window.addEventListener("dragover",event=>{if(event.dataTransfer)event.preventDefault();});
-    window.addEventListener("dragleave",event=>{event.preventDefault();dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)dropHint.hidden=true;});
+    function isInternalCardMove(event){return !!event.dataTransfer&&Array.from(event.dataTransfer.types||[]).includes("application/x-coolanas-items");}
+    window.addEventListener("dragenter",event=>{
+      if(isInternalCardMove(event))return;
+      if(!event.dataTransfer)return;
+      event.preventDefault();dragDepth++;dropHint.hidden=false;
+    });
+    window.addEventListener("dragover",event=>{
+      if(isInternalCardMove(event))return;
+      if(event.dataTransfer)event.preventDefault();
+    });
+    window.addEventListener("dragleave",event=>{
+      if(isInternalCardMove(event))return;
+      event.preventDefault();dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)dropHint.hidden=true;
+    });
     async function readFileHandle(handle,parentId){
       const file=await handle.getFile();
       return [{type:"file",name:file.name,file,parentId}];
@@ -606,6 +617,10 @@
       return file?[{type:"file",name:file.name,file,parentId:currentFolderId}]:[];
     }
     window.addEventListener("drop",async event=>{
+      if(isInternalCardMove(event)){
+        event.preventDefault();dragDepth=0;dropHint.hidden=true;
+        return;
+      }
       event.preventDefault();dragDepth=0;dropHint.hidden=true;
       const transfer=event.dataTransfer;
       if(!transfer)return;
