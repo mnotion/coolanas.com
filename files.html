@@ -240,685 +240,127 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
     </button>
   </nav>
-  <script>
-    const folderSvg='<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg>';
-    const fileSvg='<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.8h8l4 4V20H6z"/><path d="M14 3.8V8h4"/></svg>';
-    const storageKey="coolanas-files-v1";
-    let items=[];
-    try{const saved=localStorage.getItem(storageKey);items=saved?JSON.parse(saved):[];if(!Array.isArray(items))items=[];}catch(error){items=[];}
-    items=items.map((item,index)=>({...item,id:item.id||("legacy-"+index),parentId:item.parentId||null}));
+  <script type="module">
+    const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
+    const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+    const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    const {data:{session}}=await supabase.auth.getSession();
+    if(!session){location.replace("index.html");throw new Error("Sign-in required");}
+    const user=session.user;
+    const storage="coolanas-files";
     const list=document.getElementById("files-list");
-    const uploadStatus=document.getElementById("upload-status");
-    function setUploadStatus(message){uploadStatus.textContent=message;uploadStatus.hidden=!message;}
-    const uploadOverlay=document.getElementById("upload-overlay");
-    const uploadTitle=document.getElementById("upload-title");
-    const uploadDetail=document.getElementById("upload-detail");
-    const uploadProgressBar=document.getElementById("upload-progress-bar");
-    function showUploadLoading(title,detail="Preparing…"){
-      uploadTitle.textContent=title;uploadDetail.textContent=detail;
-      uploadProgressBar.style.width="0%";uploadOverlay.hidden=false;
-    }
-    function updateUploadLoading(done,total,detail){
-      const percent=total?Math.round(done/total*100):0;
-      uploadProgressBar.style.width=percent+"%";
-      uploadDetail.textContent=detail||("Processing "+done+" of "+total+" items");
-    }
-    function hideUploadLoading(){uploadOverlay.hidden=true;}
-
     const toolbar=document.getElementById("files-toolbar");
     const currentFolder=document.getElementById("current-folder");
     const viewer=document.getElementById("file-viewer");
     const viewerTitle=document.getElementById("viewer-title");
     const viewerContent=document.getElementById("viewer-content");
-    let currentFolderId=null;
-    const fileBlobs=new Map();
-    const dbPromise=new Promise((resolve,reject)=>{
-      const request=indexedDB.open("coolanas-file-content",1);
-      request.onupgradeneeded=()=>request.result.createObjectStore("files");
-      request.onsuccess=()=>resolve(request.result);
-      request.onerror=()=>reject(request.error);
-    });
-    async function storeBlob(id,file){
-      const db=await dbPromise;
-      await new Promise((resolve,reject)=>{
-        const tx=db.transaction("files","readwrite");
-        tx.objectStore("files").put(file,id);
-        tx.oncomplete=resolve;
-        tx.onerror=()=>reject(tx.error||new Error("Browser storage write failed."));
-        tx.onabort=()=>reject(tx.error||new Error("Browser storage write was cancelled."));
-      });
-      fileBlobs.set(id,file);
+    let items=[],currentFolderId=null;
+    const status=document.createElement("p");
+    status.style.cssText="width:100%;text-align:center;color:#777;font-size:13px";
+    async function loadItems(){
+      const {data,error}=await supabase.from("coolanas_files").select("*").order("item_type").order("name");
+      if(error)throw error;items=data||[];renderItems();
     }
-    async function loadBlob(id){
-      if(fileBlobs.has(id))return fileBlobs.get(id);
-      const db=await dbPromise;
-      return new Promise((resolve,reject)=>{
-        const req=db.transaction("files","readonly").objectStore("files").get(id);
-        req.onsuccess=()=>resolve(req.result||null);
-        req.onerror=()=>reject(req.error||new Error("Could not read stored file."));
-      });
-    }
-    function saveItems(){try{localStorage.setItem(storageKey,JSON.stringify(items));}catch(error){console.warn("Could not save file list.",error);}}
-    async function deleteStoredBlob(id){
-      fileBlobs.delete(id);
-      try{
-        const db=await dbPromise;
-        await new Promise((resolve,reject)=>{
-          const tx=db.transaction("files","readwrite");
-          tx.objectStore("files").delete(id);
-          tx.oncomplete=resolve;
-          tx.onerror=()=>reject(tx.error||new Error("Could not remove stored file content."));
-          tx.onabort=()=>reject(tx.error||new Error("File deletion was cancelled."));
-        });
-      }catch(error){console.warn("Could not delete stored file content:",error);}
-    }
-    function askDeleteConfirmation(item){
-      const overlay=document.getElementById("confirm-overlay");
-      const message=document.getElementById("confirm-message");
-      const cancel=document.getElementById("confirm-cancel");
-      const confirm=document.getElementById("confirm-delete");
-      message.replaceChildren(document.createTextNode('Are you sure you want to delete "'));
-      const itemName=document.createElement("span");
-      itemName.className="confirm-item-name";
-      itemName.textContent=item.name;
-      message.append(itemName,document.createTextNode('"?'));
-      overlay.hidden=false;
-      confirm.focus();
-      return new Promise(resolve=>{
-        const finish=value=>{
-          overlay.hidden=true;
-          cancel.removeEventListener("click",onCancel);
-          confirm.removeEventListener("click",onConfirm);
-          overlay.removeEventListener("click",onBackdrop);
-          document.removeEventListener("keydown",onKey);
-          resolve(value);
-        };
-        const onCancel=()=>finish(false);
-        const onConfirm=()=>finish(true);
-        const onBackdrop=event=>{if(event.target===overlay)finish(false);};
-        const onKey=event=>{if(event.key==="Escape"){event.preventDefault();finish(false);}};
-        cancel.addEventListener("click",onCancel);
-        confirm.addEventListener("click",onConfirm);
-        overlay.addEventListener("click",onBackdrop);
-        document.addEventListener("keydown",onKey);
-      });
-    }
-    let settingsItemId=null;
-    function openCardSettings(item,sourceButton){
-      settingsItemId=item.id;
-      const overlay=document.getElementById("card-settings-overlay");
-
-      const tagInput=document.getElementById("card-tag-input");
-      tagInput.value=item.tag||"";
-      document.getElementById("folder-color-section").hidden=item.type!=="folder";
-      document.getElementById("folder-color-section").open=false;
-      document.getElementById("tag-section").open=false;
-      document.getElementById("delete-section").open=false;
-      const selectedColor=item.color||"#e6b325";
-      const options=document.querySelectorAll(".color-choice");
-      options.forEach(button=>{
-        button.classList.toggle("active",button.dataset.color===selectedColor);
-        button.hidden=false;
-      });
-      overlay.hidden=false;
-    }
-    function closeCardSettings(){document.getElementById("card-settings-overlay").hidden=true;settingsItemId=null;}
-    document.getElementById("card-settings-close").addEventListener("click",closeCardSettings);
-    document.getElementById("card-settings-cancel").addEventListener("click",closeCardSettings);
-    document.getElementById("card-settings-overlay").addEventListener("click",event=>{if(event.target.id==="card-settings-overlay")closeCardSettings();});
-    document.getElementById("folder-color-options").addEventListener("click",event=>{
-      const button=event.target.closest(".color-choice");if(!button||!settingsItemId)return;
-      const item=items.find(entry=>entry.id===settingsItemId);if(!item)return;
-      item.color=button.dataset.color;saveItems();renderItems();
-      document.querySelectorAll(".color-choice").forEach(choice=>choice.classList.toggle("active",choice===button));
-    });
-    document.getElementById("card-tag-input").addEventListener("input",event=>{
-      if(!settingsItemId)return;
-      const item=items.find(entry=>entry.id===settingsItemId);if(!item)return;
-      item.tag=event.target.value.trim();saveItems();
-      const card=list.querySelector('[data-id="'+CSS.escape(settingsItemId)+'"]');
-      if(card){const tag=card.querySelector(".file-tag");if(tag){tag.textContent=item.tag;tag.hidden=!item.tag;}}
-    });
-    document.getElementById("card-settings-delete").addEventListener("click",async()=>{
-      const item=items.find(entry=>entry.id===settingsItemId);if(!item)return;
-      closeCardSettings();await deleteItem(item);
-    });
-    async function deleteItem(item){
-      const confirmed=await askDeleteConfirmation(item);
-      if(!confirmed)return;
-      const ids=new Set([item.id]);
-      let changed=true;
-      while(changed){
-        changed=false;
-        for(const child of items){if(child.parentId&&ids.has(child.parentId)&&!ids.has(child.id)){ids.add(child.id);changed=true;}}
-      }
-      const removed=items.filter(entry=>ids.has(entry.id));
-      items=items.filter(entry=>!ids.has(entry.id));
-      saveItems();renderItems();
-      await Promise.all(removed.filter(entry=>entry.type==="file").map(entry=>deleteStoredBlob(entry.id)));
-      setUploadStatus("Deleted "+removed.length+" item"+(removed.length===1?"":"s")+".");
-    }
-    const addWrap=document.createElement("div");
-    addWrap.className="add-wrap";
-    addWrap.innerHTML='<button class="add-button" id="add-toggle" type="button" aria-label="Upload files" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button><div class="add-menu" id="add-menu" hidden><button class="add-option" type="button" id="upload-option">Upload files</button><button class="add-option" type="button" id="upload-folder-option">Upload folder</button></div>';
-    function isDescendantFolder(candidateId,parentId){
-      let current=items.find(entry=>entry.id===parentId);
-      while(current&&current.parentId){
-        if(current.parentId===candidateId)return true;
-        current=items.find(entry=>entry.id===current.parentId);
-      }
-      return false;
-    }
-    let jiggleSlowdownTimer=null,jiggleStartedAt=0;
-    function startFolderJiggle(){
-      stopFolderJiggle();
-      jiggleStartedAt=performance.now();
-      list.style.setProperty("--folder-jiggle-duration",".5s");
-      jiggleSlowdownTimer=setInterval(()=>{
-        const elapsed=(performance.now()-jiggleStartedAt)/1000;
-        const duration=.5+1.5*(1-Math.exp(-elapsed/1.5));
-        list.style.setProperty("--folder-jiggle-duration",duration.toFixed(2)+"s");
-      },120);
-    }
-    function stopFolderJiggle(){
-      if(jiggleSlowdownTimer){clearInterval(jiggleSlowdownTimer);jiggleSlowdownTimer=null;}
-      list.style.removeProperty("--folder-jiggle-duration");
-    }
-    function moveItemsIntoFolder(ids,targetFolderId){
-      const target=items.find(entry=>entry.id===targetFolderId);
-      if(!target||target.type!=="folder")return;
-      const uniqueIds=[...new Set(ids)].filter(id=>items.some(entry=>entry.id===id));
-      if(uniqueIds.includes(targetFolderId)||uniqueIds.some(id=>isDescendantFolder(id,targetFolderId))){
-        setUploadStatus("A folder cannot be moved into itself or one of its own subfolders.");
-        return;
-      }
-      const moving=uniqueIds.map(id=>items.find(entry=>entry.id===id)).filter(Boolean);
-      const changed=moving.filter(entry=>entry.parentId!==targetFolderId);
-      if(!changed.length)return;
-      changed.forEach(entry=>{entry.parentId=targetFolderId;});
-      saveItems();clearCardSelection();renderItems();
-      setUploadStatus("Moved "+changed.length+" item"+(changed.length===1?"":"s")+' into "'+target.name+'".');
-    }
-    function visibleItems(){return items.filter(item=>(item.parentId||null)===currentFolderId);}
+    function visibleItems(){return items.filter(x=>x.parent_id===currentFolderId);}
     function renderItems(){
       list.replaceChildren();
-      const folder=items.find(item=>item.id===currentFolderId);
-      toolbar.hidden=!currentFolderId;
-      currentFolder.textContent=folder?folder.name:"";
-      const ordered=visibleItems().sort((x,y)=>(x.type==="folder"?0:1)-(y.type==="folder"?0:1));
+      const folder=items.find(x=>x.id===currentFolderId);
+      toolbar.hidden=!currentFolderId;currentFolder.textContent=folder?.name||"";
+      const ordered=visibleItems().sort((x,y)=>(x.item_type==="folder"?0:1)-(y.item_type==="folder"?0:1));
       for(const item of ordered){
-        const card=document.createElement("div");
-        card.className="file-card";card.setAttribute("role","listitem");card.dataset.id=item.id;card.dataset.type=item.type;card.tabIndex=0;
-        card.draggable=true;
-        card.innerHTML=item.type==="folder"?folderSvg:fileSvg;
+        const card=document.createElement("div");card.className="file-card";card.tabIndex=0;card.dataset.id=item.id;
+        card.innerHTML=item.item_type==="folder"?folderSvg:fileSvg;
         const name=document.createElement("span");name.className="file-name";name.textContent=item.name;
-        if(item.type==="folder"&&item.color)card.querySelector(".folder-icon")?.style.setProperty("color",item.color);
-        const tag=document.createElement("span");
-        tag.className="file-tag";tag.textContent=item.tag||"";tag.hidden=!item.tag;
-        const settings=document.createElement("button");
-        settings.className="settings-dot";settings.type="button";settings.title="Card settings";settings.setAttribute("aria-label","Settings for "+item.name);
-        settings.addEventListener("click",event=>{event.stopPropagation();openCardSettings(item,settings);});
-        card.append(name,tag,settings);
-        card.addEventListener("dragstart",event=>{
-          if(event.target.closest(".settings-dot")){event.preventDefault();return;}
-          const movingIds=selectedCardIds.has(item.id)?[...selectedCardIds]:[item.id];
-          event.dataTransfer.effectAllowed="move";
-          event.dataTransfer.setData("application/x-coolanas-items",JSON.stringify(movingIds));
-          event.dataTransfer.setData("text/plain",item.name);
-          list.dataset.draggedIds=JSON.stringify(movingIds);
-          list.classList.add("is-rearranging");
-          startFolderJiggle();
-          card.classList.add("is-being-dragged");
-        });
-        card.addEventListener("dragend",()=>{
-          card.classList.remove("is-being-dragged");
-          list.classList.remove("is-rearranging");
-          delete list.dataset.draggedIds;
-          stopFolderJiggle();
-          list.querySelectorAll(".is-drop-target").forEach(target=>target.classList.remove("is-drop-target"));
-        });
-        if(item.type==="folder"){
-          card.addEventListener("dragover",event=>{
-            if(!event.dataTransfer.types.includes("application/x-coolanas-items"))return;
-            let draggedIds=[];
-            try{draggedIds=JSON.parse(list.dataset.draggedIds||"[]");}catch(error){}
-            const invalidTarget=draggedIds.includes(item.id)||draggedIds.some(id=>isDescendantFolder(id,item.id));
-            if(invalidTarget){
-              event.dataTransfer.dropEffect="none";
-              card.classList.remove("is-drop-target");
-              return;
-            }
-            event.preventDefault();event.dataTransfer.dropEffect="move";
-            if(!card.classList.contains("is-drop-target"))card.classList.add("is-drop-target");
-          });
-          card.addEventListener("dragleave",event=>{
-            if(!card.contains(event.relatedTarget))card.classList.remove("is-drop-target");
-          });
-          card.addEventListener("drop",event=>{
-            if(!event.dataTransfer.types.includes("application/x-coolanas-items"))return;
-            let movingIds=[];
-            try{movingIds=JSON.parse(event.dataTransfer.getData("application/x-coolanas-items"));}catch(error){return;}
-            if(movingIds.includes(item.id)||movingIds.some(id=>isDescendantFolder(id,item.id)))return;
-            event.preventDefault();event.stopPropagation();card.classList.remove("is-drop-target");
-            list.classList.remove("is-rearranging");
-            delete list.dataset.draggedIds;
-            stopFolderJiggle();
-            moveItemsIntoFolder(movingIds,item.id);
-          });
-        }
-
-        const open=()=>item.type==="folder"?openFolder(item.id):openFile(item);
-        card.addEventListener("click",event=>{
-          if(event.target.closest(".delete-dot")||marqueeJustFinished)return;
-          if(selectionDragMode&&!event.ctrlKey&&!event.metaKey){toggleCardSelection(item.id);return;}
-          if(event.ctrlKey||event.metaKey){toggleCardSelection(item.id);return;}
-          if(selectedCardIds.size)clearCardSelection();
-          open();
-        });
-        card.addEventListener("keydown",event=>{if(event.target===card&&(event.key==="Enter"||event.key===" ")){event.preventDefault();open();}});
+        const share=document.createElement("button");share.type="button";share.className="share-toggle";share.textContent=item.is_shared?"Shared":"Share";
+        share.style.cssText="margin-top:4px;padding:4px 9px;border:1px solid #e5e5e5;border-radius:7px;background:#fafafa;color:#666;font:11px system-ui;cursor:pointer";
+        share.addEventListener("click",async e=>{e.stopPropagation();await setShared(item,!item.is_shared);});
+        card.append(name,share);
+        card.addEventListener("click",()=>item.item_type==="folder"?openFolder(item.id):openFile(item));
+        card.addEventListener("keydown",e=>{if(e.key==="Enter")item.item_type==="folder"?openFolder(item.id):openFile(item);});
         list.append(card);
       }
-      list.append(addWrap);
-      resetCardMotion();
+      list.append(addWrap);resetCardMotion();
     }
-    function playFolderOpenSound(){
-      try{
-        const AudioContextClass=window.AudioContext||window.webkitAudioContext;
-        if(!AudioContextClass)return;
-        hoverAudioContext=hoverAudioContext||new AudioContextClass();
-        if(hoverAudioContext.state==="suspended")hoverAudioContext.resume();
-        const ctx=hoverAudioContext;
-        const now=ctx.currentTime;
-        const notes=[{frequency:220,start:0,duration:.14},{frequency:330,start:.09,duration:.2}];
-        for(const note of notes){
-          const oscillator=ctx.createOscillator();
-          const gain=ctx.createGain();
-          oscillator.type="sine";
-          oscillator.frequency.setValueAtTime(note.frequency,now+note.start);
-          gain.gain.setValueAtTime(.0001,now+note.start);
-          gain.gain.exponentialRampToValueAtTime(.018,now+note.start+.012);
-          gain.gain.exponentialRampToValueAtTime(.0001,now+note.start+note.duration);
-          oscillator.connect(gain);gain.connect(ctx.destination);
-          oscillator.start(now+note.start);oscillator.stop(now+note.start+note.duration+.01);
-        }
-      }catch(error){}
-    }
-    function openFolder(id){playFolderOpenSound();currentFolderId=id;renderItems();}
-    document.getElementById("back-folder").addEventListener("click",()=>{
-      currentFolderId=items.find(item=>item.id===currentFolderId)?.parentId||null;
-      renderItems();
-    });
-    async function addItem(type,name,parentId=currentFolderId,file=null){
-      const id=crypto.randomUUID();
-      if(file)await storeBlob(id,file);
-      items.push({id,type,name,size:file?.size||0,mimeType:file?.type||"",parentId:parentId||null});
-      saveItems();renderItems();
-      return id;
-    }
-    const previewLibraries={};
-    function loadPreviewLibrary(name,url){
-      if(previewLibraries[name])return previewLibraries[name];
-      previewLibraries[name]=new Promise((resolve,reject)=>{
-        const script=document.createElement("script");script.src=url;script.async=true;
-        script.onload=()=>resolve();
-        script.onerror=()=>{delete previewLibraries[name];reject(new Error("Could not load preview library."));};
-        document.head.append(script);
-      });
-      return previewLibraries[name];
-    }
-    function showPreviewMessage(message){viewerContent.textContent=message;}
-    async function previewWord(file){
-      await loadPreviewLibrary("mammoth","https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.9.0/mammoth.browser.min.js");
-      const result=await window.mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});
-      showPreviewMessage(result.value||"No readable text was found in this document.");
-    }
-    async function previewSpreadsheet(file){
-      await loadPreviewLibrary("xlsx","https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
-      const workbook=XLSX.read(await file.arrayBuffer(),{type:"array"}),output=[];
-      for(const name of workbook.SheetNames){output.push("SHEET: "+name,"",XLSX.utils.sheet_to_csv(workbook.Sheets[name]),"");}
-      showPreviewMessage(output.join("\n")||"No readable spreadsheet data was found.");
-    }
-    async function previewPresentation(file){
-      await loadPreviewLibrary("jszip","https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");
-      const zip=await JSZip.loadAsync(await file.arrayBuffer());
-      const slides=Object.keys(zip.files).filter(name=>/^ppt\/slides\/slide\d+\.xml$/.test(name)).sort((a,b)=>Number(a.match(/slide(\d+)/)[1])-Number(b.match(/slide(\d+)/)[1]));
-      const output=[];
-      for(let i=0;i<slides.length;i++){
-        const xml=await zip.files[slides[i]].async("text"),doc=new DOMParser().parseFromString(xml,"application/xml");
-        const paragraphs=[...doc.getElementsByTagName("a:p")].map(p=>[...p.getElementsByTagName("a:t")].map(t=>t.textContent).join("")).filter(Boolean);
-        output.push("SLIDE "+(i+1),paragraphs.join("\n"),"");
+    async function setShared(item,shared){
+      const ids=[item.id];
+      if(item.item_type==="folder"){
+        let frontier=[item.id];
+        while(frontier.length){const children=items.filter(x=>frontier.includes(x.parent_id));ids.push(...children.map(x=>x.id));frontier=children.filter(x=>x.item_type==="folder").map(x=>x.id);}
       }
-      showPreviewMessage(output.join("\n")||"No readable slide text was found.");
+      const {error}=await supabase.from("coolanas_files").update({is_shared:shared}).in("id",ids);
+      if(error){alert(error.message);return;}await loadItems();
     }
+    function openFolder(id){currentFolderId=id;renderItems();}
+    document.getElementById("back-folder").addEventListener("click",()=>{currentFolderId=items.find(x=>x.id===currentFolderId)?.parent_id||null;renderItems();});
+    const addWrap=document.createElement("div");addWrap.className="add-wrap";
+    addWrap.innerHTML='<button class="add-button" id="add-toggle" type="button" aria-label="Upload files" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><div class="add-menu" id="add-menu" hidden><button class="add-option" type="button" id="upload-option">Upload files</button><button class="add-option" type="button" id="upload-folder-option">Upload folder</button></div>';
+    const addToggle=addWrap.querySelector("#add-toggle"),addMenu=addWrap.querySelector("#add-menu");
+    addToggle.addEventListener("click",e=>{e.stopPropagation();addMenu.hidden=!addMenu.hidden;addToggle.setAttribute("aria-expanded",String(!addMenu.hidden));});
+    document.addEventListener("click",e=>{if(!e.target.closest(".add-wrap")){addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");}});
+    addMenu.addEventListener("click",e=>{
+      const button=e.target.closest("#upload-option,#upload-folder-option");if(!button)return;
+      const picker=document.getElementById(button.id==="upload-option"?"file-picker":"folder-picker");
+      addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");picker.click();
+    });
+    async function saveFile(file,parentId,name=file.name){
+      const id=crypto.randomUUID(),path=user.id+"/"+id;
+      const {error:uploadError}=await supabase.storage.from(storage).upload(path,file,{contentType:file.type||"application/octet-stream",upsert:false});
+      if(uploadError)throw uploadError;
+      const {error}=await supabase.from("coolanas_files").insert({id,owner_id:user.id,parent_id:parentId,name,item_type:"file",storage_path:path});
+      if(error){await supabase.storage.from(storage).remove([path]);throw error;}
+    }
+    async function uploadFolder(files){
+      const folders=new Map();
+      for(const file of files){
+        const parts=(file.webkitRelativePath||file.name).split("/");
+        let parent=currentFolderId;
+        for(let i=0;i<parts.length-1;i++){
+          const key=parts.slice(0,i+1).join("/");
+          if(!folders.has(key)){
+            let folder=items.find(x=>x.item_type==="folder"&&x.parent_id===parent&&x.name===parts[i]);
+            if(!folder){
+              const {data,error}=await supabase.from("coolanas_files").insert({owner_id:user.id,parent_id:parent,name:parts[i],item_type:"folder"}).select().single();
+              if(error)throw error;folder=data;items.push(folder);
+            }
+            folders.set(key,folder.id);
+          }
+          parent=folders.get(key);
+        }
+        await saveFile(file,parent,parts.at(-1));
+      }
+      await loadItems();
+    }
+    const picker=document.getElementById("file-picker"),folderPicker=document.getElementById("folder-picker");
+    picker.addEventListener("change",async()=>{try{for(const file of picker.files)await saveFile(file,currentFolderId);await loadItems();}catch(e){alert(e.message);}picker.value="";});
+    folderPicker.addEventListener("change",async()=>{try{await uploadFolder([...folderPicker.files]);}catch(e){alert(e.message);}folderPicker.value="";});
     async function openFile(item){
-      viewer.hidden=false;viewerTitle.textContent=item.name;showPreviewMessage("Loading preview…");
-      const file=await loadBlob(item.id);
-      if(!file){showPreviewMessage("This item has no stored file contents. Upload the file again to preview it.");return;}
-      viewerContent.replaceChildren();
-      const url=URL.createObjectURL(file),extension=item.name.split(".").pop().toLowerCase();
-      try{
-        if(file.type.startsWith("image/")){const img=document.createElement("img");img.src=url;img.alt=item.name;viewerContent.append(img);}
-        else if(file.type==="application/pdf"||extension==="pdf"){const frame=document.createElement("iframe");frame.src=url;frame.title=item.name;viewerContent.append(frame);}
-        else if(file.type.startsWith("video/")||["mp4","webm","mov","m4v"].includes(extension)){const video=document.createElement("video");video.src=url;video.controls=true;video.style.cssText="display:block;width:100%;max-height:100%;";viewerContent.append(video);}
-        else if(file.type.startsWith("audio/")||["mp3","wav","ogg","m4a","aac","flac"].includes(extension)){const audio=document.createElement("audio");audio.src=url;audio.controls=true;audio.style.cssText="display:block;width:100%;";viewerContent.append(audio);}
-        else if(file.type.startsWith("text/")||/\.(txt|md|json|js|css|html|xml|csv|log|yaml|yml)$/i.test(item.name)){showPreviewMessage(await file.text());}
-        else if(extension==="docx"){showPreviewMessage("Extracting document text…");await previewWord(file);}
-        else if(["xlsx","xls"].includes(extension)){showPreviewMessage("Reading spreadsheet…");await previewSpreadsheet(file);}
-        else if(extension==="pptx"){showPreviewMessage("Extracting slide text…");await previewPresentation(file);}
-        else{showPreviewMessage("Preview is not supported for this file type yet. The file is stored in this browser.");}
-      }catch(error){console.error("File preview failed:",error);showPreviewMessage("Could not read this file. It may be damaged, password-protected, or in an unsupported format.");}
+      viewer.hidden=false;viewerTitle.textContent=item.name;viewerContent.textContent="Loading preview…";
+      const {data,error}=await supabase.storage.from(storage).download(item.storage_path);
+      if(error){viewerContent.textContent=error.message;return;}
+      const url=URL.createObjectURL(data);viewerContent.replaceChildren();
+      if(data.type.startsWith("image/")){const img=document.createElement("img");img.src=url;viewerContent.append(img);}
+      else if(data.type==="application/pdf"){const frame=document.createElement("iframe");frame.src=url;viewerContent.append(frame);}
+      else if(data.type.startsWith("text/")||/\.(txt|md|json|js|css|html|xml|csv|log)$/i.test(item.name)){viewerContent.textContent=await data.text();}
+      else viewerContent.textContent="Preview is unavailable for this file type.";
     }
     function closeViewer(){viewer.hidden=true;viewerContent.replaceChildren();}
     document.getElementById("viewer-close").addEventListener("click",closeViewer);
-    viewer.addEventListener("click",event=>{if(event.target===viewer)closeViewer();});
-    document.addEventListener("keydown",event=>{if(event.key==="Escape")closeViewer();});
-    renderItems();
-    const addToggle=addWrap.querySelector("#add-toggle");
-    const addMenu=addWrap.querySelector("#add-menu");
-    addToggle.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();addMenu.hidden=!addMenu.hidden;addToggle.setAttribute("aria-expanded",String(!addMenu.hidden));});
-    document.addEventListener("click",event=>{if(!event.target.closest(".add-wrap")){addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");}});
-    addMenu.addEventListener("click",event=>{
-      const button=event.target.closest("#upload-option,#upload-folder-option");if(!button)return;
-      event.preventDefault();event.stopPropagation();
-      const picker=document.getElementById(button.id==="upload-option"?"file-picker":"folder-picker");
-      addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");
-      try{if(typeof picker.showPicker==="function")picker.showPicker();else picker.click();}catch(error){picker.click();}
-    });
-    async function importDirectoryFiles(files,onProgress){
-      const folders=new Map();let completed=0;
-      for(const file of files){
-        onProgress?.(completed,files.length,file.name);
-        const parts=(file.webkitRelativePath||file.name).split("/");
-        let parentId=currentFolderId;
-        for(let i=0;i<parts.length-1;i++){
-          const path=parts.slice(0,i+1).join("/");
-          if(!folders.has(path)){
-            const existing=items.find(x=>x.type==="folder"&&x.parentId===parentId&&x.name===parts[i]);
-            const folder=existing||{id:crypto.randomUUID(),type:"folder",name:parts[i],parentId:parentId||null};
-            if(!existing)items.push(folder);
-            folders.set(path,folder.id);
-          }
-          parentId=folders.get(path);
-        }
-        const id=crypto.randomUUID();await storeBlob(id,file);items.push({id,type:"file",name:parts[parts.length-1],size:file.size||0,mimeType:file.type||"",parentId:parentId||null});completed++;onProgress?.(completed,files.length,file.name);
-      }
-      saveItems();renderItems();
-    }
-    const picker=document.getElementById("file-picker");
-    const folderPicker=document.getElementById("folder-picker");
-    picker.addEventListener("change",async()=>{
-      const files=[...picker.files];picker.value="";
-      if(!files.length)return;
-      setUploadStatus("");
-      showUploadLoading("Uploading files","Starting upload…");
-      let added=0;
-      try{
-        for(const file of files){uploadTitle.textContent="Uploading files";updateUploadLoading(added,files.length,file.name);await addItem("file",file.name,currentFolderId,file);added++;updateUploadLoading(added,files.length,file.name);}
-        setUploadStatus("Uploaded "+added+" file"+(added===1?"":"s")+". Select a file to open its preview.");
-      }catch(error){console.error("Upload failed:",error);setUploadStatus("Upload failed: "+(error.message||"browser storage unavailable"));}
-      finally{hideUploadLoading();}
-    });
-    folderPicker.addEventListener("change",async()=>{
-      const files=[...folderPicker.files];folderPicker.value="";
-      if(!files.length)return;
-      setUploadStatus("");
-      showUploadLoading("Importing folder","Preparing "+files.length+" files…");
-      try{await importDirectoryFiles(files,(done,total,name)=>updateUploadLoading(done,total,name));setUploadStatus("Imported "+files.length+" file"+(files.length===1?"":"s")+".");}
-      catch(error){console.error("Folder import failed:",error);setUploadStatus("Folder import failed: "+(error.message||""));}
-      finally{hideUploadLoading();}
-    });
-    const dropHint=document.getElementById("drop-hint");let dragDepth=0;
-    function isInternalCardMove(event){return !!event.dataTransfer&&Array.from(event.dataTransfer.types||[]).includes("application/x-coolanas-items");}
-    window.addEventListener("dragenter",event=>{
-      if(isInternalCardMove(event))return;
-      if(!event.dataTransfer)return;
-      event.preventDefault();dragDepth++;dropHint.hidden=false;
-    });
-    window.addEventListener("dragover",event=>{
-      if(isInternalCardMove(event))return;
-      if(event.dataTransfer)event.preventDefault();
-    });
-    window.addEventListener("dragleave",event=>{
-      if(isInternalCardMove(event))return;
-      event.preventDefault();dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)dropHint.hidden=true;
-    });
-    async function readFileHandle(handle,parentId){
-      const file=await handle.getFile();
-      return [{type:"file",name:file.name,file,parentId}];
-    }
-    async function readDirectoryHandle(handle,parentId){
-      const folder={id:crypto.randomUUID(),type:"folder",name:handle.name,parentId:parentId||null};
-      const results=[folder];
-      for await(const child of handle.values()){
-        if(child.kind==="directory")results.push(...await readDirectoryHandle(child,folder.id));
-        else if(child.kind==="file")results.push(...await readFileHandle(child,folder.id));
-      }
-      return results;
-    }
-    async function readEntry(entry,parentId){
-      if(entry.isFile)return new Promise((resolve,reject)=>entry.file(file=>resolve([{type:"file",name:file.name,file,parentId}]),reject));
-      if(!entry.isDirectory)throw new Error("The dropped item is not a readable file or folder.");
-      const folder={id:crypto.randomUUID(),type:"folder",name:entry.name,parentId:parentId||null};
-      const results=[folder],reader=entry.createReader();
-      while(true){
-        const batch=await new Promise((resolve,reject)=>reader.readEntries(resolve,reject));
-        if(!batch.length)break;
-        for(const child of batch)results.push(...await readEntry(child,folder.id));
-      }
-      return results;
-    }
-    async function readDroppedItem(item){
-      if(item.getAsFileSystemHandle){
-        const handle=await item.getAsFileSystemHandle();
-        if(handle){
-          if(handle.kind==="directory")return readDirectoryHandle(handle,currentFolderId);
-          if(handle.kind==="file")return readFileHandle(handle,currentFolderId);
-        }
-      }
-      const entry=item.webkitGetAsEntry?.();
-      if(entry)return readEntry(entry,currentFolderId);
-      const file=item.getAsFile?.();
-      return file?[{type:"file",name:file.name,file,parentId:currentFolderId}]:[];
-    }
-    window.addEventListener("drop",async event=>{
-      if(isInternalCardMove(event)){
-        event.preventDefault();dragDepth=0;dropHint.hidden=true;
-        return;
-      }
-      event.preventDefault();dragDepth=0;dropHint.hidden=true;
-      const transfer=event.dataTransfer;
-      if(!transfer)return;
-      const dropped=[];
-      try{
-        const transferItems=[...(transfer.items||[])].filter(item=>item.kind==="file");
-        if(transferItems.length){
-          for(const item of transferItems)dropped.push(...await readDroppedItem(item));
-        }else{
-          for(const file of [...(transfer.files||[])])dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});
-        }
-        if(!dropped.length){setUploadStatus("No readable files or folders were found. Try dragging the folder from File Explorer again.");return;}
-        setUploadStatus("");
-        showUploadLoading("Importing dropped items","Preparing "+dropped.length+" items…");
-        let added=0;
-        for(const entry of dropped){
-          uploadTitle.textContent=entry.type==="folder"?"Creating folders":"Uploading files";
-          uploadDetail.textContent=entry.name;
-          const id=entry.id||crypto.randomUUID();
-          if(entry.file)await storeBlob(id,entry.file);
-          items.push({id,type:entry.type,name:entry.name,size:entry.file?.size||0,mimeType:entry.file?.type||"",parentId:entry.parentId||null});
-          added++;updateUploadLoading(added,dropped.length,entry.name);
-        }
-        saveItems();renderItems();
-        const folders=dropped.filter(entry=>entry.type==="folder").length;
-        const files=dropped.filter(entry=>entry.type==="file").length;
-        setUploadStatus("Imported "+folders+" folders and "+files+" files. Open a folder to browse its contents.");
-      }catch(error){
-        console.error("Drag-and-drop import failed:",error);
-        setUploadStatus("Folder import failed: "+(error.message||"the browser could not read the dropped contents")+". Nothing else was imported.");
-      }finally{hideUploadLoading();}
-    });
-    const selectedCardIds=new Set();
-    const selectionMarquee=document.getElementById("selection-marquee");
-    let marqueeStart=null,marqueeActive=false,marqueeJustFinished=false;
-    let selectionDragMode=false,lastEmptyTapAt=0;
-    function updateCardSelection(){
-      list.querySelectorAll(".file-card").forEach(card=>{
-        const selected=selectedCardIds.has(card.dataset.id);
-        card.classList.toggle("is-selected",selected);
-      });
-      document.body.classList.toggle("has-selection",selectedCardIds.size>0&&!marqueeActive);
-    }
-    function clearCardSelection(){selectedCardIds.clear();updateCardSelection();}
-    function toggleCardSelection(id){
-      if(selectedCardIds.has(id))selectedCardIds.delete(id);else selectedCardIds.add(id);
-      updateCardSelection();
-    }
-    function setSelectionDragMode(enabled){
-      selectionDragMode=enabled;
-      document.body.classList.toggle("selection-drag-mode",enabled);
-      if(!enabled){marqueeStart=null;marqueeActive=false;selectionMarquee.hidden=true;}
-    }
-    function isEmptySelectionSurface(target){
-      return !target.closest(".file-card")&&!target.closest(".add-wrap")&&!target.closest(".bottom-nav")&&!target.closest(".files-toolbar")&&!target.closest(".upload-status")&&!target.closest("button,input");
-    }
-    const selectionSurface=document.querySelector("main");
-    selectionSurface.addEventListener("dblclick",event=>{
-      if(!isEmptySelectionSurface(event.target))return;
-      setSelectionDragMode(!selectionDragMode);
-      lastEmptyTapAt=0;
-    });
-    selectionSurface.addEventListener("pointerdown",event=>{
-      if(event.button!==0||!isEmptySelectionSurface(event.target))return;
-      const now=performance.now();
-      if(event.pointerType==="touch"&&now-lastEmptyTapAt<360){
-        setSelectionDragMode(true);
-        lastEmptyTapAt=0;
-      }else if(event.pointerType==="touch"){
-        lastEmptyTapAt=now;
-        return;
-      }else if(!selectionDragMode){
-        marqueeStart={x:event.clientX,y:event.clientY};
-        marqueeActive=false;
-        if(!event.ctrlKey&&!event.metaKey)clearCardSelection();
-        return;
-      }
-      if(!selectionDragMode)return;
-      event.preventDefault();
-      marqueeStart={x:event.clientX,y:event.clientY};
-      marqueeActive=false;
-      if(!event.ctrlKey&&!event.metaKey)clearCardSelection();
-    });
-    document.addEventListener("pointermove",event=>{
-      if(!marqueeStart)return;
-      if(event.pointerType==="touch")event.preventDefault();
-      const dx=event.clientX-marqueeStart.x,dy=event.clientY-marqueeStart.y;
-      if(!marqueeActive&&Math.hypot(dx,dy)<5)return;
-      marqueeActive=true;
-      document.body.classList.remove("has-selection");
-      const left=Math.min(event.clientX,marqueeStart.x),top=Math.min(event.clientY,marqueeStart.y);
-      const width=Math.abs(dx),height=Math.abs(dy);
-      selectionMarquee.hidden=false;
-      selectionMarquee.style.left=left+"px";selectionMarquee.style.top=top+"px";
-      selectionMarquee.style.width=width+"px";selectionMarquee.style.height=height+"px";
-      const box={left,right:left+width,top,bottom:top+height};
-      list.querySelectorAll(".file-card").forEach(card=>{
-        const r=card.getBoundingClientRect();
-        const intersects=r.right>=box.left&&r.left<=box.right&&r.bottom>=box.top&&r.top<=box.bottom;
-        if(intersects)selectedCardIds.add(card.dataset.id);
-        else if(!event.ctrlKey&&!event.metaKey)selectedCardIds.delete(card.dataset.id);
-      });
-      updateCardSelection();
-      document.body.classList.remove("has-selection");
-    },{passive:false});
-    document.addEventListener("pointerup",()=>{
-      if(!marqueeStart)return;
-      const didDrag=marqueeActive;
-      marqueeStart=null;marqueeActive=false;selectionMarquee.hidden=true;
-      if(!didDrag&&selectionDragMode){
-        setSelectionDragMode(false);
-        clearCardSelection();
-      }else{
-        updateCardSelection();
-      }
-      if(didDrag){marqueeJustFinished=true;requestAnimationFrame(()=>{marqueeJustFinished=false;});}
-    });
-    document.addEventListener("keydown",event=>{
-      if(event.key==="Escape"){
-        if(selectionDragMode)setSelectionDragMode(false);
-        if(selectedCardIds.size)clearCardSelection();
-      }
-    });
-    function resetCardMotion(){
-      list.querySelectorAll(".file-card").forEach(card=>{
-        card.style.setProperty("--card-scale","1");
-        card.style.setProperty("--card-z","1");
-        card.classList.remove("is-pointer-near","is-pointer-hover");
-      });
-    }
-    list.addEventListener("pointermove",event=>{
-      if(event.pointerType!=="mouse")return;
-      if(selectionDragMode||selectedCardIds.size){
-        resetCardMotion();
-        return;
-      }
-      const cards=[...list.querySelectorAll(".file-card")];
-      const hovered=event.target.closest(".file-card");
-      cards.forEach(card=>{
-        const rect=card.getBoundingClientRect();
-        const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
-        const distance=Math.hypot(event.clientX-cx,event.clientY-cy);
-        const radius=230;
-        const influence=Math.max(0,1-distance/radius);
-        const scale=1+influence*.12;
-        card.style.setProperty("--card-scale",scale.toFixed(3));
-        card.style.setProperty("--card-z",String(Math.round(influence*4)+1));
-        card.classList.toggle("is-pointer-near",influence>.03);
-        card.classList.toggle("is-pointer-hover",card===hovered);
-      });
+    viewer.addEventListener("click",e=>{if(e.target===viewer)closeViewer();});
+    document.addEventListener("keydown",e=>{if(e.key==="Escape")closeViewer();});
+    function resetCardMotion(){list.querySelectorAll(".file-card").forEach(card=>{card.style.setProperty("--card-scale","1");card.style.setProperty("--card-z","1");});}
+    list.addEventListener("pointermove",e=>{
+      if(e.pointerType!=="mouse")return;
+      const cards=[...list.querySelectorAll(".file-card")],hovered=e.target.closest(".file-card");
+      if(!hovered){resetCardMotion();return;}
+      const r=hovered.getBoundingClientRect(),hx=r.left+r.width/2,hy=r.top+r.height/2;
+      const nearest=cards.filter(x=>x!==hovered).map(card=>({card,d:Math.hypot(card.getBoundingClientRect().left+card.offsetWidth/2-hx,card.getBoundingClientRect().top+card.offsetHeight/2-hy)})).sort((x,y)=>x.d-y.d);
+      hovered.style.setProperty("--card-scale","1.09");hovered.style.setProperty("--card-z","5");
+      nearest.forEach((x,i)=>{x.card.style.setProperty("--card-scale",String(Math.max(.82,1-.025*(i+1))));});
     });
     list.addEventListener("pointerleave",resetCardMotion);
-    let lastHoverSoundAt=0;
-    let hoverAudioContext=null;
-    function playCardTick(){
-      const now=performance.now();
-      if(now-lastHoverSoundAt<85)return;
-      lastHoverSoundAt=now;
-      try{
-        const AudioContextClass=window.AudioContext||window.webkitAudioContext;
-        if(!AudioContextClass)return;
-        hoverAudioContext=hoverAudioContext||new AudioContextClass();
-        if(hoverAudioContext.state==="suspended")hoverAudioContext.resume();
-        const oscillator=hoverAudioContext.createOscillator();
-        const gain=hoverAudioContext.createGain();
-        oscillator.type="sine";
-        oscillator.frequency.setValueAtTime(1050,hoverAudioContext.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(760,hoverAudioContext.currentTime+.025);
-        gain.gain.setValueAtTime(.0001,hoverAudioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(.018,hoverAudioContext.currentTime+.004);
-        gain.gain.exponentialRampToValueAtTime(.0001,hoverAudioContext.currentTime+.035);
-        oscillator.connect(gain);gain.connect(hoverAudioContext.destination);
-        oscillator.start();oscillator.stop(hoverAudioContext.currentTime+.04);
-      }catch(error){}
-    }
-    let lastHoveredCard=null;
-    list.addEventListener("pointerover",event=>{
-      if(event.pointerType&&event.pointerType!=="mouse")return;
-      const card=event.target.closest(".file-card");
-      if(card&&card!==lastHoveredCard){lastHoveredCard=card;playCardTick();}
-    });
-    list.addEventListener("pointerout",event=>{
-      const next=event.relatedTarget?.closest?.(".file-card");
-      if(!next)lastHoveredCard=null;
-    });
-    const toggles={search:document.getElementById("search-toggle"),menu:document.getElementById("menu-toggle")};
-    const panels={search:document.getElementById("search-panel"),menu:document.getElementById("menu-panel")};
-    function closePanels(){Object.entries(panels).forEach(([name,panel])=>{panel.hidden=true;toggles[name].setAttribute("aria-expanded","false");});}
-    function togglePanel(name){const opening=panels[name].hidden;closePanels();if(opening){panels[name].hidden=false;toggles[name].setAttribute("aria-expanded","true");if(name==="search")panels[name].querySelector("input").focus();}}
-    Object.entries(toggles).forEach(([name,button])=>{
-      button.addEventListener("click",()=>togglePanel(name));
-    });
-    document.querySelectorAll("[data-close]").forEach(button=>button.addEventListener("click",closePanels));
-    document.addEventListener("keydown",event=>{if(event.key==="Escape")closePanels();});
-  </script>
-</body>
+    const navSearch=document.getElementById("search-toggle"),navFiles=document.getElementById("files-toggle"),navMenu=document.getElementById("menu-toggle");
+    document.getElementById("signout")?.addEventListener("click",async()=>{await supabase.auth.signOut();location.replace("index.html");});
+    await loadItems();
+  </script></body>
 </html>
