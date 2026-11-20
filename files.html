@@ -25,7 +25,7 @@
     .file-card:hover,.file-card.is-pointer-hover{background:#fafafa;box-shadow:0 5px 16px rgba(0,0,0,.10);}
     .file-card:focus-visible{outline:2px solid #aaa;outline-offset:3px}
     .file-card:focus:not(:focus-visible){outline:none}
-    button,a,.file-card{-webkit-tap-highlight-color:transparent}
+    button,a,[role="button"],.file-card{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
     .file-card.is-pointer-near{box-shadow:0 4px 14px rgba(0,0,0,.085)}
     .file-card.is-selected{background:#eceeef;outline:2px solid #73777d;outline-offset:-2px;box-shadow:0 3px 12px rgba(0,0,0,.10)}
     .file-card,.file-card *{-webkit-user-select:none;user-select:none}
@@ -68,7 +68,7 @@
 
     .bottom-nav{z-index:10}
 
-    .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #3985ed;background:rgba(59,130,246,.16);border-radius:2px}
+    .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #777;background:rgba(110,110,110,.14);border-radius:2px}
 
     .file-card{position:relative}
     .settings-dot{position:absolute;top:9px;right:9px;width:13px;height:13px;padding:0;border:0;border-radius:50%;background:#9ca3af;box-shadow:0 0 0 2px #fff;cursor:pointer;z-index:5;opacity:.92;transition:background .12s ease,transform .12s ease}
@@ -79,6 +79,7 @@
     .selection-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;width:100%;margin:0 0 14px}
     .selection-action{min-height:38px;padding:8px 14px;border:1px solid #dedede;border-radius:9px;background:#fff;color:#333;font:600 13px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
     .selection-action:hover{background:#f2f2f2}
+    .selection-action[aria-pressed="true"]{background:#e7e8ea;border-color:#b9bdc2;color:#111;box-shadow:inset 0 1px 2px rgba(0,0,0,.06)}
     .selection-action[hidden]{display:none}
     .selection-action.danger{border-color:#d6d6d6;color:#8e2929}
     .selection-counter{margin-right:auto;color:#707070;font-size:12px}
@@ -89,6 +90,7 @@
     .crumb-current{font-size:14px;color:#777}
     button:focus:not(:focus-visible){outline:none;box-shadow:none}
     button:focus-visible{outline:2px solid #777;outline-offset:3px}
+    @media (hover:none) and (pointer:coarse){button:focus,button:focus-visible,a:focus,a:focus-visible,.file-card:focus,.file-card:focus-visible{outline:none!important;box-shadow:none!important}}
     .file-viewer{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:rgba(20,20,20,.24);backdrop-filter:blur(5px)}
     .file-viewer[hidden]{display:none}
     .confirm-overlay{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
