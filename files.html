@@ -223,11 +223,11 @@
   <div class="confirm-overlay" id="confirm-overlay" hidden><section class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message"><h2 class="confirm-title" id="confirm-title">Delete item?</h2><p class="confirm-message" id="confirm-message"></p><div class="confirm-actions"><button class="confirm-button" id="confirm-cancel" type="button">Cancel</button><button class="confirm-button danger" id="confirm-delete" type="button">Delete</button></div></section></div>
   <section class="panel" id="search-panel" aria-label="Search" hidden>
     <div class="panel-heading"><h2>Search</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
-    <input class="search-input" type="search" placeholder="Search…" autocomplete="off">
+    <input class="search-input" id="files-search-input" type="search" placeholder="Search files in this folder…" autocomplete="off">
   </section>
   <section class="panel" id="menu-panel" aria-label="Menu" hidden>
     <div class="panel-heading"><h2>Menu</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
-    <nav class="menu-list"><button class="menu-item" type="button" onclick="location.href='dashboard.html'">Home</button><button class="menu-item" type="button">Settings</button><button class="menu-item" id="signout" type="button">Sign out</button></nav>
+    <nav class="menu-list"><button class="menu-item" id="menu-home" type="button">Home</button><button class="menu-item" id="signout" type="button">Sign out</button></nav>
   </section>
   <nav class="bottom-nav" aria-label="Main navigation">
     <button class="nav-button" id="search-toggle" type="button" aria-label="Search" aria-expanded="false" aria-controls="search-panel">
@@ -257,14 +257,14 @@
     const viewer=document.getElementById("file-viewer");
     const viewerTitle=document.getElementById("viewer-title");
     const viewerContent=document.getElementById("viewer-content");
-    let items=[],currentFolderId=null;
+    let items=[],currentFolderId=null,searchQuery="";
     const status=document.createElement("p");
     status.style.cssText="width:100%;text-align:center;color:#777;font-size:13px";
     async function loadItems(){
       const {data,error}=await supabase.from("coolanas_files").select("*").order("item_type").order("name");
       if(error)throw error;items=data||[];renderItems();
     }
-    function visibleItems(){return items.filter(x=>x.parent_id===currentFolderId);}
+    function visibleItems(){return items.filter(x=>x.parent_id===currentFolderId&&x.name.toLocaleLowerCase().includes(searchQuery));}
     function renderItems(){
       list.replaceChildren();
       const folder=items.find(x=>x.id===currentFolderId);
@@ -361,8 +361,38 @@
       nearest.forEach((x,i)=>{x.card.style.setProperty("--card-scale",String(Math.max(.82,1-.025*(i+1))));});
     });
     list.addEventListener("pointerleave",resetCardMotion);
-    const navSearch=document.getElementById("search-toggle"),navFiles=document.getElementById("files-toggle"),navMenu=document.getElementById("menu-toggle");
+    const navSearch=document.getElementById("search-toggle");
+    const navFiles=document.getElementById("files-toggle");
+    const navMenu=document.getElementById("menu-toggle");
+    const searchPanel=document.getElementById("search-panel");
+    const menuPanel=document.getElementById("menu-panel");
+    const searchInput=document.getElementById("files-search-input");
+    function closeNavPanels(){
+      searchPanel.hidden=true;
+      menuPanel.hidden=true;
+      navSearch.setAttribute("aria-expanded","false");
+      navMenu.setAttribute("aria-expanded","false");
+    }
+    function toggleNavPanel(panel,button){
+      const shouldOpen=panel.hidden;
+      closeNavPanels();
+      if(shouldOpen){
+        panel.hidden=false;
+        button.setAttribute("aria-expanded","true");
+        panel.querySelector("input")?.focus();
+      }
+    }
+    navSearch.addEventListener("click",()=>toggleNavPanel(searchPanel,navSearch));
+    navFiles.addEventListener("click",()=>{closeNavPanels();window.scrollTo({top:0,behavior:"smooth"});});
+    navMenu.addEventListener("click",()=>toggleNavPanel(menuPanel,navMenu));
+    document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
+    document.getElementById("menu-home").addEventListener("click",()=>location.assign("dashboard.html"));
+    searchInput.addEventListener("input",()=>{
+      searchQuery=searchInput.value.trim().toLocaleLowerCase();
+      renderItems();
+    });
     document.getElementById("signout")?.addEventListener("click",async()=>{await supabase.auth.signOut();location.replace("index.html");});
+    document.addEventListener("keydown",event=>{if(event.key==="Escape")closeNavPanels();});
     await loadItems();
   </script></body>
 </html>
