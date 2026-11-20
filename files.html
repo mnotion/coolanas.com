@@ -248,6 +248,8 @@
     const {data:{session}}=await supabase.auth.getSession();
     if(!session){location.replace("index.html");throw new Error("Sign-in required");}
     const user=session.user;
+    const folderSvg='<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg>';
+    const fileSvg='<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.8h8l4 4V20H6z"/><path d="M14 3.8V8h4"/></svg>';
     const storage="coolanas-files";
     const list=document.getElementById("files-list");
     const toolbar=document.getElementById("files-toolbar");
