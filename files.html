@@ -10,8 +10,7 @@
     html,body{width:100%;min-height:100%;margin:0;background:#fff;color:#111;transition:background .18s ease}
     body{min-height:100vh;font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     main{min-height:100vh;padding:24px 24px 100px}
-    .top-actions{position:relative;z-index:31;display:flex;align-items:center;gap:12px;margin:0 0 18px 4px}
-    .add-wrap{position:relative}
+    .add-wrap{position:relative;z-index:31;align-self:center;flex:none;margin:0 0 0 2px}
     .add-button{width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(0,0,0,.06);border-radius:12px;background:#f1f2f3;color:#555;cursor:pointer;box-shadow:0 2px 7px rgba(0,0,0,.045);transition:background .15s,transform .15s}
     .add-button:hover{background:#e8e9eb;transform:scale(1.04)}
     .add-button svg{width:20px;height:20px}
@@ -19,7 +18,7 @@
     .add-menu[hidden]{display:none}
     .add-option{display:block;width:100%;padding:10px;border:0;border-radius:7px;background:transparent;color:#222;text-align:left;font:13px/1.4 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
     .add-option:hover{background:#f2f2f2}
-    .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;gap:18px;width:100%;margin:0;padding:8px 0 0 28px}
+    .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;gap:18px;width:100%;margin:0;padding:8px 0 0}
     .file-card{display:flex;flex-direction:column;align-items:center;gap:10px;width:168px;min-height:176px;padding:18px;border-radius:12px;color:#222;font-size:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07)}
     .folder-icon{width:112px;height:112px;flex:none;color:#e3b52f}
     .file-icon{width:112px;height:112px;flex:none;color:#888}
@@ -78,7 +77,7 @@
     </div>
     <input id="file-picker" type="file" multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <input id="folder-picker" type="file" webkitdirectory multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
-    <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
+    <div class="files-list" id="files-list" role="list" aria-label="Files and folders">\n      <div class="add-wrap">\n        <button class="add-button" id="add-toggle" type="button" aria-label="Add file or folder" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>\n        <div class="add-menu" id="add-menu" hidden>\n          <button class="add-option" type="button" data-create="file">New file</button>\n          <button class="add-option" type="button" data-create="folder">New folder</button>\n          <button class="add-option" type="button" id="upload-option">Upload files</button>\n          <button class="add-option" type="button" id="upload-folder-option">Upload folder</button>\n        </div>\n      </div>\n    </div>
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
   <section class="panel" id="search-panel" aria-label="Search" hidden>
