@@ -18,7 +18,7 @@
     .add-menu[hidden]{display:none}
     .add-option{display:block;width:100%;padding:10px;border:0;border-radius:7px;background:transparent;color:#222;text-align:left;font:13px/1.4 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
     .add-option:hover{background:#f2f2f2}
-    .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:18px;width:100%;margin:0;padding:0}
+    .upload-status{width:100%;margin:0 0 14px;color:#555;font-size:13px;text-align:center}\n    .upload-status[hidden]{display:none}\n    .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:18px;width:100%;margin:0;padding:0}
     .file-card{display:flex;flex-direction:column;align-items:center;gap:10px;width:168px;min-height:176px;padding:18px;border:0;border-radius:12px;background:#fff;color:#222;font:inherit;font-size:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);cursor:pointer;transform:scale(var(--card-scale,1));transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease;transform-origin:center;position:relative;z-index:var(--card-z,1)}
     .file-card:hover,.file-card.is-pointer-hover{background:#fafafa;box-shadow:0 5px 16px rgba(0,0,0,.10);}
     .file-card:focus-visible{outline:2px solid #aaa;outline-offset:3px}
@@ -83,7 +83,7 @@
     <input id="file-picker" type="file" multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <input id="folder-picker" type="file" webkitdirectory multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <div class="files-toolbar" id="files-toolbar" hidden><button class="crumb-button" id="back-folder" type="button">← Back</button><span class="crumb-current" id="current-folder"></span></div>
-    <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
+    <div class="upload-status" id="upload-status" role="status" aria-live="polite" hidden></div>\n    <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
   <div class="file-viewer" id="file-viewer" hidden><section class="viewer-panel"><header class="viewer-head"><strong id="viewer-title"></strong><button class="viewer-close" id="viewer-close" type="button" aria-label="Close">×</button></header><div class="viewer-content" id="viewer-content"></div></section></div>
@@ -113,7 +113,7 @@
     let items=[];
     try{const saved=localStorage.getItem(storageKey);items=saved?JSON.parse(saved):[];if(!Array.isArray(items))items=[];}catch(error){items=[];}
     items=items.map((item,index)=>({...item,id:item.id||("legacy-"+index),parentId:item.parentId||null}));
-    const list=document.getElementById("files-list");
+    const list=document.getElementById("files-list");\n    const uploadStatus=document.getElementById("upload-status");\n    function setUploadStatus(message){uploadStatus.textContent=message;uploadStatus.hidden=!message;}
     const toolbar=document.getElementById("files-toolbar");
     const currentFolder=document.getElementById("current-folder");
     const viewer=document.getElementById("file-viewer");
@@ -128,14 +128,24 @@
       request.onerror=()=>reject(request.error);
     });
     async function storeBlob(id,file){
+      const db=await dbPromise;
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction("files","readwrite");
+        tx.objectStore("files").put(file,id);
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error||new Error("Browser storage write failed."));
+        tx.onabort=()=>reject(tx.error||new Error("Browser storage write was cancelled."));
+      });
       fileBlobs.set(id,file);
-      try{const db=await dbPromise;await new Promise((resolve,reject)=>{const tx=db.transaction("files","readwrite");tx.objectStore("files").put(file,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
-      catch(error){console.warn("Could not save file contents in browser storage.",error);}
     }
     async function loadBlob(id){
       if(fileBlobs.has(id))return fileBlobs.get(id);
-      try{const db=await dbPromise;return await new Promise((resolve,reject)=>{const req=db.transaction("files").objectStore("files").get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});}
-      catch(error){return null;}
+      const db=await dbPromise;
+      return new Promise((resolve,reject)=>{
+        const req=db.transaction("files","readonly").objectStore("files").get(id);
+        req.onsuccess=()=>resolve(req.result||null);
+        req.onerror=()=>reject(req.error||new Error("Could not read stored file."));
+      });
     }
     function saveItems(){try{localStorage.setItem(storageKey,JSON.stringify(items));}catch(error){console.warn("Could not save file list.",error);}}
     const addWrap=document.createElement("div");
@@ -187,11 +197,12 @@
       currentFolderId=items.find(item=>item.id===currentFolderId)?.parentId||null;
       renderItems();
     });
-    function addItem(type,name,parentId=currentFolderId,file=null){
+    async function addItem(type,name,parentId=currentFolderId,file=null){
       const id=crypto.randomUUID();
-      items.push({id,type,name,parentId:parentId||null});
-      if(file)storeBlob(id,file);
+      if(file)await storeBlob(id,file);
+      items.push({id,type,name,size:file?.size||0,mimeType:file?.type||"",parentId:parentId||null});
       saveItems();renderItems();
+      return id;
     }
     const previewLibraries={};
     function loadPreviewLibrary(name,url){
@@ -283,8 +294,21 @@
     }
     const picker=document.getElementById("file-picker");
     const folderPicker=document.getElementById("folder-picker");
-    picker.addEventListener("change",async()=>{for(const file of picker.files)addItem("file",file.name,currentFolderId,file);picker.value="";});
-    folderPicker.addEventListener("change",async()=>{await importDirectoryFiles([...folderPicker.files]);folderPicker.value="";});
+    picker.addEventListener("change",async()=>{
+      const files=[...picker.files];picker.value="";
+      if(!files.length)return;
+      setUploadStatus("Uploading "+files.length+" file"+(files.length===1?"":"s")+"…");
+      let added=0;
+      try{for(const file of files){await addItem("file",file.name,currentFolderId,file);added++;}setUploadStatus("Uploaded "+added+" file"+(added===1?"":"s")+". Select a file to open its preview.");}
+      catch(error){console.error("Upload failed:",error);setUploadStatus("Upload failed: browser storage may be full or unavailable. "+(error.message||""));}
+    });
+    folderPicker.addEventListener("change",async()=>{
+      const files=[...folderPicker.files];folderPicker.value="";
+      if(!files.length)return;
+      setUploadStatus("Importing folder contents…");
+      try{await importDirectoryFiles(files);setUploadStatus("Imported "+files.length+" file"+(files.length===1?"":"s")+".");}
+      catch(error){console.error("Folder import failed:",error);setUploadStatus("Folder import failed: "+(error.message||""));}
+    });
     const dropHint=document.getElementById("drop-hint");let dragDepth=0;
     window.addEventListener("dragenter",event=>{if(!event.dataTransfer)return;event.preventDefault();dragDepth++;dropHint.hidden=false;});
     window.addEventListener("dragover",event=>{if(event.dataTransfer)event.preventDefault();});
@@ -302,20 +326,30 @@
       return results;
     }
     window.addEventListener("drop",async event=>{
-      event.preventDefault();dragDepth=0;dropHint.hidden=true;const dropped=[];
-      for(const item of [...(event.dataTransfer?.items||[])]){
-        if(item.kind!=="file")continue;
-        const entry=item.webkitGetAsEntry?.();
-        if(entry)dropped.push(...await readEntry(entry));
-        else{const file=item.getAsFile?.();if(file)dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});}
-      }
-      if(!dropped.length)for(const file of [...(event.dataTransfer?.files||[])])dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});
-      for(const item of dropped){
-        const id=item.id||crypto.randomUUID();
-        items.push({id,type:item.type,name:item.name,parentId:item.parentId||null});
-        if(item.file)await storeBlob(id,item.file);
-      }
-      saveItems();renderItems();
+      event.preventDefault();dragDepth=0;dropHint.hidden=true;
+      const transfer=event.dataTransfer;
+      if(!transfer)return;
+      const dropped=[];
+      try{
+        for(const entryItem of [...(transfer.items||[])]){
+          if(entryItem.kind!=="file")continue;
+          const entry=entryItem.webkitGetAsEntry?.();
+          if(entry)dropped.push(...await readEntry(entry));
+          else{const file=entryItem.getAsFile?.();if(file)dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});}
+        }
+        if(!dropped.length)for(const file of [...(transfer.files||[])])dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});
+        if(!dropped.length){setUploadStatus("No files were found in that drop.");return;}
+        setUploadStatus("Adding "+dropped.length+" dropped item"+(dropped.length===1?"":"s")+"…");
+        let added=0;
+        for(const entry of dropped){
+          const id=entry.id||crypto.randomUUID();
+          if(entry.file)await storeBlob(id,entry.file);
+          items.push({id,type:entry.type,name:entry.name,size:entry.file?.size||0,mimeType:entry.file?.type||"",parentId:entry.parentId||null});
+          added++;
+        }
+        saveItems();renderItems();
+        setUploadStatus("Added "+added+" dropped item"+(added===1?"":"s")+". Select a file to open its preview.");
+      }catch(error){console.error("Drag-and-drop import failed:",error);setUploadStatus("Drop failed: "+(error.message||"browser storage unavailable"));}
     });
     function resetCardMotion(){
       list.querySelectorAll(".file-card").forEach(card=>{
