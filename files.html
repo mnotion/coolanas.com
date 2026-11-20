@@ -870,7 +870,8 @@ document.getElementById("signout").addEventListener("click",async()=>{
   location.replace("index.html");
 });
 document.addEventListener("keydown",event=>{
-  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="a"){
+  const editing=event.target instanceof HTMLElement && event.target.matches("input,textarea,[contenteditable='true']");
+  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="a"&&!editing){
     event.preventDefault();
     visibleItems().forEach(item=>selectedIds.add(item.id));
     updateSelectionUi();
@@ -881,12 +882,14 @@ document.addEventListener("keydown",event=>{
     closeCardSettings();
     closeDeleteConfirmation();
   }
-  if((event.key==="Delete"||event.key==="Backspace")&&selectedIds.size&&!cardSettingsOverlay.hidden===false){
+  if((event.key==="Delete"||event.key==="Backspace")&&selectedIds.size&&cardSettingsOverlay.hidden&&confirmOverlay.hidden&&!editing){
     event.preventDefault();
     confirmBulkDelete();
   }
 });
-const migrated=await filesAction("migrate_prefix");
+let migrated={migrated:0,userFolder:""};
+try{migrated=await filesAction("migrate_prefix");}
+catch(error){console.warn("Existing file prefix migration could not finish:",error.message);}
 await loadItems();
 if(migrated.migrated>0)showStatus("Updated storage folder: "+migrated.userFolder,true);
 
