@@ -250,7 +250,7 @@
     const user=session.user;
     const folderSvg='<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg>';
     const fileSvg='<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.8h8l4 4V20H6z"/><path d="M14 3.8V8h4"/></svg>';
-    const storage="coolanas-files";
+    const filesFunction="coolanas-files-b2";
     const list=document.getElementById("files-list");
     const toolbar=document.getElementById("files-toolbar");
     const currentFolder=document.getElementById("current-folder");
@@ -260,9 +260,15 @@
     let items=[],currentFolderId=null,searchQuery="";
     const status=document.createElement("p");
     status.style.cssText="width:100%;text-align:center;color:#777;font-size:13px";
+    async function filesAction(action,payload={}){
+      const {data,error}=await supabase.functions.invoke(filesFunction,{body:{action,...payload}});
+      if(error)throw error;
+      if(data?.error)throw new Error(data.error);
+      return data;
+    }
     async function loadItems(){
-      const {data,error}=await supabase.from("coolanas_files").select("*").order("item_type").order("name");
-      if(error)throw error;items=data||[];renderItems();
+      const data=await filesAction("list");
+      items=data.items||[];renderItems();
     }
     function visibleItems(){return items.filter(x=>x.parent_id===currentFolderId&&x.name.toLocaleLowerCase().includes(searchQuery));}
     function renderItems(){
@@ -285,13 +291,8 @@
       list.append(addWrap);resetCardMotion();
     }
     async function setShared(item,shared){
-      const ids=[item.id];
-      if(item.item_type==="folder"){
-        let frontier=[item.id];
-        while(frontier.length){const children=items.filter(x=>frontier.includes(x.parent_id));ids.push(...children.map(x=>x.id));frontier=children.filter(x=>x.item_type==="folder").map(x=>x.id);}
-      }
-      const {error}=await supabase.from("coolanas_files").update({is_shared:shared}).in("id",ids);
-      if(error){alert(error.message);return;}await loadItems();
+      try{await filesAction("set_shared",{id:item.id,shared});await loadItems();}
+      catch(error){alert(error.message);}
     }
     function openFolder(id){currentFolderId=id;renderItems();}
     document.getElementById("back-folder").addEventListener("click",()=>{currentFolderId=items.find(x=>x.id===currentFolderId)?.parent_id||null;renderItems();});
@@ -306,11 +307,14 @@
       addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");picker.click();
     });
     async function saveFile(file,parentId,name=file.name){
-      const id=crypto.randomUUID(),path=user.id+"/"+id;
-      const {error:uploadError}=await supabase.storage.from(storage).upload(path,file,{contentType:file.type||"application/octet-stream",upsert:false});
-      if(uploadError)throw uploadError;
-      const {error}=await supabase.from("coolanas_files").insert({id,owner_id:user.id,parent_id:parentId,name,item_type:"file",storage_path:path});
-      if(error){await supabase.storage.from(storage).remove([path]);throw error;}
+      const created=await filesAction("create_upload",{parentId,name,contentType:file.type||"application/octet-stream"});
+      try{
+        const response=await fetch(created.uploadUrl,{method:"PUT",headers:{"Content-Type":created.contentType},body:file});
+        if(!response.ok)throw new Error("Backblaze upload failed ("+response.status+"). Check the bucket CORS settings.");
+        await filesAction("finish_upload",{id:created.item.id});
+      }catch(error){
+        throw new Error(error.message+" The file record may need cleanup before retrying.");
+      }
     }
     async function uploadFolder(files){
       const folders=new Map();
@@ -322,8 +326,8 @@
           if(!folders.has(key)){
             let folder=items.find(x=>x.item_type==="folder"&&x.parent_id===parent&&x.name===parts[i]);
             if(!folder){
-              const {data,error}=await supabase.from("coolanas_files").insert({owner_id:user.id,parent_id:parent,name:parts[i],item_type:"folder"}).select().single();
-              if(error)throw error;folder=data;items.push(folder);
+              const created=await filesAction("create_folder",{parentId:parent,name:parts[i]});
+              folder=created.item;items.push(folder);
             }
             folders.set(key,folder.id);
           }
@@ -338,13 +342,17 @@
     folderPicker.addEventListener("change",async()=>{try{await uploadFolder([...folderPicker.files]);}catch(e){alert(e.message);}folderPicker.value="";});
     async function openFile(item){
       viewer.hidden=false;viewerTitle.textContent=item.name;viewerContent.textContent="Loading preview…";
-      const {data,error}=await supabase.storage.from(storage).download(item.storage_path);
-      if(error){viewerContent.textContent=error.message;return;}
+      try{
+      const result=await filesAction("download",{id:item.id});
+      const response=await fetch(result.downloadUrl);
+      if(!response.ok)throw new Error("Backblaze download failed ("+response.status+").");
+      const data=await response.blob();
       const url=URL.createObjectURL(data);viewerContent.replaceChildren();
       if(data.type.startsWith("image/")){const img=document.createElement("img");img.src=url;viewerContent.append(img);}
       else if(data.type==="application/pdf"){const frame=document.createElement("iframe");frame.src=url;viewerContent.append(frame);}
       else if(data.type.startsWith("text/")||/\.(txt|md|json|js|css|html|xml|csv|log)$/i.test(item.name)){viewerContent.textContent=await data.text();}
       else viewerContent.textContent="Preview is unavailable for this file type.";
+      }catch(error){viewerContent.textContent=error.message;}
     }
     function closeViewer(){viewer.hidden=true;viewerContent.replaceChildren();}
     document.getElementById("viewer-close").addEventListener("click",closeViewer);
