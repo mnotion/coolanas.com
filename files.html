@@ -29,6 +29,7 @@
     .file-card.is-pointer-near{box-shadow:0 4px 14px rgba(0,0,0,.085)}
     .file-card.is-selected{background:#e7f0ff!important;outline:2px solid #4388ed;outline-offset:-2px;box-shadow:0 3px 12px rgba(59,130,246,.18);z-index:9}
     body.has-selection::after{content:"";position:fixed;inset:0;z-index:8;background:rgba(12,14,20,.74);pointer-events:none}
+    body.has-selection .add-wrap,body.has-selection .bottom-nav,body.has-selection .panel{filter:brightness(.28)}
     .file-card,.file-card *{-webkit-user-select:none;user-select:none}
     .file-card.is-selected{z-index:9}
     @keyframes coolanas-folder-jiggle{
@@ -294,7 +295,6 @@ let activePointerMarquee=null;
 let previousTouchTap=null;
 let touchTapCandidate=null;
 let activeTouchMarqueeId=null;
-let suppressCardClickUntil=0;
 let marqueeStart=null;
 
 async function filesAction(action,payload={}){
@@ -395,7 +395,6 @@ function finishMarquee(){
   marqueeStart=null;
   marquee.hidden=true;
   document.body.classList.remove("selection-drag-mode");
-  suppressCardClickUntil=Date.now()+350;
   updateSelectionUi();
 }
 function isDoubleTap(previous,x,y,pointerType){
@@ -557,11 +556,6 @@ function renderItems(){
     card.addEventListener("click",event=>{
       if(card.dataset.dragged==="true"){
         card.dataset.dragged="false";
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-      }
-      if(Date.now()<suppressCardClickUntil){
         event.preventDefault();
         event.stopPropagation();
         return;
