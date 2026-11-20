@@ -27,7 +27,8 @@
     .file-card:focus:not(:focus-visible){outline:none}
     button,a,[role="button"],.file-card{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
     .file-card.is-pointer-near{box-shadow:0 4px 14px rgba(0,0,0,.085)}
-    .file-card.is-selected{background:#eceeef;outline:2px solid #73777d;outline-offset:-2px;box-shadow:0 3px 12px rgba(0,0,0,.10)}
+    .file-card.is-selected{background:#e7f0ff!important;outline:2px solid #4388ed;outline-offset:-2px;box-shadow:0 3px 12px rgba(59,130,246,.18);z-index:9}
+    body.has-selection::after{content:"";position:fixed;inset:0;z-index:8;background:rgba(12,14,20,.74);pointer-events:none}
     .file-card,.file-card *{-webkit-user-select:none;user-select:none}
     .file-card.is-selected{z-index:9}
     @keyframes coolanas-folder-jiggle{
@@ -68,7 +69,7 @@
 
     .bottom-nav{z-index:10}
 
-    .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #777;background:rgba(110,110,110,.14);border-radius:2px}
+    .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #3985ed;background:rgba(59,130,246,.18);border-radius:2px}
 
     .file-card{position:relative}
     .settings-dot{position:absolute;top:9px;right:9px;width:13px;height:13px;padding:0;border:0;border-radius:50%;background:#9ca3af;box-shadow:0 0 0 2px #fff;cursor:pointer;z-index:5;opacity:.92;transition:background .12s ease,transform .12s ease}
@@ -278,18 +279,23 @@ const dropHint=document.getElementById("drop-hint");
 const marquee=document.getElementById("selection-marquee");
 let items=[],currentFolderId=null,searchQuery="";
 const selectedIds=new Set();
-let selectionMode=false;
-const selectModeToggle=document.getElementById("select-mode-toggle");
-const bulkDeleteButton=document.getElementById("bulk-delete");
-const selectionCounter=document.getElementById("selection-counter");
-let lastSelectedId=null;
 let activeSettingsItem=null;
 let pendingDeleteIds=[];
 let internalDragIds=[];
 let externalDragDepth=0;
-let marqueeStart=null;
-let marqueeBase=new Set();
 let objectUrl=null;
+const main=document.querySelector("main");
+const DOUBLE_TAP_WINDOW=450;
+const DOUBLE_TAP_DISTANCE=36;
+const GESTURE_MOVE_THRESHOLD=7;
+let previousPointerTap=null;
+let pointerTapCandidate=null;
+let activePointerMarquee=null;
+let previousTouchTap=null;
+let touchTapCandidate=null;
+let activeTouchMarqueeId=null;
+let suppressCardClickUntil=0;
+let marqueeStart=null;
 
 async function filesAction(action,payload={}){
   const {data,error}=await supabase.functions.invoke(filesFunction,{body:{action,...payload}});
@@ -338,50 +344,180 @@ function resetCardMotion(){
 }
 function updateSelectionUi(){
   document.body.classList.toggle("has-selection",selectedIds.size>0);
-  document.body.classList.toggle("selection-mode",selectionMode);
-  list.querySelectorAll(".file-card").forEach(card=>{card.draggable=!selectionMode;});
-  selectModeToggle.textContent=selectionMode?"Done":"Select";
-  selectModeToggle.setAttribute("aria-pressed",String(selectionMode));
-  bulkDeleteButton.hidden=selectedIds.size===0;
-  bulkDeleteButton.textContent="Delete selected ("+selectedIds.size+")";
-  selectionCounter.hidden=selectedIds.size===0;
-  selectionCounter.textContent=selectedIds.size+" selected";
-  list.querySelectorAll(".file-card").forEach(card=>card.classList.toggle("is-selected",selectedIds.has(card.dataset.id)));
-  if(selectedIds.size){
-    showStatus(selectionMode?selectedIds.size+" selected · Tap more items or Done":selectedIds.size+" selected · Drag onto a folder to move · Esc to clear",true);
-  }else if(selectionMode){
-    showStatus("Tap files and folders to select them. Tap Done when finished.",true);
-  }else if(!uploadOverlay.hidden){
-    return;
-  }else{
-    showStatus("",false);
-  }
+  list.querySelectorAll(".file-card").forEach(card=>{
+    card.classList.toggle("is-selected",selectedIds.has(card.dataset.id));
+    card.draggable=true;
+  });
 }
 function clearSelection(){
   selectedIds.clear();
-  selectionMode=false;
-  lastSelectedId=null;
   document.body.classList.remove("has-selection","selection-drag-mode");
   updateSelectionUi();
 }
-function selectOne(id,options={}){
-  const visible=visibleItems();
-  if(options.shift&&lastSelectedId){
-    const a=visible.findIndex(item=>item.id===lastSelectedId);
-    const b=visible.findIndex(item=>item.id===id);
-    if(a>=0&&b>=0){
-      if(!options.add)selectedIds.clear();
-      visible.slice(Math.min(a,b),Math.max(a,b)+1).forEach(item=>selectedIds.add(item.id));
-    }else selectedIds.add(id);
-  }else if(options.toggle){
-    if(selectedIds.has(id))selectedIds.delete(id);else selectedIds.add(id);
-  }else{
-    selectedIds.clear();
-    selectedIds.add(id);
-  }
-  lastSelectedId=id;
+function isEmptyCanvasTarget(target){
+  if(!(target instanceof Element)||!main.contains(target))return false;
+  return !target.closest(".file-card,.add-wrap,button,a,input,textarea,select,.panel,.file-viewer,.confirm-overlay,.upload-overlay,.drop-hint");
+}
+function setMarqueeRect(x,y){
+  if(!marqueeStart)return;
+  const left=Math.min(marqueeStart.x,x);
+  const top=Math.min(marqueeStart.y,y);
+  marquee.style.left=left+"px";
+  marquee.style.top=top+"px";
+  marquee.style.width=Math.abs(x-marqueeStart.x)+"px";
+  marquee.style.height=Math.abs(y-marqueeStart.y)+"px";
+}
+function beginMarquee(x,y){
+  selectedIds.clear();
+  updateSelectionUi();
+  marqueeStart={x,y};
+  marquee.hidden=false;
+  setMarqueeRect(x,y);
+  document.body.classList.add("selection-drag-mode");
+}
+function updateMarquee(x,y){
+  if(!marqueeStart)return;
+  setMarqueeRect(x,y);
+  const left=Math.min(marqueeStart.x,x);
+  const top=Math.min(marqueeStart.y,y);
+  const box={left,top,right:left+Math.abs(x-marqueeStart.x),bottom:top+Math.abs(y-marqueeStart.y)};
+  selectedIds.clear();
+  list.querySelectorAll(".file-card").forEach(card=>{
+    const rect=card.getBoundingClientRect();
+    if(rect.left<box.right&&rect.right>box.left&&rect.top<box.bottom&&rect.bottom>box.top){
+      selectedIds.add(card.dataset.id);
+    }
+  });
   updateSelectionUi();
 }
+function finishMarquee(){
+  if(!marqueeStart)return;
+  marqueeStart=null;
+  marquee.hidden=true;
+  document.body.classList.remove("selection-drag-mode");
+  suppressCardClickUntil=Date.now()+350;
+  updateSelectionUi();
+}
+function isDoubleTap(previous,x,y,pointerType){
+  return !!previous&&previous.pointerType===pointerType&&
+    Date.now()-previous.time<=DOUBLE_TAP_WINDOW&&
+    Math.hypot(previous.x-x,previous.y-y)<=DOUBLE_TAP_DISTANCE;
+}
+
+// Mouse and pen: a second press on empty space starts the drag-selection rectangle.
+main.addEventListener("pointerdown",event=>{
+  if(event.pointerType==="touch"||event.button!==0)return;
+  if(!isEmptyCanvasTarget(event.target)){
+    previousPointerTap=null;
+    pointerTapCandidate=null;
+    return;
+  }
+  if(isDoubleTap(previousPointerTap,event.clientX,event.clientY,event.pointerType)){
+    event.preventDefault();
+    previousPointerTap=null;
+    pointerTapCandidate=null;
+    activePointerMarquee={pointerId:event.pointerId};
+    beginMarquee(event.clientX,event.clientY);
+    try{main.setPointerCapture(event.pointerId);}catch{}
+    return;
+  }
+  pointerTapCandidate={pointerId:event.pointerId,pointerType:event.pointerType,x:event.clientX,y:event.clientY,moved:false};
+});
+document.addEventListener("pointermove",event=>{
+  if(activePointerMarquee&&activePointerMarquee.pointerId===event.pointerId){
+    event.preventDefault();
+    updateMarquee(event.clientX,event.clientY);
+    return;
+  }
+  if(pointerTapCandidate&&pointerTapCandidate.pointerId===event.pointerId&&
+     Math.hypot(event.clientX-pointerTapCandidate.x,event.clientY-pointerTapCandidate.y)>GESTURE_MOVE_THRESHOLD){
+    pointerTapCandidate.moved=true;
+  }
+});
+document.addEventListener("pointerup",event=>{
+  if(activePointerMarquee&&activePointerMarquee.pointerId===event.pointerId){
+    finishMarquee();
+    activePointerMarquee=null;
+    return;
+  }
+  if(pointerTapCandidate&&pointerTapCandidate.pointerId===event.pointerId){
+    const tap=pointerTapCandidate;
+    pointerTapCandidate=null;
+    if(!tap.moved){
+      if(selectedIds.size)clearSelection();
+      previousPointerTap={x:tap.x,y:tap.y,time:Date.now(),pointerType:tap.pointerType};
+    }else previousPointerTap=null;
+  }
+});
+document.addEventListener("pointercancel",event=>{
+  if(activePointerMarquee&&activePointerMarquee.pointerId===event.pointerId){
+    finishMarquee();
+    activePointerMarquee=null;
+  }
+  if(pointerTapCandidate?.pointerId===event.pointerId)pointerTapCandidate=null;
+  previousPointerTap=null;
+});
+
+// Touch: single taps still scroll normally. Only the second tap arms marquee dragging.
+main.addEventListener("touchstart",event=>{
+  if(event.touches.length!==1)return;
+  const touch=event.changedTouches[0];
+  if(!isEmptyCanvasTarget(event.target)){
+    previousTouchTap=null;
+    touchTapCandidate=null;
+    return;
+  }
+  if(previousTouchTap&&Date.now()-previousTouchTap.time<=DOUBLE_TAP_WINDOW&&
+     Math.hypot(previousTouchTap.x-touch.clientX,previousTouchTap.y-touch.clientY)<=DOUBLE_TAP_DISTANCE){
+    event.preventDefault();
+    previousTouchTap=null;
+    touchTapCandidate=null;
+    activeTouchMarqueeId=touch.identifier;
+    beginMarquee(touch.clientX,touch.clientY);
+    return;
+  }
+  touchTapCandidate={identifier:touch.identifier,x:touch.clientX,y:touch.clientY,moved:false};
+},{passive:false});
+main.addEventListener("touchmove",event=>{
+  if(activeTouchMarqueeId!==null){
+    const touch=[...event.touches].find(value=>value.identifier===activeTouchMarqueeId);
+    if(touch){
+      event.preventDefault();
+      updateMarquee(touch.clientX,touch.clientY);
+    }
+    return;
+  }
+  if(touchTapCandidate){
+    const touch=[...event.touches].find(value=>value.identifier===touchTapCandidate.identifier);
+    if(touch&&Math.hypot(touch.clientX-touchTapCandidate.x,touch.clientY-touchTapCandidate.y)>GESTURE_MOVE_THRESHOLD){
+      touchTapCandidate.moved=true;
+    }
+  }
+},{passive:false});
+main.addEventListener("touchend",event=>{
+  if(activeTouchMarqueeId!==null&&[...event.changedTouches].some(touch=>touch.identifier===activeTouchMarqueeId)){
+    event.preventDefault();
+    activeTouchMarqueeId=null;
+    finishMarquee();
+    return;
+  }
+  if(touchTapCandidate&&[...event.changedTouches].some(touch=>touch.identifier===touchTapCandidate.identifier)){
+    const tap=touchTapCandidate;
+    touchTapCandidate=null;
+    if(!tap.moved){
+      if(selectedIds.size)clearSelection();
+      previousTouchTap={x:tap.x,y:tap.y,time:Date.now()};
+    }else previousTouchTap=null;
+  }
+},{passive:false});
+main.addEventListener("touchcancel",()=>{
+  touchTapCandidate=null;
+  previousTouchTap=null;
+  if(activeTouchMarqueeId!==null){
+    activeTouchMarqueeId=null;
+    finishMarquee();
+  }
+},{passive:true});
 function renderItems(){
   list.replaceChildren();
   const folder=items.find(item=>item.id===currentFolderId);
@@ -425,6 +561,12 @@ function renderItems(){
         event.stopPropagation();
         return;
       }
+      if(Date.now()<suppressCardClickUntil){
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if(selectedIds.size)clearSelection();
       if(item.item_type==="folder")openFolder(item.id);else openFile(item);
     });
     card.addEventListener("keydown",event=>{
@@ -434,8 +576,9 @@ function renderItems(){
       }
     });
     card.addEventListener("dragstart",event=>{
-      // Dragging an unselected card moves only that card; it must not create a visible multiselection.
-      internalDragIds=[item.id];
+      // Dragging any selected card carries the entire marquee selection.
+      internalDragIds=selectedIds.has(item.id)&&selectedIds.size?[...selectedIds]:[item.id];
+      if(!selectedIds.has(item.id)&&selectedIds.size)clearSelection();
       card.dataset.dragged="true";
       event.dataTransfer.effectAllowed="move";
       event.dataTransfer.setData("application/x-coolanas-items",JSON.stringify(internalDragIds));
