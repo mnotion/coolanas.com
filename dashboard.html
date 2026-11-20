@@ -85,26 +85,12 @@
     <input class="search-input" id="search-input" type="search" placeholder="Search…" autocomplete="off">
   </section>
 
-  <section class="panel" id="files-panel" aria-label="Files" hidden>
-    <div class="panel-heading"><h2>Files</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
-    <label class="upload-button" for="file-picker">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-      Add files
-    </label>
-    <input class="visually-hidden" id="file-picker" type="file" multiple>
-    <div class="empty-state" id="files-empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg>
-      <div>No files selected</div>
-      <div>Choose files to see them listed here.</div>
-    </div>
-    <div class="file-list" id="file-list" aria-live="polite"></div>
-  </section>
-
   <section class="panel" id="menu-panel" aria-label="Menu" hidden>
     <div class="panel-heading"><h2>Menu</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
     <nav class="menu-list">
-      <button class="menu-item" type="button">Home</button>
-      <button class="menu-item" type="button">Settings</button>
+      <button class="menu-item" id="menu-home" type="button">Home</button>
+      <button class="menu-item" id="menu-files" type="button">Files</button>
+      <button class="menu-item" id="menu-signout" type="button">Sign out</button>
     </nav>
   </section>
 
@@ -112,7 +98,7 @@
     <button class="nav-button" id="search-toggle" type="button" aria-label="Search" aria-expanded="false" aria-controls="search-panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
     </button>
-    <button class="nav-button" id="files-toggle" type="button" aria-label="Files" aria-expanded="false" aria-controls="files-panel">
+    <button class="nav-button" id="files-toggle" type="button" aria-label="Open Files">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"></path><path d="M3.5 10h17"></path></svg>
     </button>
     <button class="nav-button" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-panel">
@@ -167,6 +153,39 @@
         setupButton.disabled=false;
       }
     });
-    document.getElementById("signout").addEventListener("click",async()=>{await supabase.auth.signOut();location.replace("index.html");});
+    async function signOutAndReturn(){
+      await supabase.auth.signOut();
+      location.replace("index.html");
+    }
+    document.getElementById("signout").addEventListener("click",signOutAndReturn);
+    document.getElementById("menu-signout").addEventListener("click",signOutAndReturn);
+
+    const navSearch=document.getElementById("search-toggle");
+    const navFiles=document.getElementById("files-toggle");
+    const navMenu=document.getElementById("menu-toggle");
+    const searchPanel=document.getElementById("search-panel");
+    const menuPanel=document.getElementById("menu-panel");
+    function closeNavPanels(){
+      searchPanel.hidden=true;
+      menuPanel.hidden=true;
+      navSearch.setAttribute("aria-expanded","false");
+      navMenu.setAttribute("aria-expanded","false");
+    }
+    function toggleNavPanel(panel,button){
+      const shouldOpen=panel.hidden;
+      closeNavPanels();
+      if(shouldOpen){
+        panel.hidden=false;
+        button.setAttribute("aria-expanded","true");
+        panel.querySelector("input")?.focus();
+      }
+    }
+    navSearch.addEventListener("click",()=>toggleNavPanel(searchPanel,navSearch));
+    navFiles.addEventListener("click",()=>location.assign("files.html"));
+    navMenu.addEventListener("click",()=>toggleNavPanel(menuPanel,navMenu));
+    document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
+    document.getElementById("menu-home").addEventListener("click",closeNavPanels);
+    document.getElementById("menu-files").addEventListener("click",()=>location.assign("files.html"));
+    document.addEventListener("keydown",event=>{if(event.key==="Escape")closeNavPanels();});
   </script></body>
 </html>
