@@ -29,12 +29,13 @@
     .file-card,.file-card *{-webkit-user-select:none;user-select:none}
     .file-card.is-selected{z-index:9}
     @keyframes coolanas-folder-jiggle{
-      0%,100%{rotate:-.65deg}
-      50%{rotate:.65deg}
+      0%,100%{transform:rotate(-1.15deg)}
+      50%{transform:rotate(1.15deg)}
     }
-    .files-list.is-rearranging .file-card[data-type="folder"]{
-      animation:coolanas-folder-jiggle var(--folder-jiggle-duration,.38s) ease-in-out infinite;
+    .files-list.is-rearranging .file-card[data-type="folder"]:not(.is-being-dragged){
+      animation:coolanas-folder-jiggle var(--folder-jiggle-duration,.5s) ease-in-out infinite;
       transform-origin:50% 55%;
+      will-change:transform;
     }
     .files-list.is-rearranging .file-card[data-type="folder"] .settings-dot{display:none!important}
     .files-list.is-rearranging .file-card[data-type="folder"]:nth-child(even){animation-delay:-.11s}
@@ -374,10 +375,10 @@
     function startFolderJiggle(){
       stopFolderJiggle();
       jiggleStartedAt=performance.now();
-      list.style.setProperty("--folder-jiggle-duration",".38s");
+      list.style.setProperty("--folder-jiggle-duration",".5s");
       jiggleSlowdownTimer=setInterval(()=>{
         const elapsed=(performance.now()-jiggleStartedAt)/1000;
-        const duration=.38+2.2*(1-Math.exp(-elapsed/1.8));
+        const duration=.5+1.5*(1-Math.exp(-elapsed/1.5));
         list.style.setProperty("--folder-jiggle-duration",duration.toFixed(2)+"s");
       },120);
     }
