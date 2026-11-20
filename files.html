@@ -318,17 +318,43 @@
     window.addEventListener("dragenter",event=>{if(!event.dataTransfer)return;event.preventDefault();dragDepth++;dropHint.hidden=false;});
     window.addEventListener("dragover",event=>{if(event.dataTransfer)event.preventDefault();});
     window.addEventListener("dragleave",event=>{event.preventDefault();dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)dropHint.hidden=true;});
-    async function readEntry(entry,parentId=currentFolderId){
-      if(entry.isFile)return new Promise(resolve=>entry.file(file=>resolve([{type:"file",name:file.name,file,parentId}]),()=>resolve([])));
-      if(!entry.isDirectory)return [];
+    async function readFileHandle(handle,parentId){
+      const file=await handle.getFile();
+      return [{type:"file",name:file.name,file,parentId}];
+    }
+    async function readDirectoryHandle(handle,parentId){
+      const folder={id:crypto.randomUUID(),type:"folder",name:handle.name,parentId:parentId||null};
+      const results=[folder];
+      for await(const child of handle.values()){
+        if(child.kind==="directory")results.push(...await readDirectoryHandle(child,folder.id));
+        else if(child.kind==="file")results.push(...await readFileHandle(child,folder.id));
+      }
+      return results;
+    }
+    async function readEntry(entry,parentId){
+      if(entry.isFile)return new Promise((resolve,reject)=>entry.file(file=>resolve([{type:"file",name:file.name,file,parentId}]),reject));
+      if(!entry.isDirectory)throw new Error("The dropped item is not a readable file or folder.");
       const folder={id:crypto.randomUUID(),type:"folder",name:entry.name,parentId:parentId||null};
       const results=[folder],reader=entry.createReader();
       while(true){
-        const batch=await new Promise(resolve=>reader.readEntries(resolve,()=>resolve([])));
+        const batch=await new Promise((resolve,reject)=>reader.readEntries(resolve,reject));
         if(!batch.length)break;
         for(const child of batch)results.push(...await readEntry(child,folder.id));
       }
       return results;
+    }
+    async function readDroppedItem(item){
+      if(item.getAsFileSystemHandle){
+        const handle=await item.getAsFileSystemHandle();
+        if(handle){
+          if(handle.kind==="directory")return readDirectoryHandle(handle,currentFolderId);
+          if(handle.kind==="file")return readFileHandle(handle,currentFolderId);
+        }
+      }
+      const entry=item.webkitGetAsEntry?.();
+      if(entry)return readEntry(entry,currentFolderId);
+      const file=item.getAsFile?.();
+      return file?[{type:"file",name:file.name,file,parentId:currentFolderId}]:[];
     }
     window.addEventListener("drop",async event=>{
       event.preventDefault();dragDepth=0;dropHint.hidden=true;
@@ -336,15 +362,14 @@
       if(!transfer)return;
       const dropped=[];
       try{
-        for(const entryItem of [...(transfer.items||[])]){
-          if(entryItem.kind!=="file")continue;
-          const entry=entryItem.webkitGetAsEntry?.();
-          if(entry)dropped.push(...await readEntry(entry));
-          else{const file=entryItem.getAsFile?.();if(file)dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});}
+        const transferItems=[...(transfer.items||[])].filter(item=>item.kind==="file");
+        if(transferItems.length){
+          for(const item of transferItems)dropped.push(...await readDroppedItem(item));
+        }else{
+          for(const file of [...(transfer.files||[])])dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});
         }
-        if(!dropped.length)for(const file of [...(transfer.files||[])])dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});
-        if(!dropped.length){setUploadStatus("No files were found in that drop.");return;}
-        setUploadStatus("Adding "+dropped.length+" dropped item"+(dropped.length===1?"":"s")+"…");
+        if(!dropped.length){setUploadStatus("No readable files or folders were found. Try dragging the folder from File Explorer again.");return;}
+        setUploadStatus("Importing "+dropped.length+" items…");
         let added=0;
         for(const entry of dropped){
           const id=entry.id||crypto.randomUUID();
@@ -353,8 +378,13 @@
           added++;
         }
         saveItems();renderItems();
-        setUploadStatus("Added "+added+" dropped item"+(added===1?"":"s")+". Select a file to open its preview.");
-      }catch(error){console.error("Drag-and-drop import failed:",error);setUploadStatus("Drop failed: "+(error.message||"browser storage unavailable"));}
+        const folders=dropped.filter(entry=>entry.type==="folder").length;
+        const files=dropped.filter(entry=>entry.type==="file").length;
+        setUploadStatus("Imported "+folders+" folders and "+files+" files. Open a folder to browse its contents.");
+      }catch(error){
+        console.error("Drag-and-drop import failed:",error);
+        setUploadStatus("Folder import failed: "+(error.message||"the browser could not read the dropped contents")+". Nothing else was imported.");
+      }
     });
     function resetCardMotion(){
       list.querySelectorAll(".file-card").forEach(card=>{
