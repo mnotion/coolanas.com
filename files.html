@@ -194,7 +194,25 @@
   <div class="confirm-overlay" id="card-settings-overlay" hidden>
     <section class="confirm-panel card-settings-panel" role="dialog" aria-modal="true" aria-labelledby="card-settings-title">
       <div class="settings-header"><div><h2 id="card-settings-title">Card settings</h2></div><button class="close-button" id="card-settings-close" type="button" aria-label="Close">×</button></div>
-      <div class="settings-accordion"><details class="settings-section settings-danger-section" id="delete-section">
+      <div class="settings-accordion">
+        <details class="settings-section" id="folder-color-section">
+          <summary><span class="settings-section-title">Folder colour</span></summary>
+          <div class="settings-section-content">
+            <div class="color-options" id="folder-color-options">
+              <button type="button" class="color-choice" data-color="#e6b325" aria-label="Yellow" title="Yellow" style="--swatch:#e6b325"></button>
+              <button type="button" class="color-choice" data-color="#3b82f6" aria-label="Blue" title="Blue" style="--swatch:#3b82f6"></button>
+              <button type="button" class="color-choice" data-color="#22a06b" aria-label="Green" title="Green" style="--swatch:#22a06b"></button>
+              <button type="button" class="color-choice" data-color="#a855f7" aria-label="Purple" title="Purple" style="--swatch:#a855f7"></button>
+              <button type="button" class="color-choice" data-color="#ef4444" aria-label="Red" title="Red" style="--swatch:#ef4444"></button>
+              <button type="button" class="color-choice" data-color="#6b7280" aria-label="Gray" title="Gray" style="--swatch:#6b7280"></button>
+            </div>
+          </div>
+        </details>
+        <details class="settings-section" id="tag-section">
+          <summary><span class="settings-section-title">Tag</span></summary>
+          <div class="settings-section-content"><input class="search-input" id="card-tag-input" type="text" maxlength="32" placeholder="Add a tag"></div>
+        </details>
+        <details class="settings-section settings-danger-section" id="delete-section">
           <summary><span class="settings-section-title">Delete item</span></summary>
           <div class="settings-section-content"><p class="settings-delete-copy">This will delete this item and its contents, if it is a folder.</p><button class="confirm-button danger" id="card-settings-delete" type="button">Delete item</button></div>
         </details>
@@ -223,214 +241,654 @@
     </button>
   </nav>
   <script type="module">
-    const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
-    const SUPABASE_PUBLISHABLE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
-    const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
-    const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-    const {data:{session}}=await supabase.auth.getSession();
-    if(!session){location.replace("index.html");throw new Error("Sign-in required");}
-    const user=session.user;
-    const folderSvg='<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg>';
-    const fileSvg='<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.8h8l4 4V20H6z"/><path d="M14 3.8V8h4"/></svg>';
-    const filesFunction="coolanas-files-b2";
-    const list=document.getElementById("files-list");
-    const toolbar=document.getElementById("files-toolbar");
-    const currentFolder=document.getElementById("current-folder");
-    const viewer=document.getElementById("file-viewer");
-    const viewerTitle=document.getElementById("viewer-title");
-    const viewerContent=document.getElementById("viewer-content");
-    let items=[],currentFolderId=null,searchQuery="",activeSettingsItem=null,pendingDeleteItem=null;
-    const status=document.createElement("p");
-    status.style.cssText="width:100%;text-align:center;color:#777;font-size:13px";
-    async function filesAction(action,payload={}){
-      const {data,error}=await supabase.functions.invoke(filesFunction,{body:{action,...payload}});
-      if(error)throw error;
-      if(data?.error)throw new Error(data.error);
-      return data;
-    }
-    async function loadItems(){
-      const data=await filesAction("list");
-      items=data.items||[];renderItems();
-    }
-    function visibleItems(){return items.filter(x=>x.parent_id===currentFolderId&&x.name.toLocaleLowerCase().includes(searchQuery));}
-    function renderItems(){
-      list.replaceChildren();
-      const folder=items.find(x=>x.id===currentFolderId);
-      toolbar.hidden=!currentFolderId;currentFolder.textContent=folder?.name||"";
-      const ordered=visibleItems().sort((x,y)=>(x.item_type==="folder"?0:1)-(y.item_type==="folder"?0:1));
-      for(const item of ordered){
-        const card=document.createElement("div");card.className="file-card";card.tabIndex=0;card.dataset.id=item.id;
-        card.innerHTML=item.item_type==="folder"?folderSvg:fileSvg;
-        const name=document.createElement("span");name.className="file-name";name.textContent=item.name;
-        const settingsButton=document.createElement("button");settingsButton.type="button";settingsButton.className="settings-dot";settingsButton.setAttribute("aria-label","Settings for "+item.name);settingsButton.title="Item settings";
-        settingsButton.addEventListener("click",event=>{event.stopPropagation();openCardSettings(item);});
-        const share=document.createElement("button");share.type="button";share.className="share-toggle";share.textContent=item.is_shared?"Shared":"Share";
-        share.style.cssText="margin-top:4px;padding:4px 9px;border:1px solid #e5e5e5;border-radius:7px;background:#fafafa;color:#666;font:11px system-ui;cursor:pointer";
-        share.addEventListener("click",async e=>{e.stopPropagation();await setShared(item,!item.is_shared);});
-        card.append(settingsButton,name,share);
-        card.addEventListener("click",()=>item.item_type==="folder"?openFolder(item.id):openFile(item));
-        card.addEventListener("keydown",e=>{if(e.key==="Enter")item.item_type==="folder"?openFolder(item.id):openFile(item);});
-        list.append(card);
+
+const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
+const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const {data:{session},error:sessionError}=await supabase.auth.getSession();
+if(sessionError||!session){location.replace("index.html");throw new Error("Sign-in required");}
+const user=session.user;
+const filesFunction="coolanas-files-b2";
+const folderSvg='<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg>';
+const fileSvg='<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.8h8l4 4V20H6z"/><path d="M14 3.8V8h4"/></svg>';
+const list=document.getElementById("files-list");
+const toolbar=document.getElementById("files-toolbar");
+const currentFolder=document.getElementById("current-folder");
+const viewer=document.getElementById("file-viewer");
+const viewerTitle=document.getElementById("viewer-title");
+const viewerContent=document.getElementById("viewer-content");
+const status=document.getElementById("upload-status");
+const uploadOverlay=document.getElementById("upload-overlay");
+const uploadTitle=document.getElementById("upload-title");
+const uploadDetail=document.getElementById("upload-detail");
+const uploadProgress=document.getElementById("upload-progress-bar");
+const dropHint=document.getElementById("drop-hint");
+const marquee=document.getElementById("selection-marquee");
+let items=[],currentFolderId=null,searchQuery="";
+const selectedIds=new Set();
+let lastSelectedId=null;
+let activeSettingsItem=null;
+let pendingDeleteIds=[];
+let internalDragIds=[];
+let externalDragDepth=0;
+let marqueeStart=null;
+let marqueeBase=new Set();
+let objectUrl=null;
+
+async function filesAction(action,payload={}){
+  const {data,error}=await supabase.functions.invoke(filesFunction,{body:{action,...payload}});
+  if(error){
+    let detail="";
+    try{
+      if(error.context&&typeof error.context.clone==="function"){
+        const response=await error.context.clone();
+        const body=await response.json();
+        detail=body.error||body.message||"";
       }
-      list.append(addWrap);resetCardMotion();
+    }catch{}
+    throw new Error(detail||error.message||"Files request failed.");
+  }
+  if(data?.error)throw new Error(data.error);
+  return data;
+}
+function showStatus(message,visible=true){
+  status.textContent=message||"";
+  status.hidden=!visible;
+}
+function setUploadProgress(done,total,detail){
+  uploadOverlay.hidden=false;
+  uploadDetail.textContent=detail||("Uploading "+done+" of "+total);
+  uploadProgress.style.width=(total?Math.round(done/total*100):0)+"%";
+}
+function hideUploadProgress(){
+  uploadOverlay.hidden=true;
+  uploadProgress.style.width="0%";
+}
+async function loadItems(){
+  const data=await filesAction("list");
+  items=data.items||[];
+  const valid=new Set(items.map(item=>item.id));
+  for(const id of [...selectedIds])if(!valid.has(id))selectedIds.delete(id);
+  renderItems();
+}
+function visibleItems(){
+  return items.filter(item=>item.parent_id===currentFolderId&&item.name.toLocaleLowerCase().includes(searchQuery));
+}
+function resetCardMotion(){
+  list.querySelectorAll(".file-card").forEach(card=>{
+    card.style.setProperty("--card-scale","1");
+    card.style.setProperty("--card-z","1");
+  });
+}
+function updateSelectionUi(){
+  document.body.classList.toggle("has-selection",selectedIds.size>0);
+  list.querySelectorAll(".file-card").forEach(card=>card.classList.toggle("is-selected",selectedIds.has(card.dataset.id)));
+  if(selectedIds.size){
+    showStatus(selectedIds.size+" selected · Drag onto a folder to move · Esc to clear",true);
+  }else if(!uploadOverlay.hidden){
+    return;
+  }else{
+    showStatus("",false);
+  }
+}
+function clearSelection(){
+  selectedIds.clear();
+  lastSelectedId=null;
+  document.body.classList.remove("has-selection","selection-drag-mode");
+  updateSelectionUi();
+}
+function selectOne(id,options={}){
+  const visible=visibleItems();
+  if(options.shift&&lastSelectedId){
+    const a=visible.findIndex(item=>item.id===lastSelectedId);
+    const b=visible.findIndex(item=>item.id===id);
+    if(a>=0&&b>=0){
+      if(!options.add)selectedIds.clear();
+      visible.slice(Math.min(a,b),Math.max(a,b)+1).forEach(item=>selectedIds.add(item.id));
+    }else selectedIds.add(id);
+  }else if(options.toggle){
+    if(selectedIds.has(id))selectedIds.delete(id);else selectedIds.add(id);
+  }else{
+    selectedIds.clear();
+    selectedIds.add(id);
+  }
+  lastSelectedId=id;
+  updateSelectionUi();
+}
+function renderItems(){
+  list.replaceChildren();
+  const folder=items.find(item=>item.id===currentFolderId);
+  toolbar.hidden=!currentFolderId;
+  currentFolder.textContent=folder?.name||"";
+  const ordered=visibleItems().sort((a,b)=>{
+    const type=(a.item_type==="folder"?0:1)-(b.item_type==="folder"?0:1);
+    return type||(Number(a.sort_order||0)-Number(b.sort_order||0))||a.name.localeCompare(b.name);
+  });
+  for(const item of ordered){
+    const card=document.createElement("div");
+    card.className="file-card";
+    card.tabIndex=0;
+    card.draggable=true;
+    card.dataset.id=item.id;
+    card.dataset.type=item.item_type;
+    card.setAttribute("role","listitem");
+    card.innerHTML=item.item_type==="folder"?folderSvg:fileSvg;
+    const icon=card.querySelector("svg");
+    if(item.item_type==="folder"&&item.folder_color)icon.style.color=item.folder_color;
+    const settings=document.createElement("button");
+    settings.type="button";
+    settings.className="settings-dot";
+    settings.title="Item settings";
+    settings.setAttribute("aria-label","Settings for "+item.name);
+    settings.addEventListener("click",event=>{event.stopPropagation();openCardSettings(item);});
+    const name=document.createElement("span");
+    name.className="file-name";
+    name.textContent=item.name;
+    card.append(settings,name);
+    if(item.tag){
+      const tag=document.createElement("span");
+      tag.className="file-tag";
+      tag.textContent=item.tag;
+      card.append(tag);
     }
-    async function setShared(item,shared){
-      try{await filesAction("set_shared",{id:item.id,shared});await loadItems();}
-      catch(error){alert(error.message);}
-    }
-    const cardSettingsOverlay=document.getElementById("card-settings-overlay");
-    const confirmOverlay=document.getElementById("confirm-overlay");
-    const confirmMessage=document.getElementById("confirm-message");
-    const confirmDeleteButton=document.getElementById("confirm-delete");
-    function openCardSettings(item){
-      activeSettingsItem=item;
-      document.getElementById("card-settings-title").textContent=item.name;
-      cardSettingsOverlay.hidden=false;
-    }
-    function closeCardSettings(){
-      cardSettingsOverlay.hidden=true;
-      activeSettingsItem=null;
-    }
-    function closeDeleteConfirmation(){
-      confirmOverlay.hidden=true;
-      pendingDeleteItem=null;
-    }
-    document.getElementById("card-settings-close").addEventListener("click",closeCardSettings);
-    document.getElementById("card-settings-cancel").addEventListener("click",closeCardSettings);
-    cardSettingsOverlay.addEventListener("click",event=>{if(event.target===cardSettingsOverlay)closeCardSettings();});
-    document.getElementById("card-settings-delete").addEventListener("click",()=>{
-      if(!activeSettingsItem)return;
-      pendingDeleteItem=activeSettingsItem;
-      confirmMessage.textContent=pendingDeleteItem.item_type==="folder"
-        ? 'Permanently delete "'+pendingDeleteItem.name+'" and everything inside it?'
-        : 'Permanently delete "'+pendingDeleteItem.name+'"?';
-      closeCardSettings();
-      confirmOverlay.hidden=false;
+    card.addEventListener("click",event=>{
+      if(event.ctrlKey||event.metaKey){selectOne(item.id,{toggle:true});return;}
+      if(event.shiftKey){selectOne(item.id,{shift:true,add:event.ctrlKey||event.metaKey});return;}
+      clearSelection();
+      if(item.item_type==="folder")openFolder(item.id);else openFile(item);
     });
-    document.getElementById("confirm-cancel").addEventListener("click",closeDeleteConfirmation);
-    confirmOverlay.addEventListener("click",event=>{if(event.target===confirmOverlay)closeDeleteConfirmation();});
-    confirmDeleteButton.addEventListener("click",async()=>{
-      if(!pendingDeleteItem)return;
-      const target=pendingDeleteItem;
-      confirmDeleteButton.disabled=true;
-      try{
-        await filesAction("delete",{id:target.id});
-        if(currentFolderId===target.id)currentFolderId=target.parent_id||null;
-        closeDeleteConfirmation();
-        await loadItems();
-      }catch(error){
-        alert("Could not delete item: "+error.message);
-      }finally{
-        confirmDeleteButton.disabled=false;
+    card.addEventListener("keydown",event=>{
+      if(event.key==="Enter"&&!event.ctrlKey&&!event.metaKey){
+        event.preventDefault();
+        if(item.item_type==="folder")openFolder(item.id);else openFile(item);
+      }else if(event.key===" "&&(event.ctrlKey||event.metaKey)){
+        event.preventDefault();selectOne(item.id,{toggle:true});
       }
     });
-    function openFolder(id){currentFolderId=id;renderItems();}
-    document.getElementById("back-folder").addEventListener("click",()=>{currentFolderId=items.find(x=>x.id===currentFolderId)?.parent_id||null;renderItems();});
-    const addWrap=document.createElement("div");addWrap.className="add-wrap";
-    addWrap.innerHTML='<button class="add-button" id="add-toggle" type="button" aria-label="Upload files" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><div class="add-menu" id="add-menu" hidden><button class="add-option" type="button" id="upload-option">Upload files</button><button class="add-option" type="button" id="upload-folder-option">Upload folder</button></div>';
-    const addToggle=addWrap.querySelector("#add-toggle"),addMenu=addWrap.querySelector("#add-menu");
-    addToggle.addEventListener("click",e=>{e.stopPropagation();addMenu.hidden=!addMenu.hidden;addToggle.setAttribute("aria-expanded",String(!addMenu.hidden));});
-    document.addEventListener("click",e=>{if(!e.target.closest(".add-wrap")){addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");}});
-    addMenu.addEventListener("click",e=>{
-      const button=e.target.closest("#upload-option,#upload-folder-option");if(!button)return;
-      const picker=document.getElementById(button.id==="upload-option"?"file-picker":"folder-picker");
-      addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");picker.click();
+    card.addEventListener("dragstart",event=>{
+      if(!selectedIds.has(item.id))selectOne(item.id);
+      internalDragIds=[...selectedIds];
+      event.dataTransfer.effectAllowed="move";
+      event.dataTransfer.setData("application/x-coolanas-items",JSON.stringify(internalDragIds));
+      event.dataTransfer.setData("text/plain",internalDragIds.join(","));
+      requestAnimationFrame(()=>{card.classList.add("is-being-dragged");list.classList.add("is-rearranging");});
     });
-    async function saveFile(file,parentId,name=file.name){
-      const created=await filesAction("create_upload",{parentId,name,contentType:file.type||"application/octet-stream"});
-      try{
-        const response=await fetch(created.uploadUrl,{method:"PUT",headers:{"Content-Type":created.contentType},body:file});
-        if(!response.ok)throw new Error("Backblaze upload failed ("+response.status+"). Check the bucket CORS settings.");
-        await filesAction("finish_upload",{id:created.item.id});
-      }catch(error){
-        throw new Error(error.message+" The file record may need cleanup before retrying.");
-      }
-    }
-    async function uploadFolder(files){
-      const folders=new Map();
-      for(const file of files){
-        const parts=(file.webkitRelativePath||file.name).split("/");
-        let parent=currentFolderId;
-        for(let i=0;i<parts.length-1;i++){
-          const key=parts.slice(0,i+1).join("/");
-          if(!folders.has(key)){
-            let folder=items.find(x=>x.item_type==="folder"&&x.parent_id===parent&&x.name===parts[i]);
-            if(!folder){
-              const created=await filesAction("create_folder",{parentId:parent,name:parts[i]});
-              folder=created.item;items.push(folder);
-            }
-            folders.set(key,folder.id);
-          }
-          parent=folders.get(key);
-        }
-        await saveFile(file,parent,parts.at(-1));
-      }
-      await loadItems();
-    }
-    const picker=document.getElementById("file-picker"),folderPicker=document.getElementById("folder-picker");
-    picker.addEventListener("change",async()=>{try{for(const file of picker.files)await saveFile(file,currentFolderId);await loadItems();}catch(e){alert(e.message);}picker.value="";});
-    folderPicker.addEventListener("change",async()=>{try{await uploadFolder([...folderPicker.files]);}catch(e){alert(e.message);}folderPicker.value="";});
-    async function openFile(item){
-      viewer.hidden=false;viewerTitle.textContent=item.name;viewerContent.textContent="Loading preview…";
-      try{
-      const result=await filesAction("download",{id:item.id});
-      const response=await fetch(result.downloadUrl);
-      if(!response.ok)throw new Error("Backblaze download failed ("+response.status+").");
-      const data=await response.blob();
-      const url=URL.createObjectURL(data);viewerContent.replaceChildren();
-      if(data.type.startsWith("image/")){const img=document.createElement("img");img.src=url;viewerContent.append(img);}
-      else if(data.type==="application/pdf"){const frame=document.createElement("iframe");frame.src=url;viewerContent.append(frame);}
-      else if(data.type.startsWith("text/")||/\.(txt|md|json|js|css|html|xml|csv|log)$/i.test(item.name)){viewerContent.textContent=await data.text();}
-      else viewerContent.textContent="Preview is unavailable for this file type.";
-      }catch(error){viewerContent.textContent=error.message;}
-    }
-    function closeViewer(){viewer.hidden=true;viewerContent.replaceChildren();}
-    document.getElementById("viewer-close").addEventListener("click",closeViewer);
-    viewer.addEventListener("click",e=>{if(e.target===viewer)closeViewer();});
-    document.addEventListener("keydown",e=>{if(e.key==="Escape")closeViewer();});
-    function resetCardMotion(){list.querySelectorAll(".file-card").forEach(card=>{card.style.setProperty("--card-scale","1");card.style.setProperty("--card-z","1");});}
-    list.addEventListener("pointermove",e=>{
-      if(e.pointerType!=="mouse")return;
-      const cards=[...list.querySelectorAll(".file-card")],hovered=e.target.closest(".file-card");
-      if(!hovered){resetCardMotion();return;}
-      const r=hovered.getBoundingClientRect(),hx=r.left+r.width/2,hy=r.top+r.height/2;
-      const nearest=cards.filter(x=>x!==hovered).map(card=>({card,d:Math.hypot(card.getBoundingClientRect().left+card.offsetWidth/2-hx,card.getBoundingClientRect().top+card.offsetHeight/2-hy)})).sort((x,y)=>x.d-y.d);
-      hovered.style.setProperty("--card-scale","1.09");hovered.style.setProperty("--card-z","5");
-      nearest.forEach((x,i)=>{x.card.style.setProperty("--card-scale",String(Math.max(.82,1-.025*(i+1))));});
+    card.addEventListener("dragend",()=>{
+      internalDragIds=[];
+      list.classList.remove("is-rearranging");
+      list.querySelectorAll(".is-being-dragged,.is-drop-target").forEach(node=>node.classList.remove("is-being-dragged","is-drop-target"));
     });
-    list.addEventListener("pointerleave",resetCardMotion);
-    const navSearch=document.getElementById("search-toggle");
-    const navFiles=document.getElementById("files-toggle");
-    const navMenu=document.getElementById("menu-toggle");
-    const searchPanel=document.getElementById("search-panel");
-    const menuPanel=document.getElementById("menu-panel");
-    const searchInput=document.getElementById("files-search-input");
-    function closeNavPanels(){
-      searchPanel.hidden=true;
-      menuPanel.hidden=true;
-      navSearch.setAttribute("aria-expanded","false");
-      navMenu.setAttribute("aria-expanded","false");
-    }
-    function toggleNavPanel(panel,button){
-      const shouldOpen=panel.hidden;
-      closeNavPanels();
-      if(shouldOpen){
-        panel.hidden=false;
-        button.setAttribute("aria-expanded","true");
-        panel.querySelector("input")?.focus();
+    card.addEventListener("dragover",event=>{
+      if(internalDragIds.length&&item.item_type==="folder"&&!internalDragIds.includes(item.id)){
+        event.preventDefault();
+        event.dataTransfer.dropEffect="move";
+        card.classList.add("is-drop-target");
+      }else if(event.dataTransfer.types.includes("Files")){
+        event.preventDefault();
+        event.dataTransfer.dropEffect="copy";
+        if(item.item_type==="folder")card.classList.add("is-drop-target");
       }
-    }
-    navSearch.addEventListener("click",()=>toggleNavPanel(searchPanel,navSearch));
-    navFiles.addEventListener("click",()=>{closeNavPanels();window.scrollTo({top:0,behavior:"smooth"});});
-    navMenu.addEventListener("click",()=>toggleNavPanel(menuPanel,navMenu));
-    document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
-    document.getElementById("menu-home").addEventListener("click",()=>location.assign("dashboard.html"));
-    searchInput.addEventListener("input",()=>{
-      searchQuery=searchInput.value.trim().toLocaleLowerCase();
-      renderItems();
     });
-    document.getElementById("signout")?.addEventListener("click",async()=>{await supabase.auth.signOut();location.replace("index.html");});
-    document.addEventListener("keydown",event=>{if(event.key==="Escape")closeNavPanels();});
+    card.addEventListener("dragleave",()=>card.classList.remove("is-drop-target"));
+    card.addEventListener("drop",async event=>{
+      event.preventDefault();
+      card.classList.remove("is-drop-target");
+      if(internalDragIds.length){
+        const ids=[...internalDragIds];
+        if(item.item_type==="folder")await moveItems(ids,item.id);
+        else await reorderBefore(ids,item.id);
+        return;
+      }
+      if(event.dataTransfer.files?.length){
+        const target=item.item_type==="folder"?item.id:currentFolderId;
+        await handleExternalDrop(event.dataTransfer,target);
+      }
+    });
+    list.append(card);
+  }
+  list.append(addWrap);
+  updateSelectionUi();
+  resetCardMotion();
+}
+function openFolder(id){
+  clearSelection();
+  currentFolderId=id;
+  renderItems();
+}
+document.getElementById("back-folder").addEventListener("click",()=>{
+  currentFolderId=items.find(item=>item.id===currentFolderId)?.parent_id||null;
+  clearSelection();
+  renderItems();
+});
+
+const addWrap=document.createElement("div");
+addWrap.className="add-wrap";
+addWrap.innerHTML='<button class="add-button" id="add-toggle" type="button" aria-label="Add files or folders" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button><div class="add-menu" id="add-menu" hidden><button class="add-option" type="button" id="upload-option">Upload files</button><button class="add-option" type="button" id="upload-folder-option">Upload folder</button><button class="add-option" type="button" id="new-folder-option">New folder</button></div>';
+const addToggle=addWrap.querySelector("#add-toggle");
+const addMenu=addWrap.querySelector("#add-menu");
+addToggle.addEventListener("click",event=>{
+  event.stopPropagation();
+  addMenu.hidden=!addMenu.hidden;
+  addToggle.setAttribute("aria-expanded",String(!addMenu.hidden));
+});
+document.addEventListener("click",event=>{
+  if(!event.target.closest(".add-wrap")){
+    addMenu.hidden=true;
+    addToggle.setAttribute("aria-expanded","false");
+  }
+});
+addMenu.addEventListener("click",event=>{
+  const button=event.target.closest("#upload-option,#upload-folder-option,#new-folder-option");
+  if(!button)return;
+  addMenu.hidden=true;
+  addToggle.setAttribute("aria-expanded","false");
+  if(button.id==="new-folder-option"){createFolderPrompt();return;}
+  document.getElementById(button.id==="upload-option"?"file-picker":"folder-picker").click();
+});
+async function createFolderPrompt(){
+  const name=prompt("New folder name");
+  if(!name||!name.trim())return;
+  try{
+    await filesAction("create_folder",{parentId:currentFolderId,name:name.trim()});
     await loadItems();
+  }catch(error){alert(error.message);}
+}
+async function saveFile(file,parentId,name=file.name){
+  const created=await filesAction("create_upload",{parentId,name,contentType:file.type||"application/octet-stream"});
+  try{
+    const response=await fetch(created.uploadUrl,{method:"PUT",headers:{"Content-Type":created.contentType},body:file});
+    if(!response.ok)throw new Error("Backblaze upload failed ("+response.status+"). Check the B2 bucket CORS settings.");
+    await filesAction("finish_upload",{id:created.item.id});
+  }catch(error){
+    try{await filesAction("delete",{id:created.item.id});}catch{}
+    throw error;
+  }
+}
+async function uploadEntries(entries,parentId=currentFolderId){
+  if(!entries.length)return;
+  clearSelection();
+  uploadTitle.textContent="Uploading files";
+  let done=0;
+  setUploadProgress(0,entries.length,"Preparing "+entries.length+" item(s)…");
+  const folderIds=new Map();
+  try{
+    for(const entry of entries){
+      const parts=(entry.path||entry.file.name).split("/").filter(Boolean);
+      if(!parts.length)continue;
+      let parent=parentId;
+      for(let index=0;index<parts.length-1;index++){
+        const key=(parent||"root")+":"+parts.slice(0,index+1).join("/");
+        if(!folderIds.has(key)){
+          let folder=items.find(item=>item.item_type==="folder"&&item.parent_id===parent&&item.name===parts[index]);
+          if(!folder){
+            const response=await filesAction("create_folder",{parentId:parent,name:parts[index]});
+            folder=response.item;
+            items.push(folder);
+          }
+          folderIds.set(key,folder.id);
+        }
+        parent=folderIds.get(key);
+      }
+      setUploadProgress(done,entries.length,entry.file.name);
+      await saveFile(entry.file,parent,parts[parts.length-1]);
+      done++;
+      setUploadProgress(done,entries.length,"Uploaded "+done+" of "+entries.length);
+    }
+    await loadItems();
+  }catch(error){
+    await loadItems().catch(()=>{});
+    alert("Upload stopped after "+done+" of "+entries.length+" files. "+error.message);
+  }finally{
+    hideUploadProgress();
+  }
+}
+const picker=document.getElementById("file-picker");
+const folderPicker=document.getElementById("folder-picker");
+picker.addEventListener("change",async()=>{
+  const entries=[...picker.files].map(file=>({file,path:file.name}));
+  await uploadEntries(entries,currentFolderId);
+  picker.value="";
+});
+folderPicker.addEventListener("change",async()=>{
+  const entries=[...folderPicker.files].map(file=>({file,path:file.webkitRelativePath||file.name}));
+  await uploadEntries(entries,currentFolderId);
+  folderPicker.value="";
+});
+
+async function readDirectoryEntry(entry,path,output){
+  if(entry.isFile){
+    const file=await new Promise((resolve,reject)=>entry.file(resolve,reject));
+    output.push({file,path:path+entry.name});
+    return;
+  }
+  if(entry.isDirectory){
+    const reader=entry.createReader();
+    while(true){
+      const batch=await new Promise((resolve,reject)=>reader.readEntries(resolve,reject));
+      if(!batch.length)break;
+      for(const child of batch)await readDirectoryEntry(child,path+entry.name+"/",output);
+    }
+  }
+}
+async function extractDroppedEntries(dataTransfer){
+  const output=[];
+  const items=[...(dataTransfer.items||[])].filter(item=>item.kind==="file");
+  const entries=items.map(item=>item.webkitGetAsEntry?.()).filter(Boolean);
+  if(entries.length){
+    for(const entry of entries)await readDirectoryEntry(entry,"",output);
+  }else{
+    for(const file of [...(dataTransfer.files||[])])output.push({file,path:file.name});
+  }
+  return output;
+}
+async function handleExternalDrop(dataTransfer,targetParentId=currentFolderId){
+  try{
+    const entries=await extractDroppedEntries(dataTransfer);
+    await uploadEntries(entries,targetParentId);
+  }catch(error){alert("Could not read the dropped files: "+error.message);}
+}
+document.addEventListener("dragenter",event=>{
+  if(internalDragIds.length)return;
+  if(event.dataTransfer?.types?.includes("Files")){
+    externalDragDepth++;
+    dropHint.hidden=false;
+  }
+});
+document.addEventListener("dragover",event=>{
+  if(internalDragIds.length)return;
+  if(event.dataTransfer?.types?.includes("Files"))event.preventDefault();
+});
+document.addEventListener("dragleave",event=>{
+  if(internalDragIds.length)return;
+  if(event.dataTransfer?.types?.includes("Files")){
+    externalDragDepth=Math.max(0,externalDragDepth-1);
+    if(externalDragDepth===0)dropHint.hidden=true;
+  }
+});
+document.addEventListener("drop",async event=>{
+  if(internalDragIds.length)return;
+  if(event.dataTransfer?.types?.includes("Files")){
+    event.preventDefault();
+    externalDragDepth=0;
+    dropHint.hidden=true;
+    if(event.target.closest(".file-card"))return;
+    await handleExternalDrop(event.dataTransfer,currentFolderId);
+  }
+});
+
+async function topLevelIds(ids){
+  const selected=new Set(ids);
+  return ids.filter(id=>{
+    let parent=items.find(item=>item.id===id)?.parent_id;
+    while(parent){
+      if(selected.has(parent))return false;
+      parent=items.find(item=>item.id===parent)?.parent_id||null;
+    }
+    return true;
+  });
+}
+async function moveItems(ids,targetParentId){
+  const roots=await topLevelIds(ids);
+  if(!roots.length)return;
+  try{
+    await filesAction("move",{ids:roots,targetParentId});
+    clearSelection();
+    await loadItems();
+  }catch(error){alert("Could not move the selected items. "+error.message);}
+}
+async function reorderBefore(ids,targetId){
+  const target=items.find(item=>item.id===targetId);
+  if(!target)return;
+  const parentId=target.parent_id;
+  const ordered=items.filter(item=>item.parent_id===parentId)
+    .sort((a,b)=>(Number(a.sort_order||0)-Number(b.sort_order||0))||a.name.localeCompare(b.name));
+  const moving=await topLevelIds(ids);
+  if(!moving.length||moving.some(id=>items.find(item=>item.id===id)?.parent_id!==parentId)){
+    return;
+  }
+  const remaining=ordered.filter(item=>!moving.includes(item.id));
+  const insertAt=remaining.findIndex(item=>item.id===targetId);
+  remaining.splice(Math.max(0,insertAt),0,...moving.map(id=>items.find(item=>item.id===id)).filter(Boolean));
+  try{
+    await filesAction("reorder",{ids:remaining.map(item=>item.id),targetParentId:parentId});
+    clearSelection();
+    await loadItems();
+  }catch(error){alert(error.message);}
+}
+
+let marqueeMoved=false;
+list.addEventListener("pointerdown",event=>{
+  if(event.button!==0||event.target!==list||event.pointerType!=="mouse")return;
+  marqueeStart={x:event.clientX,y:event.clientY};
+  marqueeMoved=false;
+  marqueeBase=(event.ctrlKey||event.metaKey)?new Set(selectedIds):new Set();
+  if(!event.ctrlKey&&!event.metaKey)clearSelection();
+  marquee.hidden=false;
+  marquee.style.left=event.clientX+"px";
+  marquee.style.top=event.clientY+"px";
+  marquee.style.width="0px";
+  marquee.style.height="0px";
+  document.body.classList.add("selection-drag-mode");
+  event.preventDefault();
+});
+window.addEventListener("pointermove",event=>{
+  if(!marqueeStart)return;
+  const left=Math.min(marqueeStart.x,event.clientX);
+  const top=Math.min(marqueeStart.y,event.clientY);
+  const width=Math.abs(event.clientX-marqueeStart.x);
+  const height=Math.abs(event.clientY-marqueeStart.y);
+  if(width+height>5)marqueeMoved=true;
+  marquee.style.left=left+"px";
+  marquee.style.top=top+"px";
+  marquee.style.width=width+"px";
+  marquee.style.height=height+"px";
+  if(marqueeMoved){
+    selectedIds.clear();
+    marqueeBase.forEach(id=>selectedIds.add(id));
+    const box={left,top,right:left+width,bottom:top+height};
+    list.querySelectorAll(".file-card").forEach(card=>{
+      const rect=card.getBoundingClientRect();
+      if(rect.left<box.right&&rect.right>box.left&&rect.top<box.bottom&&rect.bottom>box.top){
+        selectedIds.add(card.dataset.id);
+      }
+    });
+    updateSelectionUi();
+  }
+});
+window.addEventListener("pointerup",()=>{
+  if(!marqueeStart)return;
+  marqueeStart=null;
+  marquee.hidden=true;
+  document.body.classList.remove("selection-drag-mode");
+  if(!marqueeMoved&&selectedIds.size===0)clearSelection();
+  updateSelectionUi();
+});
+
+async function openFile(item){
+  viewer.hidden=false;
+  viewerTitle.textContent=item.name;
+  viewerContent.textContent="Loading preview…";
+  try{
+    const result=await filesAction("download",{id:item.id});
+    const response=await fetch(result.downloadUrl);
+    if(!response.ok)throw new Error("Backblaze download failed ("+response.status+").");
+    const data=await response.blob();
+    if(objectUrl)URL.revokeObjectURL(objectUrl);
+    objectUrl=URL.createObjectURL(data);
+    viewerContent.replaceChildren();
+    if(data.type.startsWith("image/")){
+      const img=document.createElement("img");img.src=objectUrl;viewerContent.append(img);
+    }else if(data.type==="application/pdf"){
+      const frame=document.createElement("iframe");frame.src=objectUrl;viewerContent.append(frame);
+    }else if(data.type.startsWith("text/")||/\.(txt|md|json|js|css|html|xml|csv|log)$/i.test(item.name)){
+      viewerContent.textContent=await data.text();
+    }else{
+      const message=document.createElement("p");message.textContent="Preview is unavailable for this file type.";
+      const download=document.createElement("a");download.href=objectUrl;download.download=item.name;download.textContent="Download file";
+      viewerContent.replaceChildren(message,download);
+    }
+  }catch(error){viewerContent.textContent=error.message;}
+}
+function closeViewer(){
+  viewer.hidden=true;
+  viewerContent.replaceChildren();
+  if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl=null;}
+}
+document.getElementById("viewer-close").addEventListener("click",closeViewer);
+viewer.addEventListener("click",event=>{if(event.target===viewer)closeViewer();});
+document.addEventListener("keydown",event=>{if(event.key==="Escape")closeViewer();});
+
+const cardSettingsOverlay=document.getElementById("card-settings-overlay");
+const confirmOverlay=document.getElementById("confirm-overlay");
+const confirmMessage=document.getElementById("confirm-message");
+const confirmDeleteButton=document.getElementById("confirm-delete");
+const colorSection=document.getElementById("folder-color-section");
+const tagInput=document.getElementById("card-tag-input");
+function openCardSettings(item){
+  activeSettingsItem=item;
+  document.getElementById("card-settings-title").textContent=item.name;
+  colorSection.hidden=item.item_type!=="folder";
+  tagInput.value=item.tag||"";
+  document.querySelectorAll(".color-choice").forEach(button=>{
+    button.classList.toggle("active",button.dataset.color===item.folder_color);
+  });
+  cardSettingsOverlay.hidden=false;
+}
+function closeCardSettings(){
+  cardSettingsOverlay.hidden=true;
+  activeSettingsItem=null;
+}
+function closeDeleteConfirmation(){
+  confirmOverlay.hidden=true;
+  pendingDeleteIds=[];
+}
+document.getElementById("card-settings-close").addEventListener("click",closeCardSettings);
+document.getElementById("card-settings-cancel").addEventListener("click",closeCardSettings);
+cardSettingsOverlay.addEventListener("click",event=>{if(event.target===cardSettingsOverlay)closeCardSettings();});
+document.querySelectorAll(".color-choice").forEach(button=>{
+  button.addEventListener("click",async()=>{
+    if(!activeSettingsItem||activeSettingsItem.item_type!=="folder")return;
+    try{
+      const result=await filesAction("update_metadata",{id:activeSettingsItem.id,folder_color:button.dataset.color});
+      activeSettingsItem=result.item;
+      await loadItems();
+      document.querySelectorAll(".color-choice").forEach(choice=>choice.classList.toggle("active",choice===button));
+    }catch(error){alert("Could not save folder colour: "+error.message);}
+  });
+});
+async function saveTag(){
+  if(!activeSettingsItem)return;
+  try{
+    const result=await filesAction("update_metadata",{id:activeSettingsItem.id,tag:tagInput.value.slice(0,32)});
+    activeSettingsItem=result.item;
+    await loadItems();
+  }catch(error){alert("Could not save tag: "+error.message);}
+}
+tagInput.addEventListener("change",saveTag);
+tagInput.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();tagInput.blur();}});
+document.getElementById("card-settings-delete").addEventListener("click",()=>{
+  if(!activeSettingsItem)return;
+  pendingDeleteIds=[activeSettingsItem.id];
+  confirmMessage.textContent=activeSettingsItem.item_type==="folder"
+    ? 'Permanently delete "'+activeSettingsItem.name+'" and everything inside it?'
+    : 'Permanently delete "'+activeSettingsItem.name+'"?';
+  closeCardSettings();
+  confirmOverlay.hidden=false;
+});
+function confirmBulkDelete(){
+  const ids=[...selectedIds];
+  if(!ids.length)return;
+  pendingDeleteIds=ids;
+  confirmMessage.textContent="Permanently delete "+ids.length+" selected item(s), including the contents of selected folders?";
+  confirmOverlay.hidden=false;
+}
+document.getElementById("confirm-cancel").addEventListener("click",closeDeleteConfirmation);
+confirmOverlay.addEventListener("click",event=>{if(event.target===confirmOverlay)closeDeleteConfirmation();});
+confirmDeleteButton.addEventListener("click",async()=>{
+  if(!pendingDeleteIds.length)return;
+  confirmDeleteButton.disabled=true;
+  const roots=await topLevelIds(pendingDeleteIds);
+  try{
+    for(const id of roots)await filesAction("delete",{id});
+    const deleted=new Set(roots);
+    if(deleted.has(currentFolderId))currentFolderId=null;
+    closeDeleteConfirmation();
+    clearSelection();
+    await loadItems();
+  }catch(error){alert("Could not delete items: "+error.message);}
+  finally{confirmDeleteButton.disabled=false;}
+});
+
+list.addEventListener("pointermove",event=>{
+  if(event.pointerType!=="mouse"||marqueeStart||internalDragIds.length)return;
+  const cards=[...list.querySelectorAll(".file-card")];
+  const hovered=event.target.closest(".file-card");
+  if(!hovered){resetCardMotion();return;}
+  const rect=hovered.getBoundingClientRect();
+  const x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+  const nearest=cards.filter(card=>card!==hovered).map(card=>({
+    card,distance:Math.hypot(card.getBoundingClientRect().left+card.offsetWidth/2-x,card.getBoundingClientRect().top+card.offsetHeight/2-y)
+  })).sort((a,b)=>a.distance-b.distance);
+  hovered.style.setProperty("--card-scale","1.09");
+  hovered.style.setProperty("--card-z","5");
+  nearest.forEach((entry,index)=>entry.card.style.setProperty("--card-scale",String(Math.max(.82,1-.025*(index+1)))));
+});
+list.addEventListener("pointerleave",resetCardMotion);
+
+const navSearch=document.getElementById("search-toggle");
+const navFiles=document.getElementById("files-toggle");
+const navMenu=document.getElementById("menu-toggle");
+const searchPanel=document.getElementById("search-panel");
+const menuPanel=document.getElementById("menu-panel");
+const searchInput=document.getElementById("files-search-input");
+function closeNavPanels(){
+  searchPanel.hidden=true;menuPanel.hidden=true;
+  navSearch.setAttribute("aria-expanded","false");
+  navMenu.setAttribute("aria-expanded","false");
+}
+function toggleNavPanel(panel,button){
+  const shouldOpen=panel.hidden;
+  closeNavPanels();
+  if(shouldOpen){
+    panel.hidden=false;
+    button.setAttribute("aria-expanded","true");
+    panel.querySelector("input")?.focus();
+  }
+}
+navSearch.addEventListener("click",()=>toggleNavPanel(searchPanel,navSearch));
+navFiles.addEventListener("click",()=>{closeNavPanels();window.scrollTo({top:0,behavior:"smooth"});});
+navMenu.addEventListener("click",()=>toggleNavPanel(menuPanel,navMenu));
+document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
+document.getElementById("menu-home").addEventListener("click",()=>location.assign("dashboard.html"));
+searchInput.addEventListener("input",()=>{
+  searchQuery=searchInput.value.trim().toLocaleLowerCase();
+  renderItems();
+});
+document.getElementById("signout").addEventListener("click",async()=>{
+  await supabase.auth.signOut();
+  location.replace("index.html");
+});
+document.addEventListener("keydown",event=>{
+  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="a"){
+    event.preventDefault();
+    visibleItems().forEach(item=>selectedIds.add(item.id));
+    updateSelectionUi();
+  }
+  if(event.key==="Escape"){
+    closeNavPanels();
+    clearSelection();
+    closeCardSettings();
+    closeDeleteConfirmation();
+  }
+  if((event.key==="Delete"||event.key==="Backspace")&&selectedIds.size&&!cardSettingsOverlay.hidden===false){
+    event.preventDefault();
+    confirmBulkDelete();
+  }
+});
+const migrated=await filesAction("migrate_prefix");
+await loadItems();
+if(migrated.migrated>0)showStatus("Updated storage folder: "+migrated.userFolder,true);
+
   </script></body>
 </html>
