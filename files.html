@@ -160,7 +160,29 @@
       list.append(addWrap);
       resetCardMotion();
     }
-    function openFolder(id){currentFolderId=id;renderItems();}
+    function playFolderOpenSound(){
+      try{
+        const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+        if(!AudioContextClass)return;
+        hoverAudioContext=hoverAudioContext||new AudioContextClass();
+        if(hoverAudioContext.state==="suspended")hoverAudioContext.resume();
+        const ctx=hoverAudioContext;
+        const now=ctx.currentTime;
+        const notes=[{frequency:880,start:0,duration:.11},{frequency:1320,start:.075,duration:.16}];
+        for(const note of notes){
+          const oscillator=ctx.createOscillator();
+          const gain=ctx.createGain();
+          oscillator.type="sine";
+          oscillator.frequency.setValueAtTime(note.frequency,now+note.start);
+          gain.gain.setValueAtTime(.0001,now+note.start);
+          gain.gain.exponentialRampToValueAtTime(.025,now+note.start+.012);
+          gain.gain.exponentialRampToValueAtTime(.0001,now+note.start+note.duration);
+          oscillator.connect(gain);gain.connect(ctx.destination);
+          oscillator.start(now+note.start);oscillator.stop(now+note.start+note.duration+.01);
+        }
+      }catch(error){}
+    }
+    function openFolder(id){playFolderOpenSound();currentFolderId=id;renderItems();}
     document.getElementById("back-folder").addEventListener("click",()=>{
       currentFolderId=items.find(item=>item.id===currentFolderId)?.parentId||null;
       renderItems();
