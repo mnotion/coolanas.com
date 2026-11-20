@@ -168,14 +168,14 @@
         if(hoverAudioContext.state==="suspended")hoverAudioContext.resume();
         const ctx=hoverAudioContext;
         const now=ctx.currentTime;
-        const notes=[{frequency:880,start:0,duration:.11},{frequency:1320,start:.075,duration:.16}];
+        const notes=[{frequency:220,start:0,duration:.14},{frequency:330,start:.09,duration:.2}];
         for(const note of notes){
           const oscillator=ctx.createOscillator();
           const gain=ctx.createGain();
           oscillator.type="sine";
           oscillator.frequency.setValueAtTime(note.frequency,now+note.start);
           gain.gain.setValueAtTime(.0001,now+note.start);
-          gain.gain.exponentialRampToValueAtTime(.025,now+note.start+.012);
+          gain.gain.exponentialRampToValueAtTime(.018,now+note.start+.012);
           gain.gain.exponentialRampToValueAtTime(.0001,now+note.start+note.duration);
           oscillator.connect(gain);gain.connect(ctx.destination);
           oscillator.start(now+note.start);oscillator.stop(now+note.start+note.duration+.01);
