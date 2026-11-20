@@ -171,7 +171,7 @@
     async function requireUsername(session){
       const {data:profile,error:profileError}=await supabase.from("profiles").select("username").eq("id",session.user.id).maybeSingle();
       if(profileError) throw profileError;
-      if(profile?.username) return;
+      if(profile?.username){location.replace("files.html");return;}
       accountStatus.textContent="One more step: create your Coolanas username.";
       usernameForm.hidden=false;
       usernameForm.style.display="block";
@@ -187,9 +187,6 @@
           usernameSubmit.disabled=true;
           usernameError.textContent="Checking username…";
           try{
-            const {data:existing,error:lookupError}=await supabase.from("profiles").select("id").ilike("username",username).neq("id",session.user.id).limit(1);
-            if(lookupError) throw lookupError;
-            if(existing?.length){usernameError.textContent="That username is already taken.";usernameSubmit.disabled=false;return;}
             const {error:updateError}=await supabase.from("profiles").update({username}).eq("id",session.user.id);
             if(updateError){
               if(/duplicate key|profiles_username_lower_key|profiles_username_key/i.test(updateError.message)) throw new Error("That username is already taken.");
