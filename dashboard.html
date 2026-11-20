@@ -78,7 +78,7 @@
   </style>
 </head>
 <body>
-  <main aria-label="Dashboard"></main>
+  <main aria-label="Dashboard"><div id="account-panel" style="max-width:520px;margin:36px auto;padding:24px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.07)"><h1 style="margin:0 0 8px;font-size:28px">Your dashboard</h1><p id="account-email" style="color:#666">Checking your account…</p><button id="signout" type="button" style="padding:10px 16px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer">Sign out</button></div></main>
 
   <section class="panel" id="search-panel" aria-label="Search" hidden>
     <div class="panel-heading"><h2>Search</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
@@ -120,95 +120,14 @@
     </button>
   </nav>
 
-  <script>
-    const toggles = {
-      search: document.getElementById("search-toggle"),
-      files: document.getElementById("files-toggle"),
-      menu: document.getElementById("menu-toggle")
-    };
-    const panels = {
-      search: document.getElementById("search-panel"),
-      files: document.getElementById("files-panel"),
-      menu: document.getElementById("menu-panel")
-    };
-    const searchInput = document.getElementById("search-input");
-    const filePicker = document.getElementById("file-picker");
-    const fileList = document.getElementById("file-list");
-    const filesEmpty = document.getElementById("files-empty");
-
-    function closePanels() {
-      Object.entries(panels).forEach(([name, panel]) => {
-        panel.hidden = true;
-        toggles[name].setAttribute("aria-expanded", "false");
-      });
-    }
-
-    function togglePanel(name) {
-      const opening = panels[name].hidden;
-      closePanels();
-      if (opening) {
-        panels[name].hidden = false;
-        toggles[name].setAttribute("aria-expanded", "true");
-        if (name === "search") searchInput.focus();
-      }
-    }
-
-    Object.entries(toggles).forEach(([name, button]) => {
-      button.addEventListener("click", () => {
-        if (name === "files") {
-          window.location.href = "files.html";
-          return;
-        }
-        togglePanel(name);
-      });
-      button.addEventListener("pointermove", event => {
-        if (event.pointerType !== "mouse") return;
-        const rect = button.getBoundingClientRect();
-        const x = (event.clientX - rect.left) / rect.width - 0.5;
-        const y = (event.clientY - rect.top) / rect.height - 0.5;
-        button.style.setProperty("--shift-x", (x * 8).toFixed(2) + "px");
-        button.style.setProperty("--shift-y", (y * 8).toFixed(2) + "px");
-      });
-      button.addEventListener("pointerleave", () => {
-        button.style.removeProperty("--shift-x");
-        button.style.removeProperty("--shift-y");
-      });
-    });
-
-    document.querySelectorAll("[data-close]").forEach(button => {
-      button.addEventListener("click", closePanels);
-    });
-
-    filePicker.addEventListener("change", () => {
-      const files = Array.from(filePicker.files || []);
-      fileList.replaceChildren();
-      filesEmpty.hidden = files.length > 0;
-
-      files.forEach(file => {
-        const row = document.createElement("div");
-        row.className = "file-row";
-        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        icon.setAttribute("viewBox", "0 0 24 24");
-        icon.setAttribute("fill", "none");
-        icon.setAttribute("stroke", "currentColor");
-        icon.setAttribute("stroke-width", "1.7");
-        icon.innerHTML = '<path d="M6 3.5h8l4 4V20H6z"/><path d="M14 3.5V8h4M9 13h6M9 16h6"/>';
-        const name = document.createElement("span");
-        name.className = "file-name";
-        name.textContent = file.name;
-        const size = document.createElement("span");
-        size.className = "file-size";
-        size.textContent = file.size < 1048576
-          ? Math.max(1, Math.round(file.size / 1024)) + " KB"
-          : (file.size / 1048576).toFixed(1) + " MB";
-        row.append(icon, name, size);
-        fileList.append(row);
-      });
-    });
-
-    document.addEventListener("keydown", event => {
-      if (event.key === "Escape") closePanels();
-    });
-  </script>
-</body>
+  <script type="module">
+    const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
+    const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+    const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    const {data:{session},error}=await supabase.auth.getSession();
+    if(error||!session){location.replace("index.html");}
+    else document.getElementById("account-email").textContent=session.user.email||"Signed in";
+    document.getElementById("signout").addEventListener("click",async()=>{await supabase.auth.signOut();location.replace("index.html");});
+  </script></body>
 </html>
