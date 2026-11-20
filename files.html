@@ -10,7 +10,7 @@
     html,body{width:100%;min-height:100%;margin:0;background:#fff;color:#111;transition:background .18s ease}
     body{min-height:100vh;font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     main{min-height:100vh;padding:24px 24px 100px}
-    .add-wrap{position:relative;z-index:31;align-self:center;flex:none;margin:0 0 0 2px}
+    .add-wrap{position:relative;z-index:31;display:flex;align-items:center;justify-content:center;width:168px;min-height:176px;flex:none;border-radius:12px}
     .add-button{width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(0,0,0,.06);border-radius:12px;background:#f1f2f3;color:#555;cursor:pointer;box-shadow:0 2px 7px rgba(0,0,0,.045);transition:background .15s,transform .15s}
     .add-button:hover{background:#e8e9eb;transform:scale(1.04)}
     .add-button svg{width:20px;height:20px}
@@ -18,7 +18,7 @@
     .add-menu[hidden]{display:none}
     .add-option{display:block;width:100%;padding:10px;border:0;border-radius:7px;background:transparent;color:#222;text-align:left;font:13px/1.4 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
     .add-option:hover{background:#f2f2f2}
-    .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;gap:18px;width:100%;margin:0;padding:8px 0 0}
+    .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;gap:18px;width:100%;margin:0;padding:0}
     .file-card{display:flex;flex-direction:column;align-items:center;gap:10px;width:168px;min-height:176px;padding:18px;border-radius:12px;color:#222;font-size:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07)}
     .folder-icon{width:112px;height:112px;flex:none;color:#e3b52f}
     .file-icon{width:112px;height:112px;flex:none;color:#888}
@@ -64,20 +64,9 @@
 </head>
 <body>
   <main aria-label="Files">
-    <div class="top-actions">
-      <div class="add-wrap">
-        <button class="add-button" id="add-toggle" type="button" aria-label="Add file or folder" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
-        <div class="add-menu" id="add-menu" hidden>
-          <button class="add-option" type="button" data-create="file">New file</button>
-          <button class="add-option" type="button" data-create="folder">New folder</button>
-          <button class="add-option" type="button" id="upload-option">Upload files</button>
-          <button class="add-option" type="button" id="upload-folder-option">Upload folder</button>
-        </div>
-      </div>
-    </div>
     <input id="file-picker" type="file" multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <input id="folder-picker" type="file" webkitdirectory multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
-    <div class="files-list" id="files-list" role="list" aria-label="Files and folders">\n      <div class="add-wrap">\n        <button class="add-button" id="add-toggle" type="button" aria-label="Add file or folder" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>\n        <div class="add-menu" id="add-menu" hidden>\n          <button class="add-option" type="button" data-create="file">New file</button>\n          <button class="add-option" type="button" data-create="folder">New folder</button>\n          <button class="add-option" type="button" id="upload-option">Upload files</button>\n          <button class="add-option" type="button" id="upload-folder-option">Upload folder</button>\n        </div>\n      </div>\n    </div>
+    <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
   <section class="panel" id="search-panel" aria-label="Search" hidden>
@@ -106,20 +95,25 @@
     let items=[];
     try{const saved=localStorage.getItem(storageKey);items=saved?JSON.parse(saved):[];if(!Array.isArray(items))items=[];}catch(error){items=[];}
     const list=document.getElementById("files-list");
+    const addWrap=document.createElement("div");
+    addWrap.className="add-wrap";
+    addWrap.innerHTML='<button class="add-button" id="add-toggle" type="button" aria-label="Upload files" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button><div class="add-menu" id="add-menu" hidden><button class="add-option" type="button" id="upload-option">Upload files</button><button class="add-option" type="button" id="upload-folder-option">Upload folder</button></div>';
     function saveItems(){try{localStorage.setItem(storageKey,JSON.stringify(items));}catch(error){console.warn("Browser storage unavailable; items remain until this page is closed.");}}
     function renderItems(){
       list.replaceChildren();
-      for(const item of items){
+      const ordered=[...items].sort((a,b)=>(String(a.type).toLowerCase()==="folder"?0:1)-(String(b.type).toLowerCase()==="folder"?0:1));
+      for(const item of ordered){
         const card=document.createElement("div");card.className="file-card";card.setAttribute("role","listitem");
-        card.innerHTML=item.type==="folder"?folderSvg:fileSvg;
+        card.innerHTML=String(item.type).toLowerCase()==="folder"?folderSvg:fileSvg;
         const name=document.createElement("span");name.className="file-name";name.textContent=item.name;
         card.append(name);list.append(card);
       }
+      list.append(addWrap);
     }
     function addItem(type,name){items.push({type,name:name||("Untitled "+type)});saveItems();renderItems();}
     renderItems();
-    const addToggle=document.getElementById("add-toggle");
-    const addMenu=document.getElementById("add-menu");
+    const addToggle=addWrap.querySelector("#add-toggle");
+    const addMenu=addWrap.querySelector("#add-menu");
     addToggle.addEventListener("click",event=>{
       event.preventDefault();event.stopPropagation();
       addMenu.hidden=!addMenu.hidden;
@@ -129,21 +123,13 @@
       if(!event.target.closest(".add-wrap")){addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");}
     });
     addMenu.addEventListener("click",event=>{
-      const button=event.target.closest("[data-create],#upload-option,#upload-folder-option");
+      const button=event.target.closest("#upload-option,#upload-folder-option");
       if(!button)return;
       event.preventDefault();event.stopPropagation();
-      if(button.dataset.create){
-        const type=button.dataset.create;
-        const name=prompt("Name your "+type+":",type==="file"?"Untitled file":"Untitled folder");
-        if(name!==null&&name.trim())addItem(type,name.trim());
-      }else{
-        const picker=document.getElementById(button.id==="upload-option"?"file-picker":"folder-picker");
-        addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");
-        try{if(typeof picker.showPicker==="function")picker.showPicker();else picker.click();}
-        catch(error){picker.click();}
-        return;
-      }
+      const picker=document.getElementById(button.id==="upload-option"?"file-picker":"folder-picker");
       addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");
+      try{if(typeof picker.showPicker==="function")picker.showPicker();else picker.click();}
+      catch(error){picker.click();}
     });
     function addPickedFiles(files){
       for(const file of files)addItem("file",file.name);
