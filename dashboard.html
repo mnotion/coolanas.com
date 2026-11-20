@@ -78,7 +78,7 @@
   </style>
 </head>
 <body>
-  <main aria-label="Dashboard"><div id="account-panel" style="max-width:520px;margin:36px auto;padding:24px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.07)"><h1 style="margin:0 0 8px;font-size:28px">Your dashboard</h1><p id="account-email" style="color:#666">Checking your account…</p><button id="signout" type="button" style="padding:10px 16px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer">Sign out</button></div></main>
+  <main aria-label="Dashboard"><div id="account-panel" style="max-width:520px;margin:36px auto;padding:24px;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.07)"><h1 style="margin:0 0 8px;font-size:28px">Your dashboard</h1><p id="account-status" style="color:#666">Checking your account…</p><button id="setup-passkey" type="button" hidden style="margin:0 0 12px;padding:10px 16px;border:1px solid #111;border-radius:9px;background:#111;color:#fff;cursor:pointer">Set up Windows Hello / passkey</button><p id="passkey-status" role="status" aria-live="polite" style="font-size:13px;color:#444"></p><button id="signout" type="button" style="padding:10px 16px;border:1px solid #ddd;border-radius:9px;background:#fff;cursor:pointer">Sign out</button></div></main>
 
   <section class="panel" id="search-panel" aria-label="Search" hidden>
     <div class="panel-heading"><h2>Search</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
@@ -124,10 +124,41 @@
     const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
     const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
-    const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,experimental:{passkey:true}}});
+    const accountStatus=document.getElementById("account-status");
+    const passkeyStatus=document.getElementById("passkey-status");
+    const setupButton=document.getElementById("setup-passkey");
     const {data:{session},error}=await supabase.auth.getSession();
     if(error||!session){location.replace("index.html");}
-    else document.getElementById("account-email").textContent=session.user.email||"Signed in";
+    else{
+      accountStatus.textContent="Signed in to your Coolanas account.";
+      try{
+        const {data:passkeys,error:passkeyError}=await supabase.auth.passkey.list();
+        if(passkeyError) throw passkeyError;
+        if(Array.isArray(passkeys)&&passkeys.length>0){
+          passkeyStatus.textContent="Passkey sign-in is ready on this account.";
+        }else{
+          passkeyStatus.textContent="This account does not have a passkey yet. Add Windows Hello or Google Password Manager to sign in next time.";
+          setupButton.hidden=false;
+        }
+      }catch(passkeyError){
+        passkeyStatus.textContent="Could not check passkey status: "+(passkeyError.message||"Unknown error");
+        setupButton.hidden=false;
+      }
+    }
+    setupButton.addEventListener("click",async()=>{
+      setupButton.disabled=true;
+      passkeyStatus.textContent="Follow the Windows Hello or passkey prompt…";
+      try{
+        const {error:registerError}=await supabase.auth.registerPasskey();
+        if(registerError) throw registerError;
+        passkeyStatus.textContent="Passkey registered. You can now use Continue with fingerprint.";
+        setupButton.hidden=true;
+      }catch(registerError){
+        passkeyStatus.textContent=registerError.message||"Passkey registration failed. Try again.";
+        setupButton.disabled=false;
+      }
+    });
     document.getElementById("signout").addEventListener("click",async()=>{await supabase.auth.signOut();location.replace("index.html");});
   </script></body>
 </html>
