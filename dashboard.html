@@ -128,17 +128,25 @@
     const accountStatus=document.getElementById("account-status");
     const passkeyStatus=document.getElementById("passkey-status");
     const setupButton=document.getElementById("setup-passkey");
+    const googleLoginCompleted=new URLSearchParams(location.search).get("googleLogin")==="1";
+    if(googleLoginCompleted){
+      history.replaceState({},document.title,location.pathname);
+    }
     const {data:{session},error}=await supabase.auth.getSession();
     if(error||!session){location.replace("index.html");}
     else{
-      accountStatus.textContent="Signed in to your Coolanas account.";
+      accountStatus.textContent=googleLoginCompleted
+        ? "Google sign-in successful. This is your Coolanas account."
+        : "Signed in to your Coolanas account.";
       try{
         const {data:passkeys,error:passkeyError}=await supabase.auth.passkey.list();
         if(passkeyError) throw passkeyError;
         if(Array.isArray(passkeys)&&passkeys.length>0){
           passkeyStatus.textContent="Passkey sign-in is ready on this account.";
         }else{
-          passkeyStatus.textContent="This account does not have a passkey yet. Add Windows Hello or Google Password Manager to sign in next time.";
+          passkeyStatus.textContent=googleLoginCompleted
+            ? "Your Google account is connected. Add a Windows Hello or Google Password Manager passkey so you can also use Continue with fingerprint."
+            : "This account does not have a passkey yet. Add Windows Hello or Google Password Manager to sign in next time.";
           setupButton.hidden=false;
         }
       }catch(passkeyError){
