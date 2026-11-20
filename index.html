@@ -27,6 +27,12 @@
     button:disabled { opacity:.55; cursor:wait; }
     .status { min-height:18px; margin:14px 2px 0; color:#333; font-size:13px; overflow-wrap:anywhere; }
     .status[data-kind="error"] { color:#a00000; }
+    .auth-form{display:grid;gap:10px;margin-top:22px}
+    .auth-form input{width:100%;height:48px;padding:0 13px;border:1px solid #ddd;border-radius:9px;font:inherit}
+    .auth-form button{min-height:48px}
+    .secondary{background:#fff;color:#111}
+    .auth-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .auth-actions button{min-height:44px;font-size:13px}
     @media(max-width:480px) { main { padding:28px; } }
   </style>
 </head>
@@ -36,12 +42,49 @@
     <p>Sign in with your fingerprint.</p>
     <button id="passkey-login" type="button">Continue with fingerprint</button>
     <p class="status" id="passkey-status" role="status" aria-live="polite">Loading passkey sign-in…</p>
+    <div class="auth-form">
+      <input id="email" type="email" autocomplete="email" placeholder="Email address" required>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password (at least 8 characters)" minlength="8" required>
+      <div class="auth-actions">
+        <button class="secondary" id="email-login" type="button">Sign in</button>
+        <button id="signup" type="button">Sign up</button>
+      </div>
+      <p class="status" id="email-status" role="status" aria-live="polite">Friends can create their own account here.</p>
+    </div>
   </main>
 
   <script type="module">
     const SUPABASE_URL = "https://nacwftrsdpglzrhasmit.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
     const OWNER_USER_ID = "bfc1c21b-11a1-4020-9a2f-2846dd4069bf";
+    let supabaseClient;
+    async function getClient(){
+      if(!supabaseClient){
+        const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+        supabaseClient=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,experimental:{passkey:true}}});
+      }
+      return supabaseClient;
+    }
+    const emailStatus=document.getElementById("email-status");
+    const emailInput=document.getElementById("email");
+    const passwordInput=document.getElementById("password");
+    async function emailAuth(mode){
+      const email=emailInput.value.trim(),password=passwordInput.value;
+      if(!email||password.length<8){emailStatus.textContent="Enter a valid email and a password with at least 8 characters.";emailStatus.dataset.kind="error";return;}
+      const buttons=[document.getElementById("email-login"),document.getElementById("signup")];buttons.forEach(b=>b.disabled=true);
+      try{
+        const client=await getClient();
+        const result=mode==="signup"
+          ? await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+"/dashboard.html"}})
+          : await client.auth.signInWithPassword({email,password});
+        if(result.error)throw result.error;
+        if(mode==="signup"&&!result.data.session){emailStatus.textContent="Account created. Check your email to confirm it, then sign in.";return;}
+        location.replace("dashboard.html");
+      }catch(error){emailStatus.textContent=error.message||"Authentication failed.";emailStatus.dataset.kind="error";}
+      finally{buttons.forEach(b=>b.disabled=false);}
+    }
+    document.getElementById("email-login").addEventListener("click",()=>emailAuth("login"));
+    document.getElementById("signup").addEventListener("click",()=>emailAuth("signup"));
 
     const button = document.getElementById("passkey-login");
     const status = document.getElementById("passkey-status");
@@ -59,16 +102,7 @@
       button.disabled = true;
       showStatus("Waiting for your device's passkey prompt…");
       try {
-        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.119.0");
-        const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-          auth: {
-            persistSession: true,
-            autoRefreshToken: true,
-            detectSessionInUrl: false,
-            experimental: { passkey: true }
-          }
-        });
-
+        const supabase = await getClient();
         const { data, error } = await supabase.auth.signInWithPasskey();
         if (error) throw error;
         if (data.user?.id !== OWNER_USER_ID) {
