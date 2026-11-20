@@ -278,6 +278,39 @@
       });
     });
     list.addEventListener("pointerleave",resetCardMotion);
+    let lastHoverSoundAt=0;
+    let hoverAudioContext=null;
+    function playCardTick(){
+      const now=performance.now();
+      if(now-lastHoverSoundAt<85)return;
+      lastHoverSoundAt=now;
+      try{
+        const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+        if(!AudioContextClass)return;
+        hoverAudioContext=hoverAudioContext||new AudioContextClass();
+        if(hoverAudioContext.state==="suspended")hoverAudioContext.resume();
+        const oscillator=hoverAudioContext.createOscillator();
+        const gain=hoverAudioContext.createGain();
+        oscillator.type="sine";
+        oscillator.frequency.setValueAtTime(1050,hoverAudioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(760,hoverAudioContext.currentTime+.025);
+        gain.gain.setValueAtTime(.0001,hoverAudioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(.018,hoverAudioContext.currentTime+.004);
+        gain.gain.exponentialRampToValueAtTime(.0001,hoverAudioContext.currentTime+.035);
+        oscillator.connect(gain);gain.connect(hoverAudioContext.destination);
+        oscillator.start();oscillator.stop(hoverAudioContext.currentTime+.04);
+      }catch(error){}
+    }
+    let lastHoveredCard=null;
+    list.addEventListener("pointerover",event=>{
+      if(event.pointerType&&event.pointerType!=="mouse")return;
+      const card=event.target.closest(".file-card");
+      if(card&&card!==lastHoveredCard){lastHoveredCard=card;playCardTick();}
+    });
+    list.addEventListener("pointerout",event=>{
+      const next=event.relatedTarget?.closest?.(".file-card");
+      if(!next)lastHoveredCard=null;
+    });
     const toggles={search:document.getElementById("search-toggle"),menu:document.getElementById("menu-toggle")};
     const panels={search:document.getElementById("search-panel"),menu:document.getElementById("menu-panel")};
     function closePanels(){Object.entries(panels).forEach(([name,panel])=>{panel.hidden=true;toggles[name].setAttribute("aria-expanded","false");});}
