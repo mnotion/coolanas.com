@@ -294,8 +294,9 @@
         const open=()=>item.type==="folder"?openFolder(item.id):openFile(item);
         card.addEventListener("click",event=>{
           if(event.target.closest(".delete-dot")||marqueeJustFinished)return;
+          if(selectionDragMode&&!event.ctrlKey&&!event.metaKey){toggleCardSelection(item.id);return;}
           if(event.ctrlKey||event.metaKey){toggleCardSelection(item.id);return;}
-          if(selectedCardIds.size){clearCardSelection();}
+          if(selectedCardIds.size)clearCardSelection();
           open();
         });
         card.addEventListener("keydown",event=>{if(event.target===card&&(event.key==="Enter"||event.key===" ")){event.preventDefault();open();}});
@@ -601,7 +602,12 @@
       if(!marqueeStart)return;
       const didDrag=marqueeActive;
       marqueeStart=null;marqueeActive=false;selectionMarquee.hidden=true;
-      updateCardSelection();
+      if(!didDrag&&selectionDragMode){
+        setSelectionDragMode(false);
+        clearCardSelection();
+      }else{
+        updateCardSelection();
+      }
       if(didDrag){marqueeJustFinished=true;requestAnimationFrame(()=>{marqueeJustFinished=false;});}
     });
     document.addEventListener("keydown",event=>{
@@ -619,6 +625,10 @@
     }
     list.addEventListener("pointermove",event=>{
       if(event.pointerType!=="mouse")return;
+      if(selectionDragMode||selectedCardIds.size){
+        resetCardMotion();
+        return;
+      }
       const cards=[...list.querySelectorAll(".file-card")];
       const hovered=event.target.closest(".file-card");
       cards.forEach(card=>{
