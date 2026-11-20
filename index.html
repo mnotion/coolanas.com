@@ -7,7 +7,8 @@
   <title>Coolanas</title>
   <style>
     * { box-sizing: border-box; }
-    html { overflow-x: clip; }
+    html { overflow-x: clip; color-scheme:light; }
+    html[data-theme="dark"] { color-scheme:dark; }
     body {
       min-height:100vh; margin:0; padding:24px; display:grid; place-items:center;
       overflow-x:clip; background:#fff; color:#000;
@@ -35,7 +36,20 @@
     .google-logo { width:20px; height:20px; flex:none; }
     .status { margin:16px 2px 0; color:#a00000; font-size:13px; overflow-wrap:anywhere; }
     .status[hidden] { display:none; }
-    @media(max-width:480px) { main { padding:28px; } }
+    .theme-toggle{
+      position:fixed;top:18px;right:18px;z-index:5;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      width:auto;min-height:42px;padding:9px 13px;border:1px solid #dadce0;
+      border-radius:999px;background:#fff;color:#202124;
+      font:600 13px/1 ui-sans-serif,system-ui,sans-serif;
+    }
+    html[data-theme="dark"] body{background:#111;color:#f5f5f5}
+    html[data-theme="dark"] main{background:#1d1d1f;color:#f5f5f5;box-shadow:0 14px 36px rgba(0,0,0,.5),0 3px 10px rgba(0,0,0,.3)}
+    html[data-theme="dark"] #google-login{background:#292a2d;border-color:#5f6368;color:#e8eaed}
+    html[data-theme="dark"] #google-login:active{background:#35363a}
+    html[data-theme="dark"] .theme-toggle{background:#292a2d;border-color:#5f6368;color:#f5f5f5}
+    html[data-theme="dark"] .status{color:#ff8a80}
+    @media(max-width:480px) { main { padding:28px; } .theme-toggle{top:12px;right:12px;} }
   </style>
 </head>
 <body>
@@ -53,6 +67,26 @@
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
     const googleButton = document.getElementById("google-login");
     const status = document.getElementById("login-status");
+    const themeToggle = document.getElementById("theme-toggle");
+    const themeIcon = document.getElementById("theme-icon");
+    const themeLabel = document.getElementById("theme-label");
+    const savedTheme = localStorage.getItem("coolanas-theme");
+    const initialTheme = savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      const dark = theme === "dark";
+      themeIcon.textContent = dark ? "☀" : "☾";
+      themeLabel.textContent = dark ? "Light mode" : "Dark mode";
+      themeToggle.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+      themeToggle.setAttribute("aria-pressed", String(dark));
+      document.querySelector('meta[name="theme-color"]').content = dark ? "#111111" : "#ffffff";
+    }
+    applyTheme(initialTheme);
+    themeToggle.addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      localStorage.setItem("coolanas-theme", next);
+      applyTheme(next);
+    });
     const greetings = [
       "Welcome", "Hello", "Hey there", "Good to see you", "Nice to see you",
       "Welcome back", "Hello again", "Good day", "Glad you're here", "Let's get started"
