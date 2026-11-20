@@ -509,11 +509,33 @@ async function createFolderPrompt(){
     await loadItems();
   }catch(error){alert(error.message);}
 }
+const retryableUploadStatuses=new Set([408,429,500,502,503,504]);
+function retryDelay(response,attempt){
+  const retryAfter=response.headers.get("Retry-After");
+  if(retryAfter){
+    const seconds=Number(retryAfter);
+    const requestedDelay=Number.isFinite(seconds)?seconds*1000:Date.parse(retryAfter)-Date.now();
+    if(Number.isFinite(requestedDelay)&&requestedDelay>0)return Math.min(requestedDelay,30000);
+  }
+  return Math.min(1000*2**(attempt-1)+Math.random()*250,15000);
+}
+async function uploadToBackblaze(uploadUrl,contentType,file){
+  const maxAttempts=5;
+  for(let attempt=1;attempt<=maxAttempts;attempt++){
+    const response=await fetch(uploadUrl,{method:"PUT",headers:{"Content-Type":contentType},body:file});
+    if(response.ok)return;
+    if(!retryableUploadStatuses.has(response.status)||attempt===maxAttempts){
+      if(response.status===503)throw new Error("Backblaze is temporarily unavailable (HTTP 503) after "+attempt+" attempts. Please try the upload again.");
+      if(response.status===429)throw new Error("Backblaze asked us to slow down (HTTP 429) after "+attempt+" attempts. Please try the upload again.");
+      throw new Error("Backblaze rejected this file (HTTP "+response.status+").");
+    }
+    await new Promise(resolve=>setTimeout(resolve,retryDelay(response,attempt)));
+  }
+}
 async function saveFile(file,parentId,name=file.name){
   const created=await filesAction("create_upload",{parentId,name,contentType:file.type||"application/octet-stream"});
   try{
-    const response=await fetch(created.uploadUrl,{method:"PUT",headers:{"Content-Type":created.contentType},body:file});
-    if(!response.ok)throw new Error("Backblaze upload failed ("+response.status+"). Check the B2 bucket CORS settings.");
+    await uploadToBackblaze(created.uploadUrl,created.contentType,file);
     await filesAction("finish_upload",{id:created.item.id});
   }catch(error){
     try{await filesAction("delete",{id:created.item.id});}catch{}
@@ -525,10 +547,14 @@ async function uploadEntries(entries,parentId=currentFolderId){
   clearSelection();
   uploadTitle.textContent="Uploading files";
   let done=0;
+  let processed=0;
+  let skipped=0;
+  const failedUploads=[];
   setUploadProgress(0,entries.length,"Preparing "+entries.length+" item(s)…");
   const folderIds=new Map();
   try{
     for(const entry of entries){
+      const displayName=entry.path||entry.file.name;
       const parts=(entry.path||entry.file.name).split("/").filter(Boolean);
       if(!parts.length)continue;
       let parent=parentId;
@@ -545,15 +571,33 @@ async function uploadEntries(entries,parentId=currentFolderId){
         }
         parent=folderIds.get(key);
       }
-      setUploadProgress(done,entries.length,entry.file.name);
-      await saveFile(entry.file,parent,parts[parts.length-1]);
-      done++;
-      setUploadProgress(done,entries.length,"Uploaded "+done+" of "+entries.length);
+      const fileName=parts[parts.length-1];
+      const isFolderImport=displayName.includes("/");
+      if(isFolderImport&&items.some(item=>item.item_type==="file"&&item.parent_id===parent&&item.name===fileName)){
+        skipped++;
+        processed++;
+        setUploadProgress(processed,entries.length,"Skipped existing file "+fileName);
+        continue;
+      }
+      setUploadProgress(processed,entries.length,displayName);
+      try{
+        await saveFile(entry.file,parent,fileName);
+        done++;
+      }catch(error){
+        failedUploads.push(displayName+": "+error.message);
+      }
+      processed++;
+      setUploadProgress(processed,entries.length,"Processed "+processed+" of "+entries.length+" · uploaded "+done);
     }
     await loadItems();
+    if(failedUploads.length){
+      const shownFailures=failedUploads.slice(0,8).join("\n");
+      const remaining=failedUploads.length>8?"\n…and "+(failedUploads.length-8)+" more failed file(s).":"";
+      alert("Upload finished: "+done+" of "+entries.length+" files uploaded; "+skipped+" existing file(s) skipped. Failed files:\n"+shownFailures+remaining+"\nFiles that uploaded successfully are saved.");
+    }
   }catch(error){
     await loadItems().catch(()=>{});
-    alert("Upload stopped after "+done+" of "+entries.length+" files. "+error.message);
+    alert("Upload stopped after "+processed+" of "+entries.length+" files. "+error.message+" Files that uploaded successfully are saved.");
   }finally{
     hideUploadProgress();
   }
