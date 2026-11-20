@@ -103,7 +103,7 @@
       showStatus("Follow the prompt from Windows Hello, Google Password Manager, or your device's passkey provider.");
       const { error } = await client.auth.registerPasskey();
       if (error) throw error;
-      location.replace("files.html");
+      location.replace("dashboard.html");
     }
 
     async function handleButton() {
