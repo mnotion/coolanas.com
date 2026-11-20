@@ -28,6 +28,7 @@
     .file-card.is-selected{background:#eaf2ff;outline:2px solid #4b91f1;outline-offset:-2px;box-shadow:0 3px 12px rgba(59,130,246,.16)}
     .file-card,.file-card *{-webkit-user-select:none;user-select:none}
     .file-card.is-selected{z-index:9}
+    .file-card.is-drop-target{outline:2px dashed #3985ed;outline-offset:3px;background:#edf4ff}
     .file-card.is-selected .settings-dot{display:none}
     body.has-selection::after{content:"";position:fixed;inset:0;z-index:8;background:rgba(20,24,32,.20);backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px);pointer-events:none}
     body.selection-drag-mode{overflow:hidden}
@@ -333,6 +334,29 @@
     const addWrap=document.createElement("div");
     addWrap.className="add-wrap";
     addWrap.innerHTML='<button class="add-button" id="add-toggle" type="button" aria-label="Upload files" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button><div class="add-menu" id="add-menu" hidden><button class="add-option" type="button" id="upload-option">Upload files</button><button class="add-option" type="button" id="upload-folder-option">Upload folder</button></div>';
+    function isDescendantFolder(candidateId,parentId){
+      let current=items.find(entry=>entry.id===parentId);
+      while(current&&current.parentId){
+        if(current.parentId===candidateId)return true;
+        current=items.find(entry=>entry.id===current.parentId);
+      }
+      return false;
+    }
+    function moveItemsIntoFolder(ids,targetFolderId){
+      const target=items.find(entry=>entry.id===targetFolderId);
+      if(!target||target.type!=="folder")return;
+      const uniqueIds=[...new Set(ids)].filter(id=>items.some(entry=>entry.id===id));
+      if(uniqueIds.includes(targetFolderId)||uniqueIds.some(id=>isDescendantFolder(id,targetFolderId))){
+        setUploadStatus("A folder cannot be moved into itself or one of its own subfolders.");
+        return;
+      }
+      const moving=uniqueIds.map(id=>items.find(entry=>entry.id===id)).filter(Boolean);
+      const changed=moving.filter(entry=>entry.parentId!==targetFolderId);
+      if(!changed.length)return;
+      changed.forEach(entry=>{entry.parentId=targetFolderId;});
+      saveItems();clearCardSelection();renderItems();
+      setUploadStatus("Moved "+changed.length+" item"+(changed.length===1?"":"s")+' into "'+target.name+'".');
+    }
     function visibleItems(){return items.filter(item=>(item.parentId||null)===currentFolderId);}
     function renderItems(){
       list.replaceChildren();
@@ -343,6 +367,7 @@
       for(const item of ordered){
         const card=document.createElement("div");
         card.className="file-card";card.setAttribute("role","listitem");card.dataset.id=item.id;card.tabIndex=0;
+        card.draggable=true;
         card.innerHTML=item.type==="folder"?folderSvg:fileSvg;
         const name=document.createElement("span");name.className="file-name";name.textContent=item.name;
         if(item.type==="folder"&&item.color)card.querySelector(".folder-icon")?.style.setProperty("color",item.color);
@@ -352,6 +377,32 @@
         settings.className="settings-dot";settings.type="button";settings.title="Card settings";settings.setAttribute("aria-label","Settings for "+item.name);
         settings.addEventListener("click",event=>{event.stopPropagation();openCardSettings(item);});
         card.append(name,tag,settings);
+        card.addEventListener("dragstart",event=>{
+          if(event.target.closest(".settings-dot")){event.preventDefault();return;}
+          const movingIds=selectedCardIds.has(item.id)?[...selectedCardIds]:[item.id];
+          event.dataTransfer.effectAllowed="move";
+          event.dataTransfer.setData("application/x-coolanas-items",JSON.stringify(movingIds));
+          event.dataTransfer.setData("text/plain",item.name);
+          card.classList.add("is-being-dragged");
+        });
+        card.addEventListener("dragend",()=>card.classList.remove("is-being-dragged"));
+        if(item.type==="folder"){
+          card.addEventListener("dragover",event=>{
+            if(!event.dataTransfer.types.includes("application/x-coolanas-items"))return;
+            event.preventDefault();event.dataTransfer.dropEffect="move";card.classList.add("is-drop-target");
+          });
+          card.addEventListener("dragleave",event=>{
+            if(!card.contains(event.relatedTarget))card.classList.remove("is-drop-target");
+          });
+          card.addEventListener("drop",event=>{
+            if(!event.dataTransfer.types.includes("application/x-coolanas-items"))return;
+            event.preventDefault();event.stopPropagation();card.classList.remove("is-drop-target");
+            let movingIds=[];
+            try{movingIds=JSON.parse(event.dataTransfer.getData("application/x-coolanas-items"));}catch(error){return;}
+            moveItemsIntoFolder(movingIds,item.id);
+          });
+        }
+
         const open=()=>item.type==="folder"?openFolder(item.id):openFile(item);
         card.addEventListener("click",event=>{
           if(event.target.closest(".delete-dot")||marqueeJustFinished)return;
