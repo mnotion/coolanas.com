@@ -10,10 +10,9 @@
     html,body{width:100%;min-height:100%;margin:0;background:#fff;color:#111;transition:background .18s ease}
     body{min-height:100vh;font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
     main{min-height:100vh;padding:24px 24px 100px}
-    .files-list{width:100%;margin:0;padding:0 0 0 28px}
-    .file-row{display:flex;flex-direction:row;align-items:center;gap:18px;min-height:176px;padding:24px 12px;color:#222;font-size:16px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
-    .folder-icon{width:48px;height:48px;flex:none;color:#888}
-    .file-entry{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+    .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;gap:18px;width:100%;margin:0;padding:8px 0 0 28px}
+    .file-card{display:flex;flex-direction:column;align-items:flex-start;gap:10px;width:168px;min-height:176px;padding:18px;border-radius:12px;color:#222;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+    .folder-icon{width:112px;height:112px;flex:none;color:#e3b52f}
     .file-icon{width:112px;height:112px;flex:none;color:#888}
     .file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .bottom-nav{
@@ -55,11 +54,9 @@
 </head>
 <body>
   <main aria-label="Files">
-    <div class="files-list" role="list" aria-label="Files">
-      <div class="file-row" role="listitem">
-        <svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg>
-        <div class="file-entry"><svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.8h8l4 4V20H6z"/><path d="M14 3.8V8h4"/></svg><span class="file-name">Untitled file</span></div>
-      </div>
+    <div class="files-list" role="list" aria-label="Files and folders">
+      <div class="file-card" role="listitem"><svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"/><path d="M3.5 10h17"/></svg><span class="file-name">Untitled folder</span></div>
+      <div class="file-card" role="listitem"><svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.8h8l4 4V20H6z"/><path d="M14 3.8V8h4"/></svg><span class="file-name">Untitled file</span></div>
     </div>
   </main>
   <section class="panel" id="search-panel" aria-label="Search" hidden>
