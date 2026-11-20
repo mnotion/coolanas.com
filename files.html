@@ -43,6 +43,17 @@
     .file-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .drop-hint{position:fixed;inset:12px;z-index:20;display:grid;place-items:center;border:2px dashed #b9bdc2;border-radius:18px;background:rgba(245,246,247,.88);color:#555;font-size:16px;pointer-events:none}
     .drop-hint[hidden]{display:none}
+    .upload-overlay{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:20px;background:rgba(245,246,247,.72);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+    .upload-overlay[hidden]{display:none}
+    .upload-card{width:min(360px,100%);padding:26px;border:1px solid rgba(0,0,0,.07);border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 18px 60px rgba(0,0,0,.14);text-align:center}
+    .upload-spinner{width:34px;height:34px;margin:0 auto 16px;border:3px solid #e8e8e8;border-top-color:#555;border-radius:50%;animation:upload-spin .8s linear infinite}
+    .upload-title{margin:0 0 5px;font-size:15px;font-weight:650;color:#222}
+    .upload-detail{min-height:20px;margin:0;color:#777;font-size:12px;overflow-wrap:anywhere}
+    .upload-progress{height:5px;margin-top:18px;overflow:hidden;border-radius:9px;background:#eee}
+    .upload-progress-bar{width:0;height:100%;border-radius:9px;background:#555;transition:width .15s ease}
+    @keyframes upload-spin{to{transform:rotate(360deg)}}
+    @media(prefers-reduced-motion:reduce){.upload-spinner{animation-duration:2s}.upload-progress-bar{transition:none}}
+
     .bottom-nav{
       position:fixed;z-index:10;left:50%;bottom:20px;transform:translateX(-50%);
       width:min(260px,calc(100% - 24px));min-height:44px;padding:3px;
@@ -89,6 +100,7 @@
     <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
+  <div class="upload-overlay" id="upload-overlay" hidden aria-live="polite" aria-busy="true"><div class="upload-card"><div class="upload-spinner" aria-hidden="true"></div><p class="upload-title" id="upload-title">Uploading files</p><p class="upload-detail" id="upload-detail">Preparing…</p><div class="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar"></div></div></div></div>
   <div class="file-viewer" id="file-viewer" hidden><section class="viewer-panel"><header class="viewer-head"><strong id="viewer-title"></strong><button class="viewer-close" id="viewer-close" type="button" aria-label="Close">×</button></header><div class="viewer-content" id="viewer-content"></div></section></div>
   <section class="panel" id="search-panel" aria-label="Search" hidden>
     <div class="panel-heading"><h2>Search</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
@@ -119,6 +131,21 @@
     const list=document.getElementById("files-list");
     const uploadStatus=document.getElementById("upload-status");
     function setUploadStatus(message){uploadStatus.textContent=message;uploadStatus.hidden=!message;}
+    const uploadOverlay=document.getElementById("upload-overlay");
+    const uploadTitle=document.getElementById("upload-title");
+    const uploadDetail=document.getElementById("upload-detail");
+    const uploadProgressBar=document.getElementById("upload-progress-bar");
+    function showUploadLoading(title,detail="Preparing…"){
+      uploadTitle.textContent=title;uploadDetail.textContent=detail;
+      uploadProgressBar.style.width="0%";uploadOverlay.hidden=false;
+    }
+    function updateUploadLoading(done,total,detail){
+      const percent=total?Math.round(done/total*100):0;
+      uploadProgressBar.style.width=percent+"%";
+      uploadDetail.textContent=detail||("Processing "+done+" of "+total+" items");
+    }
+    function hideUploadLoading(){uploadOverlay.hidden=true;}
+
     const toolbar=document.getElementById("files-toolbar");
     const currentFolder=document.getElementById("current-folder");
     const viewer=document.getElementById("file-viewer");
@@ -278,9 +305,10 @@
       addMenu.hidden=true;addToggle.setAttribute("aria-expanded","false");
       try{if(typeof picker.showPicker==="function")picker.showPicker();else picker.click();}catch(error){picker.click();}
     });
-    async function importDirectoryFiles(files){
-      const folders=new Map();
+    async function importDirectoryFiles(files,onProgress){
+      const folders=new Map();let completed=0;
       for(const file of files){
+        onProgress?.(completed,files.length,file.name);
         const parts=(file.webkitRelativePath||file.name).split("/");
         let parentId=currentFolderId;
         for(let i=0;i<parts.length-1;i++){
@@ -293,7 +321,7 @@
           }
           parentId=folders.get(path);
         }
-        const id=crypto.randomUUID();items.push({id,type:"file",name:parts[parts.length-1],parentId:parentId||null});await storeBlob(id,file);
+        const id=crypto.randomUUID();await storeBlob(id,file);items.push({id,type:"file",name:parts[parts.length-1],size:file.size||0,mimeType:file.type||"",parentId:parentId||null});completed++;onProgress?.(completed,files.length,file.name);
       }
       saveItems();renderItems();
     }
@@ -302,17 +330,23 @@
     picker.addEventListener("change",async()=>{
       const files=[...picker.files];picker.value="";
       if(!files.length)return;
-      setUploadStatus("Uploading "+files.length+" file"+(files.length===1?"":"s")+"…");
+      setUploadStatus("");
+      showUploadLoading("Uploading files","Starting upload…");
       let added=0;
-      try{for(const file of files){await addItem("file",file.name,currentFolderId,file);added++;}setUploadStatus("Uploaded "+added+" file"+(added===1?"":"s")+". Select a file to open its preview.");}
-      catch(error){console.error("Upload failed:",error);setUploadStatus("Upload failed: browser storage may be full or unavailable. "+(error.message||""));}
+      try{
+        for(const file of files){uploadTitle.textContent="Uploading files";updateUploadLoading(added,files.length,file.name);await addItem("file",file.name,currentFolderId,file);added++;updateUploadLoading(added,files.length,file.name);}
+        setUploadStatus("Uploaded "+added+" file"+(added===1?"":"s")+". Select a file to open its preview.");
+      }catch(error){console.error("Upload failed:",error);setUploadStatus("Upload failed: "+(error.message||"browser storage unavailable"));}
+      finally{hideUploadLoading();}
     });
     folderPicker.addEventListener("change",async()=>{
       const files=[...folderPicker.files];folderPicker.value="";
       if(!files.length)return;
-      setUploadStatus("Importing folder contents…");
-      try{await importDirectoryFiles(files);setUploadStatus("Imported "+files.length+" file"+(files.length===1?"":"s")+".");}
+      setUploadStatus("");
+      showUploadLoading("Importing folder","Preparing "+files.length+" files…");
+      try{await importDirectoryFiles(files,(done,total,name)=>updateUploadLoading(done,total,name));setUploadStatus("Imported "+files.length+" file"+(files.length===1?"":"s")+".");}
       catch(error){console.error("Folder import failed:",error);setUploadStatus("Folder import failed: "+(error.message||""));}
+      finally{hideUploadLoading();}
     });
     const dropHint=document.getElementById("drop-hint");let dragDepth=0;
     window.addEventListener("dragenter",event=>{if(!event.dataTransfer)return;event.preventDefault();dragDepth++;dropHint.hidden=false;});
@@ -369,13 +403,16 @@
           for(const file of [...(transfer.files||[])])dropped.push({type:"file",name:file.name,file,parentId:currentFolderId});
         }
         if(!dropped.length){setUploadStatus("No readable files or folders were found. Try dragging the folder from File Explorer again.");return;}
-        setUploadStatus("Importing "+dropped.length+" items…");
+        setUploadStatus("");
+        showUploadLoading("Importing dropped items","Preparing "+dropped.length+" items…");
         let added=0;
         for(const entry of dropped){
+          uploadTitle.textContent=entry.type==="folder"?"Creating folders":"Uploading files";
+          uploadDetail.textContent=entry.name;
           const id=entry.id||crypto.randomUUID();
           if(entry.file)await storeBlob(id,entry.file);
           items.push({id,type:entry.type,name:entry.name,size:entry.file?.size||0,mimeType:entry.file?.type||"",parentId:entry.parentId||null});
-          added++;
+          added++;updateUploadLoading(added,dropped.length,entry.name);
         }
         saveItems();renderItems();
         const folders=dropped.filter(entry=>entry.type==="folder").length;
@@ -384,7 +421,7 @@
       }catch(error){
         console.error("Drag-and-drop import failed:",error);
         setUploadStatus("Folder import failed: "+(error.message||"the browser could not read the dropped contents")+". Nothing else was imported.");
-      }
+      }finally{hideUploadLoading();}
     });
     function resetCardMotion(){
       list.querySelectorAll(".file-card").forEach(card=>{
