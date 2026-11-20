@@ -24,8 +24,10 @@
     .file-card{display:flex;flex-direction:column;align-items:center;gap:10px;width:168px;min-height:176px;padding:18px;border:0;border-radius:12px;background:#fff;color:#222;font:inherit;font-size:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);cursor:pointer;transform:scale(var(--card-scale,1));transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease;transform-origin:center;position:relative;z-index:var(--card-z,1)}
     .file-card:hover,.file-card.is-pointer-hover{background:#fafafa;box-shadow:0 5px 16px rgba(0,0,0,.10);}
     .file-card:focus-visible{outline:2px solid #aaa;outline-offset:3px}
+    .file-card:focus:not(:focus-visible){outline:none}
+    button,a,.file-card{-webkit-tap-highlight-color:transparent}
     .file-card.is-pointer-near{box-shadow:0 4px 14px rgba(0,0,0,.085)}
-    .file-card.is-selected{background:#eaf2ff;outline:2px solid #4b91f1;outline-offset:-2px;box-shadow:0 3px 12px rgba(59,130,246,.16)}
+    .file-card.is-selected{background:#eceeef;outline:2px solid #73777d;outline-offset:-2px;box-shadow:0 3px 12px rgba(0,0,0,.10)}
     .file-card,.file-card *{-webkit-user-select:none;user-select:none}
     .file-card.is-selected{z-index:9}
     @keyframes coolanas-folder-jiggle{
@@ -59,7 +61,6 @@
     .file-card.is-being-dragged[data-type="folder"] .settings-dot{display:none!important}
     .file-card.is-drop-target{outline:2px dashed #3985ed;outline-offset:3px;background:#edf4ff;transform:scale(1.055);box-shadow:0 8px 22px rgba(59,130,246,.2);cursor:copy;transition:transform .14s ease,box-shadow .14s ease,background .14s ease}
     .file-card.is-selected .settings-dot{display:none}
-    body.has-selection::after{content:"";position:fixed;inset:0;z-index:8;background:rgba(10,12,18,.78);pointer-events:none}
     body.selection-drag-mode{overflow:hidden}
     body.selection-drag-mode main{touch-action:none;overscroll-behavior:contain}
     body.selection-drag-mode .files-list{touch-action:none}
@@ -75,11 +76,19 @@
     .settings-dot:focus-visible{outline:2px solid #6b7280;outline-offset:3px}
     .file-tag{margin-top:-5px;padding:3px 7px;border-radius:999px;background:#f0f1f3;color:#555;font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+    .selection-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;width:100%;margin:0 0 14px}
+    .selection-action{min-height:38px;padding:8px 14px;border:1px solid #dedede;border-radius:9px;background:#fff;color:#333;font:600 13px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .selection-action:hover{background:#f2f2f2}
+    .selection-action[hidden]{display:none}
+    .selection-action.danger{border-color:#d6d6d6;color:#8e2929}
+    .selection-counter{margin-right:auto;color:#707070;font-size:12px}
     .files-toolbar{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 18px;color:#333}
     .files-toolbar[hidden]{display:none}
     .crumb-button{border:0;background:transparent;padding:5px 8px;border-radius:7px;font:inherit;cursor:pointer}
     .crumb-button:hover{background:#f1f1f1}
     .crumb-current{font-size:14px;color:#777}
+    button:focus:not(:focus-visible){outline:none;box-shadow:none}
+    button:focus-visible{outline:2px solid #777;outline-offset:3px}
     .file-viewer{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:rgba(20,20,20,.24);backdrop-filter:blur(5px)}
     .file-viewer[hidden]{display:none}
     .confirm-overlay{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
@@ -181,6 +190,7 @@
 </head>
 <body>
   <main aria-label="Files">
+    <div class="selection-toolbar" aria-label="Selection controls"><span class="selection-counter" id="selection-counter" hidden></span><button class="selection-action" id="select-mode-toggle" type="button" aria-pressed="false">Select</button><button class="selection-action danger" id="bulk-delete" type="button" hidden>Delete selected</button></div>
     <input id="file-picker" type="file" multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <input id="folder-picker" type="file" webkitdirectory multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <div class="files-toolbar" id="files-toolbar" hidden><button class="crumb-button" id="back-folder" type="button">← Back</button><span class="crumb-current" id="current-folder"></span></div>
@@ -267,6 +277,10 @@ const dropHint=document.getElementById("drop-hint");
 const marquee=document.getElementById("selection-marquee");
 let items=[],currentFolderId=null,searchQuery="";
 const selectedIds=new Set();
+let selectionMode=false;
+const selectModeToggle=document.getElementById("select-mode-toggle");
+const bulkDeleteButton=document.getElementById("bulk-delete");
+const selectionCounter=document.getElementById("selection-counter");
 let lastSelectedId=null;
 let activeSettingsItem=null;
 let pendingDeleteIds=[];
@@ -323,6 +337,13 @@ function resetCardMotion(){
 }
 function updateSelectionUi(){
   document.body.classList.toggle("has-selection",selectedIds.size>0);
+  document.body.classList.toggle("selection-mode",selectionMode);
+  selectModeToggle.textContent=selectionMode?"Done":"Select";
+  selectModeToggle.setAttribute("aria-pressed",String(selectionMode));
+  bulkDeleteButton.hidden=selectedIds.size===0;
+  bulkDeleteButton.textContent="Delete selected ("+selectedIds.size+")";
+  selectionCounter.hidden=selectedIds.size===0;
+  selectionCounter.textContent=selectedIds.size+" selected";
   list.querySelectorAll(".file-card").forEach(card=>card.classList.toggle("is-selected",selectedIds.has(card.dataset.id)));
   if(selectedIds.size){
     showStatus(selectedIds.size+" selected · Drag onto a folder to move · Esc to clear",true);
@@ -334,6 +355,7 @@ function updateSelectionUi(){
 }
 function clearSelection(){
   selectedIds.clear();
+  selectionMode=false;
   lastSelectedId=null;
   document.body.classList.remove("has-selection","selection-drag-mode");
   updateSelectionUi();
@@ -399,6 +421,7 @@ function renderItems(){
         event.stopPropagation();
         return;
       }
+      if(selectionMode){event.preventDefault();selectOne(item.id,{toggle:true});return;}
       if(event.ctrlKey||event.metaKey){event.preventDefault();selectOne(item.id,{toggle:true});return;}
       if(event.shiftKey){event.preventDefault();selectOne(item.id,{shift:true});return;}
       if(selectedIds.size>1&&selectedIds.has(item.id)){
@@ -715,6 +738,13 @@ async function reorderBefore(ids,targetId){
     await loadItems();
   }catch(error){alert(error.message);}
 }
+
+selectModeToggle.addEventListener("click",()=>{
+  selectionMode=!selectionMode;
+  if(!selectionMode&&selectedIds.size===0)lastSelectedId=null;
+  updateSelectionUi();
+});
+bulkDeleteButton.addEventListener("click",confirmBulkDelete);
 
 let marqueeMoved=false;
 list.addEventListener("pointerdown",event=>{
