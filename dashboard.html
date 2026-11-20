@@ -22,6 +22,7 @@
     }
     .nav-button {
       display:flex; align-items:center; justify-content:center; min-height:36px;
+      text-decoration:none;
       border:1px solid rgba(0,0,0,.045); border-radius:9px;
       background:rgba(255,255,255,.28); color:#555; cursor:pointer;
       box-shadow:inset 0 1px 0 rgba(255,255,255,.45);
@@ -98,9 +99,9 @@
     <button class="nav-button" id="search-toggle" type="button" aria-label="Search" aria-expanded="false" aria-controls="search-panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
     </button>
-    <button class="nav-button" id="files-toggle" type="button" aria-label="Open Files">
+    <a class="nav-button" id="files-toggle" href="/files.html" aria-label="Open Files">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"></path><path d="M3.5 10h17"></path></svg>
-    </button>
+    </a>
     <button class="nav-button" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
     </button>
@@ -114,25 +115,17 @@
     const accountStatus=document.getElementById("account-status");
     const passkeyStatus=document.getElementById("passkey-status");
     const setupButton=document.getElementById("setup-passkey");
-    const googleLoginCompleted=new URLSearchParams(location.search).get("googleLogin")==="1";
-    if(googleLoginCompleted){
-      history.replaceState({},document.title,location.pathname);
-    }
     const {data:{session},error}=await supabase.auth.getSession();
     if(error||!session){location.replace("index.html");}
     else{
-      accountStatus.textContent=googleLoginCompleted
-        ? "Google sign-in successful. This is your Coolanas account."
-        : "Signed in to your Coolanas account.";
+      accountStatus.textContent="Signed in to your Coolanas account.";
       try{
         const {data:passkeys,error:passkeyError}=await supabase.auth.passkey.list();
         if(passkeyError) throw passkeyError;
         if(Array.isArray(passkeys)&&passkeys.length>0){
           passkeyStatus.textContent="Passkey sign-in is ready on this account.";
         }else{
-          passkeyStatus.textContent=googleLoginCompleted
-            ? "Your Google account is connected. Add a Windows Hello or Google Password Manager passkey so you can also use Continue with fingerprint."
-            : "This account does not have a passkey yet. Add Windows Hello or Google Password Manager to sign in next time.";
+          passkeyStatus.textContent="This account does not have a passkey yet. Add Windows Hello or Google Password Manager to sign in next time.";
           setupButton.hidden=false;
         }
       }catch(passkeyError){
@@ -161,7 +154,6 @@
     document.getElementById("menu-signout").addEventListener("click",signOutAndReturn);
 
     const navSearch=document.getElementById("search-toggle");
-    const navFiles=document.getElementById("files-toggle");
     const navMenu=document.getElementById("menu-toggle");
     const searchPanel=document.getElementById("search-panel");
     const menuPanel=document.getElementById("menu-panel");
@@ -181,7 +173,6 @@
       }
     }
     navSearch.addEventListener("click",()=>toggleNavPanel(searchPanel,navSearch));
-    navFiles.addEventListener("click",()=>location.assign("files.html"));
     navMenu.addEventListener("click",()=>toggleNavPanel(menuPanel,navMenu));
     document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
     document.getElementById("menu-home").addEventListener("click",closeNavPanels);
