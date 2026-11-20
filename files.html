@@ -20,8 +20,9 @@
     .add-option:hover{background:#f2f2f2}
     .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:18px;width:100%;margin:0;padding:0}
     .file-card{display:flex;flex-direction:column;align-items:center;gap:10px;width:168px;min-height:176px;padding:18px;border:0;border-radius:12px;background:#fff;color:#222;font:inherit;font-size:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);cursor:pointer;transform:scale(var(--card-scale,1));transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease;transform-origin:center;position:relative;z-index:var(--card-z,1)}
-    .file-card:hover{box-shadow:0 8px 24px rgba(0,0,0,.12)}
+    .file-card:hover,.file-card.is-pointer-hover{background:#fafafa;box-shadow:0 5px 16px rgba(0,0,0,.10);}
     .file-card:focus-visible{outline:2px solid #aaa;outline-offset:3px}
+    .file-card.is-pointer-near{box-shadow:0 4px 14px rgba(0,0,0,.085)}
     .files-toolbar{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 18px;color:#333}
     .files-toolbar[hidden]{display:none}
     .crumb-button{border:0;background:transparent;padding:5px 8px;border-radius:7px;font:inherit;cursor:pointer}
@@ -252,17 +253,29 @@
       }
       saveItems();renderItems();
     });
-    function resetCardMotion(){list.querySelectorAll(".file-card").forEach(card=>{card.style.setProperty("--card-scale","1");card.style.setProperty("--card-z","1");});}
+    function resetCardMotion(){
+      list.querySelectorAll(".file-card").forEach(card=>{
+        card.style.setProperty("--card-scale","1");
+        card.style.setProperty("--card-z","1");
+        card.classList.remove("is-pointer-near","is-pointer-hover");
+      });
+    }
     list.addEventListener("pointermove",event=>{
       if(event.pointerType!=="mouse")return;
       const cards=[...list.querySelectorAll(".file-card")];
       const hovered=event.target.closest(".file-card");
-      if(!hovered){resetCardMotion();return;}
-      const rect=hovered.getBoundingClientRect();
-      const hx=rect.left+rect.width/2,hy=rect.top+rect.height/2;
-      const distances=cards.filter(card=>card!==hovered).map(card=>({card,d:Math.hypot((card.getBoundingClientRect().left+card.offsetWidth/2)-hx,(card.getBoundingClientRect().top+card.offsetHeight/2)-hy)})).sort((x,y)=>x.d-y.d);
-      hovered.style.setProperty("--card-scale","1.09");hovered.style.setProperty("--card-z","5");
-      distances.forEach((entry,index)=>{entry.card.style.setProperty("--card-scale",String(Math.max(.82,1-.025*(index+1))));entry.card.style.setProperty("--card-z","1");});
+      cards.forEach(card=>{
+        const rect=card.getBoundingClientRect();
+        const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;
+        const distance=Math.hypot(event.clientX-cx,event.clientY-cy);
+        const radius=230;
+        const influence=Math.max(0,1-distance/radius);
+        const scale=1+influence*.12;
+        card.style.setProperty("--card-scale",scale.toFixed(3));
+        card.style.setProperty("--card-z",String(Math.round(influence*4)+1));
+        card.classList.toggle("is-pointer-near",influence>.03);
+        card.classList.toggle("is-pointer-hover",card===hovered);
+      });
     });
     list.addEventListener("pointerleave",resetCardMotion);
     const toggles={search:document.getElementById("search-toggle"),menu:document.getElementById("menu-toggle")};
