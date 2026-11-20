@@ -42,6 +42,7 @@
     .confirm-panel{width:min(420px,100%);padding:22px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;box-shadow:0 20px 65px rgba(0,0,0,.2)}
     .confirm-title{margin:0 0 8px;font-size:17px;font-weight:650;color:#171717}
     .confirm-message{margin:0;color:#666;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+    .confirm-item-name{color:#2563eb;font-weight:600}
     .confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
     .confirm-button{min-width:82px;padding:9px 15px;border:1px solid #e5e5e5;border-radius:9px;background:#f7f7f7;color:#333;font:inherit;font-size:13px;cursor:pointer}
     .confirm-button:hover{background:#eee}
@@ -215,7 +216,11 @@
       const message=document.getElementById("confirm-message");
       const cancel=document.getElementById("confirm-cancel");
       const confirm=document.getElementById("confirm-delete");
-      message.textContent='Are you sure you want to delete "'+item.name+'"?'+(item.type==="folder"?" Everything inside this folder and its subfolders will also be deleted.":" This action cannot be undone.");
+      message.replaceChildren(document.createTextNode('Are you sure you want to delete "'));
+      const itemName=document.createElement("span");
+      itemName.className="confirm-item-name";
+      itemName.textContent=item.name;
+      message.append(itemName,document.createTextNode('"?' ));
       overlay.hidden=false;
       confirm.focus();
       return new Promise(resolve=>{
