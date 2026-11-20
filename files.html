@@ -531,7 +531,7 @@ function renderItems(){
     const card=document.createElement("div");
     card.className="file-card";
     card.tabIndex=0;
-    card.draggable=!selectionMode;
+    card.draggable=true;
     card.dataset.id=item.id;
     card.dataset.type=item.item_type;
     card.setAttribute("role","listitem");
