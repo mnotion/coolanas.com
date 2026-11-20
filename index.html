@@ -103,7 +103,7 @@
       showStatus("Follow the prompt from Windows Hello, Google Password Manager, or your device's passkey provider.");
       const { error } = await client.auth.registerPasskey();
       if (error) throw error;
-      location.replace("dashboard.html");
+      location.replace("files.html");
     }
 
     async function handleButton() {
@@ -133,7 +133,7 @@
         const { error } = await client.auth.signInWithPasskey();
         if (error) throw error;
 
-        location.replace("dashboard.html");
+        location.replace("files.html");
       } catch (error) {
         const name = error?.name || "";
         const code = error?.code || "";
@@ -191,7 +191,7 @@
           const { data: passkeys, error: passkeyError } = await client.auth.passkey.list();
           if (passkeyError) throw passkeyError;
           if (Array.isArray(passkeys) && passkeys.length > 0) {
-            location.replace("dashboard.html");
+            location.replace("files.html");
             return;
           }
           setMode("register");
