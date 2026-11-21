@@ -153,6 +153,7 @@
     .upload-detail{min-height:20px;margin:0;color:#777;font-size:12px;overflow-wrap:anywhere}
     .upload-progress{height:5px;margin-top:18px;overflow:hidden;border-radius:9px;background:#eee}
     .upload-progress-bar{width:0;height:100%;border-radius:9px;background:#555;transition:width .15s ease}
+    .upload-actions{display:flex;justify-content:center;gap:8px;margin-top:18px}.upload-actions button{padding:8px 13px;border:1px solid #e1e1e1;border-radius:8px;background:#f7f7f7;color:#333;font:600 12px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}.upload-actions #upload-cancel{border-color:#e7caca;background:#fff7f7;color:#b42318}.upload-mini{position:fixed;z-index:79;left:50%;bottom:72px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;width:min(310px,calc(100% - 32px));padding:9px 12px;border:1px solid rgba(0,0,0,.08);border-radius:12px;background:rgba(255,255,255,.97);box-shadow:0 5px 20px rgba(0,0,0,.12);color:#333;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}.upload-mini[hidden]{display:none}.upload-mini-track{height:5px;flex:1;overflow:hidden;border-radius:8px;background:#eee}.upload-mini-bar{display:block;width:0;height:100%;border-radius:8px;background:#555;transition:width .15s ease}.upload-mini strong{min-width:30px;text-align:right;font-variant-numeric:tabular-nums}@media(max-width:480px){.upload-mini{bottom:64px}}
     @keyframes upload-spin{to{transform:rotate(360deg)}}
     @media(prefers-reduced-motion:reduce){.upload-spinner{animation-duration:2s}.upload-progress-bar{transition:none}}
 
@@ -213,7 +214,7 @@
       <button class="selection-color" type="button" data-color="#6b7280" aria-label="Gray" title="Gray" style="--swatch:#6b7280"></button>
     </div>
   </div>
-  <div class="upload-overlay" id="upload-overlay" hidden aria-live="polite" aria-busy="true"><div class="upload-card"><div class="upload-spinner" aria-hidden="true"></div><p class="upload-title" id="upload-title">Uploading files</p><p class="upload-detail" id="upload-detail">Preparing…</p><div class="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar"></div></div></div></div>
+  <div class="upload-overlay" id="upload-overlay" hidden aria-live="polite" aria-busy="true"><div class="upload-card"><div class="upload-spinner" aria-hidden="true"></div><p class="upload-title" id="upload-title">Uploading files</p><p class="upload-detail" id="upload-detail">Preparing…</p><div class="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar"></div></div><div class="upload-actions"><button id="upload-minimise" type="button">Minimise</button><button id="upload-cancel" type="button">Cancel upload</button></div></div></div><button class="upload-mini" id="upload-mini" type="button" hidden aria-label="Show upload progress"><span>Uploading</span><span class="upload-mini-track"><span class="upload-mini-bar" id="upload-mini-bar"></span></span><strong id="upload-mini-percent">0%</strong></button>
   <div class="file-viewer" id="file-viewer" hidden><section class="viewer-panel"><header class="viewer-head"><strong id="viewer-title"></strong><button class="viewer-close" id="viewer-close" type="button" aria-label="Close">×</button></header><div class="viewer-content" id="viewer-content"></div></section></div>
   <div class="confirm-overlay" id="card-settings-overlay" hidden>
     <section class="confirm-panel card-settings-panel" role="dialog" aria-modal="true" aria-labelledby="card-settings-title">
@@ -289,6 +290,13 @@ const uploadOverlay=document.getElementById("upload-overlay");
 const uploadTitle=document.getElementById("upload-title");
 const uploadDetail=document.getElementById("upload-detail");
 const uploadProgress=document.getElementById("upload-progress-bar");
+const uploadMini=document.getElementById("upload-mini");
+const uploadMiniBar=document.getElementById("upload-mini-bar");
+const uploadMiniPercent=document.getElementById("upload-mini-percent");
+let activeUploadController=null,uploadMinimised=false,uploadCancelled=false;
+document.getElementById("upload-minimise").addEventListener("click",()=>{uploadMinimised=true;uploadOverlay.hidden=true;uploadMini.hidden=false;});
+document.getElementById("upload-cancel").addEventListener("click",()=>{if(activeUploadController){uploadCancelled=true;activeUploadController.abort();}});
+uploadMini.addEventListener("click",()=>{uploadMinimised=false;uploadMini.hidden=true;uploadOverlay.hidden=false;});
 const dropHint=document.getElementById("drop-hint");
 const marquee=document.getElementById("selection-marquee");
 let items=[],currentFolderId=null,searchQuery="",lastItemsLoad=0;
@@ -560,13 +568,16 @@ document.getElementById("files-toggle").addEventListener("click",()=>{
   if(currentFolderId)openFolder(null);
 });
 function setUploadProgress(done,total,detail){
-  uploadOverlay.hidden=false;
+  const percent=total?Math.round(done/total*100):0;
+  if(!uploadMinimised)uploadOverlay.hidden=false;
   uploadDetail.textContent=detail||("Uploading "+done+" of "+total);
-  uploadProgress.style.width=(total?Math.round(done/total*100):0)+"%";
+  uploadProgress.style.width=percent+"%";
+  uploadMiniBar.style.width=percent+"%";
+  uploadMiniPercent.textContent=percent+"%";
 }
 function hideUploadProgress(){
-  uploadOverlay.hidden=true;
-  uploadProgress.style.width="0%";
+  uploadOverlay.hidden=true;uploadMini.hidden=true;uploadProgress.style.width="0%";uploadMiniBar.style.width="0%";
+  uploadMinimised=false;activeUploadController=null;uploadCancelled=false;
 }
 async function loadItems(){
   const data=await filesAction("list");
