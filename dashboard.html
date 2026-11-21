@@ -231,6 +231,95 @@
     }
 
 
+    const profileButton=document.getElementById("profile-button");
+    const profileDrawer=document.getElementById("profile-drawer");
+    const profileBackdrop=document.getElementById("profile-backdrop");
+    const profilePictureInput=document.getElementById("profile-picture-input");
+    const profileAvatar=document.getElementById("profile-avatar");
+    const drawerAvatar=document.getElementById("drawer-avatar");
+    const avatarFallback=document.getElementById("profile-avatar-fallback");
+    const drawerAvatarFallback=document.getElementById("drawer-avatar-fallback");
+    const removePfpButton=document.getElementById("remove-pfp");
+    let googleAvatarUrl="";
+
+    function setAvatar(url){
+      for(const img of [profileAvatar,drawerAvatar]){
+        if(url){img.src=url;img.hidden=false;}else{img.removeAttribute("src");img.hidden=true;}
+      }
+      avatarFallback.hidden=Boolean(url);
+      drawerAvatarFallback.hidden=Boolean(url);
+      removePfpButton.hidden=!customProfilePicture;
+    }
+    let customProfilePicture=false;
+    async function profileAction(action,payload={}){
+      const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action,...payload}});
+      if(error)throw new Error(error.message||"Profile picture request failed.");
+      if(data?.error)throw new Error(data.error);
+      return data;
+    }
+    async function refreshProfilePicture(){
+      const result=await profileAction("profile_picture_get");
+      customProfilePicture=Boolean(result.exists&&result.url);
+      setAvatar(customProfilePicture?result.url:googleAvatarUrl);
+    }
+    async function initialiseProfile(session){
+      const meta=session.user.user_metadata||{};
+      googleAvatarUrl=typeof meta.avatar_url==="string"?meta.avatar_url:(typeof meta.picture==="string"?meta.picture:"");
+      const displayName=meta.full_name||meta.name||meta.user_name||session.user.email||"Account";
+      document.getElementById("profile-name").textContent=displayName;
+      document.getElementById("profile-email").textContent=session.user.email||"";
+      avatarFallback.textContent=String(displayName).trim().charAt(0).toUpperCase()||"?";
+      drawerAvatarFallback.textContent=avatarFallback.textContent;
+      setAvatar(googleAvatarUrl);
+      try{await refreshProfilePicture();}catch(error){console.warn("Could not load custom profile picture:",error.message);}
+    }
+    function closeProfileDrawer(){
+      profileDrawer.classList.remove("open");
+      profileDrawer.setAttribute("aria-hidden","true");
+      profileButton.setAttribute("aria-expanded","false");
+      profileBackdrop.hidden=true;
+    }
+    function openProfileDrawer(){
+      profileDrawer.classList.add("open");
+      profileDrawer.setAttribute("aria-hidden","false");
+      profileButton.setAttribute("aria-expanded","true");
+      profileBackdrop.hidden=false;
+    }
+    profileButton.addEventListener("click",openProfileDrawer);
+    document.getElementById("profile-close").addEventListener("click",closeProfileDrawer);
+    profileBackdrop.addEventListener("click",closeProfileDrawer);
+    document.getElementById("change-pfp").addEventListener("click",()=>profilePictureInput.click());
+    profilePictureInput.addEventListener("change",async()=>{
+      const file=profilePictureInput.files?.[0];
+      profilePictureInput.value="";
+      if(!file)return;
+      if(file.type!=="image/png"&&!file.name.toLowerCase().endsWith(".png")){alert("Choose a PNG image.");return;}
+      if(file.size>5*1024*1024){alert("Profile pictures must be 5 MB or smaller.");return;}
+      try{
+        const signed=await profileAction("profile_picture_upload",{contentType:"image/png"});
+        const response=await fetch(signed.uploadUrl,{method:"PUT",headers:{"Content-Type":"image/png"},body:file});
+        if(!response.ok)throw new Error("Image upload failed (HTTP "+response.status+").");
+        await refreshProfilePicture();
+        closeProfileDrawer();
+      }catch(error){alert(error.message||"Could not update profile picture.");}
+    });
+    removePfpButton.addEventListener("click",async()=>{
+      try{
+        await profileAction("profile_picture_delete");
+        customProfilePicture=false;
+        setAvatar(googleAvatarUrl);
+        closeProfileDrawer();
+      }catch(error){alert(error.message||"Could not remove profile picture.");}
+    });
+    async function leaveAccount(){
+      const {error}=await supabase.auth.signOut({scope:"local"});
+      if(error)throw error;
+      location.assign("/index.html");
+    }
+    document.getElementById("profile-signout").addEventListener("click",async()=>{try{await leaveAccount();}catch(error){alert(error.message);}});
+    document.getElementById("change-account").addEventListener("click",async()=>{try{await leaveAccount();}catch(error){alert(error.message);}});
+    document.addEventListener("keydown",event=>{if(event.key==="Escape")closeProfileDrawer();});
+
     try{
       let session;
       if(isAuthCallback){
@@ -241,6 +330,7 @@
         }
         history.replaceState(null,document.title,location.pathname);
         await requireUsername(session);
+        await initialiseProfile(session);
       }else{
         const {data:{session:storedSession},error}=await supabase.auth.getSession();
         if(error) throw error;
