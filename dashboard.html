@@ -387,11 +387,11 @@
       const toggleButton=document.getElementById("study-stopwatch-toggle");
       const resetButton=document.getElementById("study-stopwatch-reset");
       const storageKey="coolanas-study-stopwatch-v1";
-      let state={elapsed:0,startedAt:null,subject:"Study"};
+      let state={elapsed:0,startedAt:null};
       try{
         const saved=JSON.parse(localStorage.getItem(storageKey)||"null");
         if(saved&&typeof saved.elapsed==="number"){
-          state={elapsed:Math.max(0,saved.elapsed),startedAt:Number.isFinite(saved.startedAt)?saved.startedAt:null,subject:typeof saved.subject==="string"?saved.subject:"Study"};
+          state={elapsed:Math.max(0,saved.elapsed),startedAt:Number.isFinite(saved.startedAt)?saved.startedAt:null};
         }
       }catch(error){console.warn("Could not restore stopwatch:",error);}
       const elapsedNow=()=>state.elapsed+(state.startedAt?Math.max(0,Date.now()-state.startedAt):0);
@@ -415,7 +415,6 @@
           state.elapsed=elapsedNow();
           state.startedAt=null;
         }else{
-            subjectEl.value=state.subject;
           state.startedAt=Date.now();
         }
         save();render();
@@ -424,11 +423,6 @@
         state.elapsed=0;
         state.startedAt=null;
         save();render();
-      });
-      subjectEl.addEventListener("change",()=>{
-        state.subject=subjectEl.value.trim()||"Study";
-        subjectEl.value=state.subject;
-        save();
       });
       render();
       setInterval(render,250);
