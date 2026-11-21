@@ -102,6 +102,41 @@ begin
   end if;
 
   if exists (
+    select 1
+    from public.coolanas_files moving
+    join jsonb_to_recordset(p_changes) as change(id uuid, parent_id uuid, storage_path text)
+      on change.id = moving.id
+    join public.coolanas_files existing
+      on existing.owner_id = auth.uid()
+     and existing.parent_id is not distinct from change.parent_id
+     and existing.name = moving.name
+     and existing.id <> moving.id
+    where moving.owner_id = auth.uid()
+      and not exists (
+        select 1
+        from jsonb_to_recordset(p_changes) as selected(id uuid, parent_id uuid, storage_path text)
+        where selected.id = existing.id
+      )
+  ) then
+    raise exception 'A file or folder with that name already exists in the destination';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_to_recordset(p_changes) as first_change(id uuid, parent_id uuid, storage_path text)
+    join jsonb_to_recordset(p_changes) as second_change(id uuid, parent_id uuid, storage_path text)
+      on first_change.parent_id is not distinct from second_change.parent_id
+     and first_change.id < second_change.id
+    join public.coolanas_files first_item on first_item.id = first_change.id
+    join public.coolanas_files second_item on second_item.id = second_change.id
+    where first_item.owner_id = auth.uid()
+      and second_item.owner_id = auth.uid()
+      and first_item.name = second_item.name
+  ) then
+    raise exception 'The move would create duplicate names in a destination folder';
+  end if;
+
+  if exists (
     with recursive folder_descendants(root_id, id) as (
       select item.id, item.id
       from public.coolanas_files item
