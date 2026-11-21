@@ -385,18 +385,18 @@ document.getElementById("folder-color-options").addEventListener("click",async e
   const choice=event.target.closest("[data-color]");
   if(!choice||!activeSettingsItem||activeSettingsItem.item_type!=="folder")return;
   try{
-    await filesAction("update_metadata",{id:activeSettingsItem.id,folder_color:choice.dataset.color});
-    activeSettingsItem.folder_color=choice.dataset.color;
+    const result=await filesAction("update_metadata",{id:activeSettingsItem.id,folder_color:choice.dataset.color});
+    upsertItem(result.item);
     closeCardSettings();
-    await loadItems();
+    renderItems();
   }catch(error){alert("Could not update folder colour: "+error.message);}
 });
 tagInput.addEventListener("change",async()=>{
   if(!activeSettingsItem)return;
   try{
-    await filesAction("update_metadata",{id:activeSettingsItem.id,tag:tagInput.value.trim()||null});
-    activeSettingsItem.tag=tagInput.value.trim()||null;
-    await loadItems();
+    const result=await filesAction("update_metadata",{id:activeSettingsItem.id,tag:tagInput.value.trim()||null});
+    upsertItem(result.item);
+    renderItems();
   }catch(error){alert("Could not save tag: "+error.message);}
 });
 document.getElementById("card-settings-delete").addEventListener("click",async()=>{
@@ -406,8 +406,9 @@ document.getElementById("card-settings-delete").addEventListener("click",async()
   if(!confirmed)return;
   try{
     await filesAction("delete",{id:item.id});
+    removeCachedItems([item.id]);
     closeCardSettings();
-    await loadItems();
+    renderItems();
   }catch(error){alert("Could not delete item: "+error.message);}
 });
 document.getElementById("files-search-input").addEventListener("input",event=>{
@@ -437,6 +438,32 @@ async function loadItems(){
   const valid=new Set(items.map(item=>item.id));
   for(const id of [...selectedIds])if(!valid.has(id))selectedIds.delete(id);
   renderItems();
+}
+function upsertItem(item){
+  if(!item||typeof item.id!=="string")return null;
+  const existing=items.find(entry=>entry.id===item.id);
+  if(existing){
+    Object.assign(existing,item);
+    return existing;
+  }
+  items.push(item);
+  return item;
+}
+function removeCachedItems(ids){
+  const removed=new Set(ids.filter(id=>typeof id==="string"&&id));
+  let changed=true;
+  while(changed){
+    changed=false;
+    for(const item of items){
+      if(item.parent_id&&removed.has(item.parent_id)&&!removed.has(item.id)){
+        removed.add(item.id);
+        changed=true;
+      }
+    }
+  }
+  items=items.filter(item=>!removed.has(item.id));
+  for(const id of removed)selectedIds.delete(id);
+  if(currentFolderId&&removed.has(currentFolderId))currentFolderId=null;
 }
 function visibleItems(){
   return items.filter(item=>item.parent_id===currentFolderId&&item.name.toLocaleLowerCase().includes(searchQuery));
@@ -483,10 +510,16 @@ document.getElementById("selection-delete").addEventListener("click",async()=>{
   const count=selectedIds.size;
   if(!confirm("Delete "+count+" selected item"+(count===1?"":"s")+"? This cannot be undone."))return;
   try{
-    for(const id of ids)await filesAction("delete",{id});
+    for(const id of ids){
+      await filesAction("delete",{id});
+      removeCachedItems([id]);
+    }
     clearSelection();
-    await loadItems();
-  }catch(error){alert("Could not delete the selected items: "+error.message);}
+    renderItems();
+  }catch(error){
+    renderItems();
+    alert("Could not delete the selected items: "+error.message);
+  }
 });
 selectionColors.addEventListener("click",async event=>{
   const choice=event.target.closest("[data-color]");
@@ -495,11 +528,16 @@ selectionColors.addEventListener("click",async event=>{
   const folders=[...selectedIds].map(id=>items.find(item=>item.id===id)).filter(item=>item?.item_type==="folder");
   if(!folders.length)return;
   try{
-    for(const folder of folders)await filesAction("update_metadata",{id:folder.id,folder_color:color});
-    folders.forEach(folder=>folder.folder_color=color);
+    for(const folder of folders){
+      const result=await filesAction("update_metadata",{id:folder.id,folder_color:color});
+      upsertItem(result.item);
+    }
     clearSelection();
-    await loadItems();
-  }catch(error){alert("Could not recolour the selected folders: "+error.message);}
+    renderItems();
+  }catch(error){
+    renderItems();
+    alert("Could not recolour the selected folders: "+error.message);
+  }
 });
 window.addEventListener("resize",()=>{if(selectedIds.size)positionSelectionActions();});
 window.addEventListener("scroll",()=>{if(selectedIds.size)positionSelectionActions();},true);
@@ -812,8 +850,9 @@ async function createFolderPrompt(){
   const name=prompt("New folder name");
   if(!name||!name.trim())return;
   try{
-    await filesAction("create_folder",{parentId:currentFolderId,name:name.trim()});
-    await loadItems();
+    const result=await filesAction("create_folder",{parentId:currentFolderId,name:name.trim()});
+    upsertItem(result.item);
+    renderItems();
   }catch(error){alert(error.message);}
 }
 const retryableUploadStatuses=new Set([408,429,500,502,503,504]);
@@ -844,6 +883,7 @@ async function saveFile(file,parentId,name=file.name){
   try{
     await uploadToBackblaze(created.uploadUrl,created.contentType,file);
     await filesAction("finish_upload",{id:created.item.id});
+    upsertItem(created.item);
   }catch(error){
     try{await filesAction("delete",{id:created.item.id});}catch{}
     throw error;
@@ -872,7 +912,7 @@ async function uploadEntries(entries,parentId=currentFolderId){
           if(!folder){
             const response=await filesAction("create_folder",{parentId:parent,name:parts[index]});
             folder=response.item;
-            items.push(folder);
+            upsertItem(folder);
           }
           folderIds.set(key,folder.id);
         }
@@ -896,7 +936,7 @@ async function uploadEntries(entries,parentId=currentFolderId){
       processed++;
       setUploadProgress(processed,entries.length,"Processed "+processed+" of "+entries.length+" · uploaded "+done);
     }
-    await loadItems();
+    renderItems();
     if(failedUploads.length){
       const shownFailures=failedUploads.slice(0,8).join("\n");
       const remaining=failedUploads.length>8?"\n…and "+(failedUploads.length-8)+" more failed file(s).":"";
@@ -999,8 +1039,15 @@ async function moveItems(ids,targetParentId){
   if(!roots.length)return;
   try{
     await filesAction("move",{ids:roots,targetParentId});
+    let nextSortOrder=Math.max(0,...items.filter(item=>item.parent_id===targetParentId).map(item=>Number(item.sort_order)||0));
+    for(const id of roots){
+      const item=items.find(entry=>entry.id===id);
+      if(!item||item.parent_id===targetParentId)continue;
+      item.parent_id=targetParentId;
+      item.sort_order=nextSortOrder+=10;
+    }
     clearSelection();
-    await loadItems();
+    renderItems();
   }catch(error){alert("Could not move the selected items. "+error.message);}
 }
 async function reorderBefore(ids,targetId){
@@ -1018,8 +1065,9 @@ async function reorderBefore(ids,targetId){
   remaining.splice(Math.max(0,insertAt),0,...moving.map(id=>items.find(item=>item.id===id)).filter(Boolean));
   try{
     await filesAction("reorder",{ids:remaining.map(item=>item.id),targetParentId:parentId});
+    remaining.forEach((item,index)=>{item.sort_order=(index+1)*10;});
     clearSelection();
-    await loadItems();
+    renderItems();
   }catch(error){alert(error.message);}
 }
 
