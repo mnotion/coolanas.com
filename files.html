@@ -327,6 +327,83 @@ async function filesAction(action,payload={}){
   if(data?.error)throw new Error(data.error);
   return data;
 }
+const pendingMutationDb=new Promise((resolve,reject)=>{
+  const request=indexedDB.open("coolanas-files-sync",1);
+  request.onupgradeneeded=()=>{
+    const db=request.result;
+    if(!db.objectStoreNames.contains("mutations"))db.createObjectStore("mutations",{keyPath:"id"});
+  };
+  request.onsuccess=()=>resolve(request.result);
+  request.onerror=()=>reject(request.error||new Error("Could not open the pending sync queue."));
+});
+async function pendingMutationTransaction(mode,work){
+  const db=await pendingMutationDb;
+  return new Promise((resolve,reject)=>{
+    const transaction=db.transaction("mutations",mode);
+    const store=transaction.objectStore("mutations");
+    let result;
+    try{result=work(store);}catch(error){reject(error);return;}
+    transaction.oncomplete=()=>resolve(result?.result);
+    transaction.onerror=()=>reject(transaction.error||new Error("Pending sync storage failed."));
+    transaction.onabort=()=>reject(transaction.error||new Error("Pending sync transaction was aborted."));
+  });
+}
+async function savePendingMutation(mutation){
+  await pendingMutationTransaction("readwrite",store=>store.put(mutation));
+}
+async function readPendingMutations(){
+  const db=await pendingMutationDb;
+  return new Promise((resolve,reject)=>{
+    const transaction=db.transaction("mutations","readonly");
+    const request=transaction.objectStore("mutations").getAll();
+    request.onsuccess=()=>resolve(request.result||[]);
+    request.onerror=()=>reject(request.error||new Error("Could not read pending changes."));
+  });
+}
+async function removePendingMutations(ids){
+  await pendingMutationTransaction("readwrite",store=>ids.forEach(id=>store.delete(id)));
+}
+let pendingFlushPromise=null;
+async function applyPendingToCache(){
+  const pending=(await readPendingMutations()).filter(entry=>entry.userId===user.id).sort((a,b)=>a.createdAt-b.createdAt);
+  for(const entry of pending){
+    if(entry.type==="delete")removeCachedItems([entry.itemId]);
+    else if(entry.type==="metadata"){
+      const item=items.find(value=>value.id===entry.itemId);
+      if(item)Object.assign(item,entry.changes);
+    }
+  }
+}
+async function queueFileMutation(type,itemId,changes){
+  const mutation={id:crypto.randomUUID(),userId:user.id,type,itemId,changes:changes||{},createdAt:Date.now()};
+  await savePendingMutation(mutation);
+  if(type==="delete")removeCachedItems([itemId]);
+  else{
+    const item=items.find(value=>value.id===itemId);
+    if(item)Object.assign(item,changes||{});
+  }
+  renderItems();
+}
+async function flushPendingMutations(){
+  if(pendingFlushPromise)return pendingFlushPromise;
+  pendingFlushPromise=(async()=>{
+    const pending=(await readPendingMutations()).filter(entry=>entry.userId===user.id).sort((a,b)=>a.createdAt-b.createdAt).slice(0,100);
+    if(!pending.length)return;
+    const response=await filesAction("batch",{operations:pending.map(entry=>({type:entry.type,id:entry.itemId,changes:entry.changes}))});
+    await removePendingMutations(pending.map(entry=>entry.id));
+    for(const item of response.updatedItems||[])upsertItem(item);
+    for(const entry of pending)if(entry.type==="delete")removeCachedItems([entry.itemId]);
+    renderItems();
+  })().catch(error=>{
+    console.warn("File changes remain queued until the next sync:",error.message);
+  }).finally(()=>{pendingFlushPromise=null;});
+  return pendingFlushPromise;
+}
+setInterval(()=>{flushPendingMutations();},5000);
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="hidden")flushPendingMutations();
+});
+window.addEventListener("pagehide",()=>{flushPendingMutations();});
 const searchPanel=document.getElementById("search-panel");
 const menuPanel=document.getElementById("menu-panel");
 const searchToggle=document.getElementById("search-toggle");
@@ -385,18 +462,14 @@ document.getElementById("folder-color-options").addEventListener("click",async e
   const choice=event.target.closest("[data-color]");
   if(!choice||!activeSettingsItem||activeSettingsItem.item_type!=="folder")return;
   try{
-    const result=await filesAction("update_metadata",{id:activeSettingsItem.id,folder_color:choice.dataset.color});
-    upsertItem(result.item);
+    await queueFileMutation("metadata",activeSettingsItem.id,{folder_color:choice.dataset.color});
     closeCardSettings();
-    renderItems();
   }catch(error){alert("Could not update folder colour: "+error.message);}
 });
 tagInput.addEventListener("change",async()=>{
   if(!activeSettingsItem)return;
   try{
-    const result=await filesAction("update_metadata",{id:activeSettingsItem.id,tag:tagInput.value.trim()||null});
-    upsertItem(result.item);
-    renderItems();
+    await queueFileMutation("metadata",activeSettingsItem.id,{tag:tagInput.value.trim()||null});
   }catch(error){alert("Could not save tag: "+error.message);}
 });
 document.getElementById("card-settings-delete").addEventListener("click",async()=>{
@@ -405,10 +478,8 @@ document.getElementById("card-settings-delete").addEventListener("click",async()
   const confirmed=confirm("Delete “"+item.name+"”"+(item.item_type==="folder"?" and everything inside it":"")+"?");
   if(!confirmed)return;
   try{
-    await filesAction("delete",{id:item.id});
-    removeCachedItems([item.id]);
+    await queueFileMutation("delete",item.id,{});
     closeCardSettings();
-    renderItems();
   }catch(error){alert("Could not delete item: "+error.message);}
 });
 document.getElementById("files-search-input").addEventListener("input",event=>{
@@ -438,6 +509,7 @@ async function loadItems(){
   lastItemsLoad=Date.now();
   const valid=new Set(items.map(item=>item.id));
   for(const id of [...selectedIds])if(!valid.has(id))selectedIds.delete(id);
+  await applyPendingToCache();
   renderItems();
 }
 document.addEventListener("visibilitychange",()=>{
@@ -515,15 +587,12 @@ document.getElementById("selection-delete").addEventListener("click",async()=>{
   const count=selectedIds.size;
   if(!confirm("Delete "+count+" selected item"+(count===1?"":"s")+"? This cannot be undone."))return;
   try{
-    for(const id of ids){
-      await filesAction("delete",{id});
-      removeCachedItems([id]);
-    }
+    for(const id of ids)await queueFileMutation("delete",id,{});
     clearSelection();
     renderItems();
   }catch(error){
     renderItems();
-    alert("Could not delete the selected items: "+error.message);
+    alert("Could not queue the selected items for deletion: "+error.message);
   }
 });
 selectionColors.addEventListener("click",async event=>{
@@ -533,15 +602,12 @@ selectionColors.addEventListener("click",async event=>{
   const folders=[...selectedIds].map(id=>items.find(item=>item.id===id)).filter(item=>item?.item_type==="folder");
   if(!folders.length)return;
   try{
-    for(const folder of folders){
-      const result=await filesAction("update_metadata",{id:folder.id,folder_color:color});
-      upsertItem(result.item);
-    }
+    for(const folder of folders)await queueFileMutation("metadata",folder.id,{folder_color:color});
     clearSelection();
     renderItems();
   }catch(error){
     renderItems();
-    alert("Could not recolour the selected folders: "+error.message);
+    alert("Could not queue the folder colour changes: "+error.message);
   }
 });
 window.addEventListener("resize",()=>{if(selectedIds.size)positionSelectionActions();});
