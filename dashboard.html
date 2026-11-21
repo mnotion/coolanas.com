@@ -20,7 +20,24 @@
     .study-stopwatch-actions button:disabled{opacity:.45;cursor:not-allowed}
     .study-subjects{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-top:16px}
     .study-subject{padding:7px 11px;border:1px solid #dedede;border-radius:999px;background:#f7f7f7;color:#555;font:inherit;font-size:12px}
-    .task-placeholder{position:fixed;top:calc(50% + 155px);right:28px;transform:translateY(-50%);width:min(320px,calc(100vw - 170px));min-width:220px;padding:20px;border:1px solid #e3e3e3;border-radius:16px;background:#f3f3f3;box-shadow:0 4px 18px rgba(0,0,0,.035)}
+.study-subject{cursor:context-menu;user-select:none;transition:background .15s,border-color .15s,color .15s}
+    .study-subject-add{width:30px;height:30px;padding:0;border:1px dashed #bbb;border-radius:50%;background:#fff;color:#555;font:500 20px/1 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .study-subject-add:hover{border-color:#555;background:#f4f4f4}
+    .study-subject-input{width:118px;min-width:0;padding:7px 10px;border:1px solid #aaa;border-radius:999px;background:#fff;color:#222;font:inherit;font-size:12px;outline:none}
+    .study-subject-input[hidden],.subject-context-menu[hidden],.subject-editor[hidden]{display:none}
+    .subject-context-menu{position:fixed;z-index:40;min-width:120px;padding:5px;border:1px solid #e4e4e4;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.13)}
+    .subject-context-menu button{display:block;width:100%;padding:9px 10px;border:0;border-radius:6px;background:transparent;text-align:left;font:inherit;font-size:13px;cursor:pointer}
+    .subject-context-menu button:hover{background:#f1f1f1}
+    .subject-editor{position:fixed;z-index:39;top:50%;right:22px;transform:translateY(-50%);width:230px;padding:15px;border:1px solid #e3e3e3;border-radius:14px;background:rgba(255,255,255,.97);box-shadow:0 8px 30px rgba(0,0,0,.12)}
+    .subject-editor-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;font-size:14px}
+    .subject-editor-head button{width:27px;height:27px;border:0;border-radius:7px;background:#f1f1f1;font-size:19px;cursor:pointer}
+    #subject-editor-name{width:100%;height:36px;padding:0 9px;border:1px solid #ddd;border-radius:8px;font:inherit;font-size:13px;outline:none}
+    .subject-colours{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:16px 0}
+    .subject-colour{width:22px;height:22px;padding:0;border:2px solid transparent;border-radius:50%;cursor:pointer}
+    .subject-colour[aria-pressed="true"]{outline:2px solid #222;outline-offset:2px}
+    .subject-save{width:100%;height:35px;border:0;border-radius:8px;background:#222;color:#fff;font:600 12px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    @media(max-width:480px){.subject-editor{top:auto;right:14px;bottom:90px;transform:none;width:220px}.subject-colours{gap:7px}}
+        .task-placeholder{position:fixed;top:calc(50% + 155px);right:28px;transform:translateY(-50%);width:min(320px,calc(100vw - 170px));min-width:220px;padding:20px;border:1px solid #e3e3e3;border-radius:16px;background:#f3f3f3;box-shadow:0 4px 18px rgba(0,0,0,.035)}
     .task-placeholder-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
     .task-placeholder h2{margin:0;font-size:18px;font-weight:650;letter-spacing:-.02em}
     .task-placeholder-tag{padding:4px 8px;border-radius:999px;background:#e5e5e5;color:#666;font-size:11px;font-weight:600}
@@ -131,15 +148,12 @@
 <div class="study-stopwatch-time" id="study-stopwatch-time" role="timer" aria-live="off">00:00:00</div>
       <div class="study-stopwatch-actions"><button class="primary" id="study-stopwatch-toggle" type="button">Start</button><button id="study-stopwatch-reset" type="button">Reset</button></div>
       <div class="study-subjects" id="study-subjects" aria-label="Subjects">
-        <span class="study-subject">Maths</span>
-        <span class="study-subject">English</span>
-        <span class="study-subject">Biology</span>
-        <span class="study-subject">Chemistry</span>
-        <span class="study-subject">Physics</span>
-        <span class="study-subject">History</span>
-        <span class="study-subject">Geography</span>
-        <span class="study-subject">Computer Science</span>
+        <span class="study-subject" data-color="0">Maths</span><span class="study-subject" data-color="0">English</span><span class="study-subject" data-color="0">Biology</span><span class="study-subject" data-color="0">Chemistry</span><span class="study-subject" data-color="0">Physics</span><span class="study-subject" data-color="0">History</span><span class="study-subject" data-color="0">Geography</span><span class="study-subject" data-color="0">Computer Science</span>
+        <button class="study-subject-add" id="study-subject-add" type="button" aria-label="Add subject">+</button>
+        <input class="study-subject-input" id="study-subject-input" type="text" maxlength="32" placeholder="Subject name" aria-label="New subject" hidden>
       </div>
+      <div class="subject-context-menu" id="subject-context-menu" hidden><button type="button" data-action="edit">Edit</button><button type="button" data-action="delete">Delete</button></div>
+      <aside class="subject-editor" id="subject-editor" hidden aria-label="Edit subject"><div class="subject-editor-head"><strong>Edit subject</strong><button type="button" id="subject-editor-close" aria-label="Close">×</button></div><input id="subject-editor-name" type="text" maxlength="32" aria-label="Subject name"><div class="subject-colours" id="subject-colours" aria-label="Subject colour"></div><button type="button" class="subject-save" id="subject-save">Save</button></aside>
     </section>
     <section class="task-placeholder" aria-labelledby="task-placeholder-title">
       <div class="task-placeholder-head"><h2 id="task-placeholder-title">Task list</h2><span class="task-placeholder-tag">Coming soon</span></div>
@@ -438,6 +452,38 @@
       });
       render();
       setInterval(render,250);
+    })();
+
+    // Subject chips: inline creation, right-click actions and persistent colour/name editing.
+    (function setupSubjects(){
+      const container=document.getElementById("study-subjects");
+      const add=document.getElementById("study-subject-add");
+      const input=document.getElementById("study-subject-input");
+      const menu=document.getElementById("subject-context-menu");
+      const editor=document.getElementById("subject-editor");
+      const nameInput=document.getElementById("subject-editor-name");
+      const colours=document.getElementById("subject-colours");
+      const palette=["#e7e7e7","#f6caca","#f6dfaa","#d9edbd","#c9e7ef","#d7d0f2","#f0cce8"];
+      const key="coolanas-study-subjects-v1";
+      let subjects=[...container.querySelectorAll(".study-subject")].map(el=>({name:el.textContent.trim(),color:Number(el.dataset.color)||0}));
+      try{const saved=JSON.parse(localStorage.getItem(key)||"null");if(Array.isArray(saved))subjects=saved.filter(s=>s&&typeof s.name==="string").map(s=>({name:s.name.slice(0,32),color:Math.max(0,Math.min(6,Number(s.color)||0))}));}catch(error){console.warn("Could not restore subjects:",error);}
+      let activeIndex=-1,selectedColor=0;
+      function persist(){try{localStorage.setItem(key,JSON.stringify(subjects));}catch(error){console.warn("Could not save subjects:",error);}}
+      function render(){container.querySelectorAll(".study-subject").forEach(el=>el.remove());subjects.forEach((subject,index)=>{const chip=document.createElement("span");chip.className="study-subject";chip.textContent=subject.name;chip.dataset.index=String(index);chip.style.background=palette[subject.color];chip.style.borderColor=palette[subject.color];chip.style.color="#444";chip.title="Right-click to edit or delete";container.insertBefore(chip,add);});}
+      function closeMenu(){menu.hidden=true;}
+      function openEditor(index){activeIndex=index;selectedColor=subjects[index].color;nameInput.value=subjects[index].name;colours.replaceChildren();palette.forEach((color,i)=>{const swatch=document.createElement("button");swatch.type="button";swatch.className="subject-colour";swatch.style.background=color;swatch.setAttribute("aria-label","Colour "+(i+1));swatch.setAttribute("aria-pressed",String(i===selectedColor));swatch.addEventListener("click",()=>{selectedColor=i;colours.querySelectorAll("button").forEach((b,j)=>b.setAttribute("aria-pressed",String(j===i)));});colours.appendChild(swatch);});editor.hidden=false;nameInput.focus();nameInput.select();}
+      function addSubject(){input.hidden=false;add.hidden=true;input.value="";input.focus();}
+      function finishAdd(save){const value=input.value.trim();if(save&&value&&!subjects.some(s=>s.name.toLowerCase()===value.toLowerCase())){subjects.push({name:value.slice(0,32),color:0});persist();render();}input.hidden=true;add.hidden=false;}
+      add.addEventListener("click",addSubject);
+      input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();finishAdd(true);}if(event.key==="Escape")finishAdd(false);});
+      input.addEventListener("blur",()=>finishAdd(true));
+      container.addEventListener("contextmenu",event=>{const chip=event.target.closest(".study-subject");if(!chip)return;event.preventDefault();activeIndex=Number(chip.dataset.index);menu.hidden=false;menu.style.left=Math.min(event.clientX,window.innerWidth-135)+"px";menu.style.top=Math.min(event.clientY,window.innerHeight-85)+"px";});
+      menu.addEventListener("click",event=>{const action=event.target.closest("button")?.dataset.action;if(!action)return;closeMenu();if(action==="edit")openEditor(activeIndex);if(action==="delete"){subjects.splice(activeIndex,1);persist();render();}});
+      document.addEventListener("pointerdown",event=>{if(!menu.hidden&&!menu.contains(event.target))closeMenu();});
+      document.getElementById("subject-editor-close").addEventListener("click",()=>editor.hidden=true);
+      document.getElementById("subject-save").addEventListener("click",()=>{const value=nameInput.value.trim();if(!value){nameInput.focus();return;}if(subjects.some((s,i)=>i!==activeIndex&&s.name.toLowerCase()===value.toLowerCase())){nameInput.setCustomValidity("That subject already exists.");nameInput.reportValidity();return;}nameInput.setCustomValidity("");subjects[activeIndex]={name:value.slice(0,32),color:selectedColor};persist();render();editor.hidden=true;});
+      document.addEventListener("keydown",event=>{if(event.key==="Escape"){closeMenu();editor.hidden=true;}});
+      render();
     })();
 
     async function initialiseProfile(session){
