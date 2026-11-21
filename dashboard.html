@@ -12,10 +12,9 @@
     body:has(.bottom-nav:hover) main, body:has(.bottom-nav:focus-within) main { filter:brightness(.72) blur(2px); }
     body { min-height:100vh; font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     main { min-height:100vh; padding:24px 24px 112px; }
-    .contribution-card{position:fixed;z-index:10;top:50%;left:24px;transform:translateY(-50%);display:flex;flex-direction:column-reverse;gap:8px;box-sizing:border-box;width:112px;max-height:72vh;overflow:auto;padding:10px 14px;border:1px solid #dedede;border-radius:16px;background:#bdbdbd;box-shadow:0 4px 18px rgba(0,0,0,.045);touch-action:pan-y}
-    .contribution-head{display:flex;align-items:center;justify-content:center;gap:9px;margin:0;flex-shrink:0}
-    .contribution-head h1{margin:0;font-size:17px;font-weight:650;letter-spacing:-.02em}
-    .contribution-card.dragging{width:max-content;max-height:none;overflow:visible;padding:8px 12px;gap:0;transition:width .22s ease,height .22s ease,padding .22s ease}
+    .contribution-card{position:fixed;z-index:10;top:50%;left:24px;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;box-sizing:border-box;width:112px;max-height:72vh;overflow:auto;padding:10px 14px;border:1px solid #dedede;border-radius:16px;background:#bdbdbd;box-shadow:0 4px 18px rgba(0,0,0,.045);touch-action:pan-y}
+    .contribution-head{position:absolute;z-index:2;top:50%;right:-13px;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;margin:0}
+    .contribution-card.dragging{width:24px;height:24px;min-height:24px;max-height:none;overflow:visible;padding:0;gap:0;transition:width .22s ease,height .22s ease,padding .22s ease}
     .contribution-card.dragging .contribution-scroll{display:none}
     .contribution-card.settling{transition:left .42s cubic-bezier(.2,.85,.25,1),top .42s cubic-bezier(.2,.85,.25,1),right .42s cubic-bezier(.2,.85,.25,1),bottom .42s cubic-bezier(.2,.85,.25,1),transform .42s cubic-bezier(.2,.85,.25,1),width .3s ease,height .3s ease,padding .3s ease,max-height .3s ease}
     .contribution-drag-handle{display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid #d0d0d0;border-radius:7px;background:#f1f1f1;color:#777;cursor:grab;touch-action:none;font-size:15px;line-height:1;letter-spacing:-2px}
@@ -124,8 +123,8 @@
 </head>
 <body>
   <main aria-label="Dashboard"><div id="account-status" class="visually-hidden" aria-live="polite"></div><button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
-    <section class="contribution-card" id="contribution-card" data-position="left" aria-labelledby="contribution-title">
-      <div class="contribution-head"><h1 id="contribution-title">2026</h1><button class="contribution-drag-handle" id="contribution-drag-handle" type="button" aria-label="Drag calendar to another screen edge" title="Drag to move calendar">⠿</button></div>
+    <section class="contribution-card" id="contribution-card" data-position="left" aria-label="2026 calendar">
+      <div class="contribution-head"><button class="contribution-drag-handle" id="contribution-drag-handle" type="button" aria-label="Drag calendar to another screen edge" title="Drag to move calendar">⠿</button></div>
       <div class="contribution-scroll"><div class="contribution-grid" id="contribution-grid" aria-label="Days passed in 2026"></div></div>
     </section>
   </main>
