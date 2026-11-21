@@ -21,6 +21,8 @@
     .contribution-day.passed{background:#d94b4b}
     .contribution-day.today{outline:1px solid #d94b4b;outline-offset:1px}
     .contribution-day.empty{visibility:hidden}
+    .contribution-tooltip{position:fixed;z-index:30;display:none;pointer-events:none;padding:6px 9px;border:1px solid rgba(0,0,0,.1);border-radius:7px;background:#222;color:#fff;font-size:12px;font-weight:550;line-height:1.2;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.16)}
+    .contribution-tooltip.visible{display:block}
     @media(max-width:480px){.contribution-card{left:10px;width:104px;padding:13px 14px;max-height:66vh}.contribution-head h1{font-size:15px}.contribution-grid{grid-template-columns:repeat(7,8px);grid-auto-rows:8px;gap:3px}.contribution-day{width:8px;height:8px}}
     .profile-button{position:fixed;z-index:12;top:20px;right:22px;width:42px;height:42px;padding:0;overflow:hidden;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#eee;color:#555;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
     .profile-button img,.profile-identity img{width:100%;height:100%;object-fit:cover}
@@ -306,6 +308,25 @@
       const todayStart=new Date(today.getFullYear(),today.getMonth(),today.getDate());
       const firstWeekday=(yearStart.getDay()+6)%7;
       grid.replaceChildren();
+      let tooltip=document.getElementById("contribution-tooltip");
+      if(!tooltip){
+        tooltip=document.createElement("div");
+        tooltip.id="contribution-tooltip";
+        tooltip.className="contribution-tooltip";
+        tooltip.setAttribute("role","status");
+        document.body.appendChild(tooltip);
+      }
+      const hideTooltip=()=>tooltip.classList.remove("visible");
+      function positionTooltip(event){
+        if(event.pointerType==="touch")return;
+        const offset=12;
+        const width=tooltip.offsetWidth;
+        const height=tooltip.offsetHeight;
+        const left=Math.min(window.innerWidth-width-8,event.clientX+offset);
+        const top=Math.max(8,event.clientY-height-offset);
+        tooltip.style.left=Math.max(8,left)+"px";
+        tooltip.style.top=top+"px";
+      }
       for(let i=0;i<firstWeekday;i++){
         const blank=document.createElement("span");
         blank.className="contribution-day empty";
@@ -318,8 +339,23 @@
         const day=new Date(date.getFullYear(),date.getMonth(),date.getDate());
         if(day<todayStart)cell.classList.add("passed");
         if(day.getTime()===todayStart.getTime())cell.classList.add("today");
-        cell.title=date.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
-        cell.setAttribute("aria-label",cell.title+(day<todayStart?", passed":""));
+        const dateLabel=date.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
+        cell.setAttribute("aria-label",dateLabel+(day<todayStart?", passed":""));
+        cell.addEventListener("pointerenter",event=>{
+          if(event.pointerType==="touch")return;
+          tooltip.textContent=dateLabel;
+          tooltip.classList.add("visible");
+          positionTooltip(event);
+        });
+        cell.addEventListener("pointermove",positionTooltip);
+        cell.addEventListener("pointerleave",hideTooltip);
+        cell.addEventListener("focus",()=>{
+          tooltip.textContent=dateLabel;
+          tooltip.classList.add("visible");
+          const rect=cell.getBoundingClientRect();
+          positionTooltip({clientX:rect.right,clientY:rect.top,pointerType:"mouse"});
+        });
+        cell.addEventListener("blur",hideTooltip);
         grid.appendChild(cell);
       }
     }
