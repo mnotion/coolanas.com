@@ -474,11 +474,8 @@ Deno.serve(async (req) => {
       if (uniqueDeleteIds.length) {
         const rows = await ownedItems();
         const byId = new Map(rows.map((row: { id: string }) => [row.id, row]));
-        if (uniqueDeleteIds.some((id) => !byId.has(id))) {
-          return json(404, { error: "One or more selected items no longer exist." });
-        }
         const allIds = new Set<string>();
-        const frontier = [...uniqueDeleteIds];
+        const frontier = uniqueDeleteIds.filter((id) => byId.has(id));
         const keys: string[] = [];
         while (frontier.length) {
           const id = frontier.pop()!;
@@ -518,15 +515,14 @@ Deno.serve(async (req) => {
         const { data: owned, error: ownedError } = await supabase.from("coolanas_files")
           .select("id, item_type").eq("owner_id", user.id).in("id", group.ids);
         if (ownedError) throw ownedError;
-        if ((owned ?? []).length !== group.ids.length) {
-          return json(404, { error: "One or more items no longer exist." });
-        }
+        const existingIds = (owned ?? []).map((row: { id: string }) => row.id);
+        if (!existingIds.length) continue;
         if (Object.prototype.hasOwnProperty.call(group.patch, "folder_color") &&
             (owned ?? []).some((row: { item_type: string }) => row.item_type !== "folder")) {
           return json(400, { error: "Folder colours can only be changed on folders." });
         }
         const { data, error } = await supabase.from("coolanas_files")
-          .update(group.patch).eq("owner_id", user.id).in("id", group.ids).select("*");
+          .update(group.patch).eq("owner_id", user.id).in("id", existingIds).select("*");
         if (error) throw error;
         updatedItems.push(...(data ?? []));
       }
