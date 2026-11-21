@@ -389,6 +389,7 @@ async function removePendingMutations(ids){
   await pendingMutationTransaction("readwrite",store=>ids.forEach(id=>store.delete(id)));
 }
 let pendingFlushPromise=null;
+let batchSyncSupported=true;
 async function applyPendingToCache(){
   let pending=[];
   try{pending=(await readPendingMutations()).filter(entry=>entry.userId===user.id).sort((a,b)=>a.createdAt-b.createdAt);}
@@ -429,12 +430,17 @@ async function flushPendingMutations(){
     const pending=(await readPendingMutations()).filter(entry=>entry.userId===user.id).sort((a,b)=>a.createdAt-b.createdAt).slice(0,100);
     if(!pending.length)return;
     let updatedItems=[];
-    try{
-      const response=await filesAction("batch",{operations:pending.map(entry=>({type:entry.type,id:entry.itemId,changes:entry.changes}))});
-      updatedItems=response.updatedItems||[];
-      await removePendingMutations(pending.map(entry=>entry.id));
-    }catch(batchError){
-      if(batchError.message!=="Unknown action.")throw batchError;
+    if(batchSyncSupported){
+      try{
+        const response=await filesAction("batch",{operations:pending.map(entry=>({type:entry.type,id:entry.itemId,changes:entry.changes}))});
+        updatedItems=response.updatedItems||[];
+        await removePendingMutations(pending.map(entry=>entry.id));
+      }catch(batchError){
+        if(batchError.message!=="Unknown action.")throw batchError;
+        batchSyncSupported=false;
+      }
+    }
+    if(!batchSyncSupported){
       for(const entry of pending){
         try{
           if(entry.type==="delete")await filesAction("delete",{id:entry.itemId});
