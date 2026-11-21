@@ -355,6 +355,9 @@ Deno.serve(async (req) => {
           }
         }
       }
+      if (changes.length > 1000) {
+        return json(413, { error: "This move contains too many nested items. Move a smaller group." });
+      }
       for (const change of changes) {
         if (change.oldKey && !belongsToUserPath(change.oldKey)) {
           return json(403, { error: "A selected item has a storage path outside this account." });
