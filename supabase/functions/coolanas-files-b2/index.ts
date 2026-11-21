@@ -126,7 +126,6 @@ Deno.serve(async (req) => {
       await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: profilePictureKey }));
       return json(200, { success: true, exists: false });
     }
-    const action = body?.action;
     const parentId = body?.parentId == null ? null : cleanId(body.parentId);
     if (body?.parentId != null && !parentId) return json(400, { error: "Invalid folder." });
 
