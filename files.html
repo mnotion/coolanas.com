@@ -502,6 +502,14 @@ document.getElementById("signout").addEventListener("click",async()=>{
   button.disabled=true;
   button.textContent="Signing out…";
   try{
+    for(let attempt=0;attempt<10;attempt++){
+      await flushPendingMutations();
+      const remaining=(await readPendingMutations()).filter(entry=>entry.userId===user.id);
+      if(!remaining.length)break;
+      if(attempt===9)throw new Error("Some changes are still waiting to sync. Stay signed in and retry before signing out.");
+    }
+    const remaining=(await readPendingMutations()).some(entry=>entry.userId===user.id);
+    if(remaining)throw new Error("Some changes are still waiting to sync. Stay signed in and retry before signing out.");
     const {error}=await supabase.auth.signOut({scope:"local"});
     if(error)throw error;
     location.replace("index.html");
