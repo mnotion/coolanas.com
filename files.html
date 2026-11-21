@@ -428,9 +428,27 @@ async function flushPendingMutations(){
   pendingFlushPromise=(async()=>{
     const pending=(await readPendingMutations()).filter(entry=>entry.userId===user.id).sort((a,b)=>a.createdAt-b.createdAt).slice(0,100);
     if(!pending.length)return;
-    const response=await filesAction("batch",{operations:pending.map(entry=>({type:entry.type,id:entry.itemId,changes:entry.changes}))});
-    await removePendingMutations(pending.map(entry=>entry.id));
-    for(const item of response.updatedItems||[])upsertItem(item);
+    let updatedItems=[];
+    try{
+      const response=await filesAction("batch",{operations:pending.map(entry=>({type:entry.type,id:entry.itemId,changes:entry.changes}))});
+      updatedItems=response.updatedItems||[];
+      await removePendingMutations(pending.map(entry=>entry.id));
+    }catch(batchError){
+      if(batchError.message!=="Unknown action.")throw batchError;
+      for(const entry of pending){
+        try{
+          if(entry.type==="delete")await filesAction("delete",{id:entry.itemId});
+          else{
+            const response=await filesAction("update_metadata",{id:entry.itemId,...(entry.changes||{})});
+            if(response.item)updatedItems.push(response.item);
+          }
+        }catch(legacyError){
+          if(!/Item not found|File not found/i.test(legacyError.message))throw legacyError;
+        }
+        await removePendingMutations([entry.id]);
+      }
+    }
+    for(const item of updatedItems)upsertItem(item);
     for(const entry of pending)if(entry.type==="delete")removeCachedItems([entry.itemId]);
     renderItems();
     const remaining=(await readPendingMutations()).some(entry=>entry.userId===user.id);
