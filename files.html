@@ -18,8 +18,6 @@
     .add-menu[hidden]{display:none}
     .add-option{display:block;width:100%;padding:10px;border:0;border-radius:7px;background:transparent;color:#222;text-align:left;font:13px/1.4 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
     .add-option:hover{background:#f2f2f2}
-    .upload-status{width:100%;margin:0 0 14px;color:#555;font-size:13px;text-align:center}
-    .upload-status[hidden]{display:none}
     .files-list{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:center;gap:18px;width:100%;margin:0;padding:0}
     .file-card{display:flex;flex-direction:column;align-items:center;gap:10px;width:168px;min-height:176px;padding:18px;border:0;border-radius:12px;background:#fff;color:#222;font:inherit;font-size:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);cursor:pointer;transform:scale(var(--card-scale,1));transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease;transform-origin:center;position:relative;z-index:var(--card-z,1)}
     .file-card:hover,.file-card.is-pointer-hover{background:#fafafa;box-shadow:0 5px 16px rgba(0,0,0,.10);}
@@ -199,7 +197,6 @@
     <input id="file-picker" type="file" multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <input id="folder-picker" type="file" webkitdirectory multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <div class="files-toolbar" id="files-toolbar" hidden><button class="crumb-button" id="back-folder" type="button">← Back</button><span class="crumb-current" id="current-folder"></span></div>
-    <div class="upload-status" id="upload-status" role="status" aria-live="polite" hidden></div>
     <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
@@ -285,7 +282,6 @@ const currentFolder=document.getElementById("current-folder");
 const viewer=document.getElementById("file-viewer");
 const viewerTitle=document.getElementById("viewer-title");
 const viewerContent=document.getElementById("viewer-content");
-const status=document.getElementById("upload-status");
 const uploadOverlay=document.getElementById("upload-overlay");
 const uploadTitle=document.getElementById("upload-title");
 const uploadDetail=document.getElementById("upload-detail");
@@ -421,7 +417,6 @@ async function queueFileMutation(type,itemId,changes){
     const item=items.find(value=>value.id===itemId);
     if(item)Object.assign(item,changes||{});
   }
-  showStatus("Changes saved on this device. Syncing in the background.",true);
   renderItems();
 }
 async function flushPendingMutations(){
@@ -457,12 +452,8 @@ async function flushPendingMutations(){
     for(const item of updatedItems)upsertItem(item);
     for(const entry of pending)if(entry.type==="delete")removeCachedItems([entry.itemId]);
     renderItems();
-    const remaining=(await readPendingMutations()).some(entry=>entry.userId===user.id);
-    showStatus(remaining?"Some changes are still waiting to sync.":"All changes synced.",true);
-    if(!remaining)setTimeout(()=>{if(status.textContent==="All changes synced.")showStatus("",false);},1800);
   })().catch(error=>{
     console.warn("File changes remain queued until the next sync:",error.message);
-    showStatus("Changes are saved on this device and will retry syncing.",true);
   }).finally(()=>{pendingFlushPromise=null;});
   return pendingFlushPromise;
 }
@@ -565,10 +556,6 @@ document.getElementById("files-toggle").addEventListener("click",()=>{
   closeNavPanels();
   if(currentFolderId)openFolder(null);
 });
-function showStatus(message,visible=true){
-  status.textContent=message||"";
-  status.hidden=!visible;
-}
 function setUploadProgress(done,total,detail){
   uploadOverlay.hidden=false;
   uploadDetail.textContent=detail||("Uploading "+done+" of "+total);
@@ -1278,7 +1265,6 @@ try{migrated=await filesAction("migrate_prefix");}
 catch(error){console.warn("Existing file prefix migration could not finish:",error.message);}
 await loadItems();
 flushPendingMutations();
-if(migrated.migrated>0)showStatus("Updated storage folder: "+migrated.userFolder,true);
 
   </script></body>
 </html>
