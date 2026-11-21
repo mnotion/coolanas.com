@@ -73,8 +73,9 @@ Deno.serve(async (req) => {
   const { data: authData, error: authError } = await supabase.auth.getUser(token);
   const user = authData.user;
   if (authError || !user) return json(401, { error: "Your session is invalid. Sign in again." });
+  const userId = user.id;
 
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("username").eq("id", user.id).maybeSingle();
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("username").eq("id", userId).maybeSingle();
   if (profileError) return json(500, { error: "Could not load your account profile." });
   const username = profile?.username;
   if (!validUsername(username)) return json(409, { error: "Choose a valid username before using files." });
@@ -105,7 +106,7 @@ Deno.serve(async (req) => {
       if (!id) return null;
       const { data, error } = await supabase.from("coolanas_files")
         .select("id, owner_id, parent_id, name, item_type, storage_path")
-        .eq("id", id).eq("owner_id", user.id).eq("item_type", "folder").single();
+        .eq("id", id).eq("owner_id", userId).eq("item_type", "folder").single();
       if (error || !data) throw new Error("Folder not found or not owned by this account.");
       return data;
     }
@@ -117,7 +118,7 @@ Deno.serve(async (req) => {
         if (++depth > 40) throw new Error("Folder nesting is too deep.");
         const { data, error } = await supabase.from("coolanas_files")
           .select("id, parent_id, name, item_type, owner_id")
-          .eq("id", current).eq("owner_id", user.id).eq("item_type", "folder").single();
+          .eq("id", current).eq("owner_id", userId).eq("item_type", "folder").single();
         if (error || !data) throw new Error("Folder path could not be verified.");
         names.unshift(data.name);
         current = data.parent_id;
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
     }
     async function ownedItems() {
       const { data, error } = await supabase.from("coolanas_files")
-        .select("*").eq("owner_id", user.id);
+        .select("*").eq("owner_id", userId);
       if (error) throw error;
       return data ?? [];
     }
@@ -273,7 +274,7 @@ Deno.serve(async (req) => {
 
     if (action === "reorder") {
       const ids = Array.isArray(body.ids) ? body.ids.map(cleanId) : [];
-      if (!ids.length || ids.some((id) => !id) || ids.length > 200) return json(400, { error: "Invalid reorder list." });
+      if (!ids.length || ids.some((id: string | null) => !id) || ids.length > 200) return json(400, { error: "Invalid reorder list." });
       const uniqueIds = [...new Set(ids as string[])];
       const targetParent = body.targetParentId == null ? null : cleanId(body.targetParentId);
       if (body.targetParentId != null && !targetParent) return json(400, { error: "Invalid destination folder." });
@@ -293,7 +294,7 @@ Deno.serve(async (req) => {
 
     if (action === "move") {
       const ids = Array.isArray(body.ids) ? body.ids.map(cleanId) : [];
-      if (!ids.length || ids.some((id) => !id) || ids.length > 100) return json(400, { error: "Select one or more valid items." });
+      if (!ids.length || ids.some((id: string | null) => !id) || ids.length > 100) return json(400, { error: "Select one or more valid items." });
       const uniqueIds = [...new Set(ids as string[])];
       const targetParent = body.targetParentId == null ? null : cleanId(body.targetParentId);
       if (body.targetParentId != null && !targetParent) return json(400, { error: "Invalid destination folder." });
@@ -473,7 +474,9 @@ Deno.serve(async (req) => {
       let deleted = 0;
       if (uniqueDeleteIds.length) {
         const rows = await ownedItems();
-        const byId = new Map(rows.map((row: { id: string }) => [row.id, row]));
+        const byId = new Map<string, { id: string; item_type: string; storage_path: string | null; parent_id: string | null }>(
+          rows.map((row: any): [string, { id: string; item_type: string; storage_path: string | null; parent_id: string | null }] => [row.id, row]),
+        );
         const allIds = new Set<string>();
         const frontier = uniqueDeleteIds.filter((id) => byId.has(id));
         const keys: string[] = [];
