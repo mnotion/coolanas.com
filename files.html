@@ -497,10 +497,10 @@ document.getElementById("signout").addEventListener("click",async()=>{
       await flushPendingMutations();
       const remaining=(await readPendingMutations()).filter(entry=>entry.userId===user.id);
       if(!remaining.length)break;
-      if(attempt===9)throw new Error("Some changes are still waiting to sync. Stay signed in and retry before signing out.");
+      if(attempt===9)throw new Error("Some changes have not been saved yet. Stay signed in and retry before signing out.");
     }
     const remaining=(await readPendingMutations()).some(entry=>entry.userId===user.id);
-    if(remaining)throw new Error("Some changes are still waiting to sync. Stay signed in and retry before signing out.");
+    if(remaining)throw new Error("Some changes have not been saved yet. Stay signed in and retry before signing out.");
     const {error}=await supabase.auth.signOut({scope:"local"});
     if(error)throw error;
     location.replace("index.html");
