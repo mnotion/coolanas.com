@@ -247,7 +247,25 @@
 
     function setAvatar(url){
       for(const img of [profileAvatar,drawerAvatar]){
-        if(url){img.src=url;img.hidden=false;}else{img.removeAttribute("src");img.hidden=true;}
+        img.onerror=null;
+        if(url){
+          img.src=url;
+          img.hidden=false;
+          img.onerror=()=>{
+            img.onerror=null;
+            if(customProfilePicture&&googleAvatarUrl&&url!==googleAvatarUrl){
+              customProfilePicture=false;
+              setAvatar(googleAvatarUrl);
+            }else{
+              img.hidden=true;
+              avatarFallback.hidden=true;
+              drawerAvatarFallback.hidden=true;
+            }
+          };
+        }else{
+          img.removeAttribute("src");
+          img.hidden=true;
+        }
       }
       avatarFallback.hidden=Boolean(url);
       drawerAvatarFallback.hidden=Boolean(url);
@@ -273,8 +291,16 @@
       document.getElementById("profile-email").textContent=session.user.email||"";
       avatarFallback.textContent=String(displayName).trim().charAt(0).toUpperCase()||"?";
       drawerAvatarFallback.textContent=avatarFallback.textContent;
-      setAvatar(googleAvatarUrl);
-      try{await refreshProfilePicture();}catch(error){console.warn("Could not load custom profile picture:",error.message);}
+      // Keep the Google avatar hidden until storage confirms whether a custom
+      // Coolanas picture exists, preventing the wrong image from flashing.
+      setAvatar("");
+      try{
+        await refreshProfilePicture();
+      }catch(error){
+        console.warn("Could not load custom profile picture:",error.message);
+        customProfilePicture=false;
+        setAvatar(googleAvatarUrl);
+      }
     }
     function closeProfileDrawer(){
       profileDrawer.classList.remove("open");
