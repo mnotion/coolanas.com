@@ -292,7 +292,7 @@ const uploadDetail=document.getElementById("upload-detail");
 const uploadProgress=document.getElementById("upload-progress-bar");
 const dropHint=document.getElementById("drop-hint");
 const marquee=document.getElementById("selection-marquee");
-let items=[],currentFolderId=null,searchQuery="";
+let items=[],currentFolderId=null,searchQuery="",lastItemsLoad=0;
 const selectedIds=new Set();
 let activeSettingsItem=null;
 let pendingDeleteIds=[];
@@ -435,10 +435,15 @@ function hideUploadProgress(){
 async function loadItems(){
   const data=await filesAction("list");
   items=data.items||[];
+  lastItemsLoad=Date.now();
   const valid=new Set(items.map(item=>item.id));
   for(const id of [...selectedIds])if(!valid.has(id))selectedIds.delete(id);
   renderItems();
 }
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState!=="visible"||Date.now()-lastItemsLoad<30000)return;
+  loadItems().catch(error=>console.warn("Could not refresh files after returning to this tab:",error.message));
+});
 function upsertItem(item){
   if(!item||typeof item.id!=="string")return null;
   const existing=items.find(entry=>entry.id===item.id);
