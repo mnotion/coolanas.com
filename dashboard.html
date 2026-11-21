@@ -18,6 +18,8 @@
     .contribution-drag-handle{display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid #d0d0d0;border-radius:7px;background:#f1f1f1;color:#777;cursor:grab;touch-action:none;font-size:15px;line-height:1;letter-spacing:-2px}
     .contribution-drag-handle:active{cursor:grabbing}
     .contribution-card.dragging{opacity:.92;box-shadow:0 8px 28px rgba(0,0,0,.16);user-select:none;animation:contribution-wobble .16s ease-in-out infinite alternate}
+    .contribution-card.settling{transition:left .42s cubic-bezier(.2,.85,.25,1),top .42s cubic-bezier(.2,.85,.25,1),right .42s cubic-bezier(.2,.85,.25,1),bottom .42s cubic-bezier(.2,.85,.25,1),transform .42s cubic-bezier(.2,.85,.25,1),width .28s ease,max-height .28s ease;animation:none}
+    @media(prefers-reduced-motion:reduce){.contribution-card.settling{transition:none}}
     @keyframes contribution-wobble{from{rotate:-1.4deg}to{rotate:1.4deg}}
     @media(prefers-reduced-motion:reduce){.contribution-card.dragging{animation:none}}
     .contribution-scroll{width:100%;overflow:visible}
@@ -318,15 +320,41 @@
         bottom:{left:"50%",top:"auto",bottom:"18px",transform:"translateX(-50%)"},
         left:{left:"18px",right:"auto",top:"50%",bottom:"auto",transform:"translateY(-50%)"}
       };
-      function setPosition(name){
+      function setPosition(name,animate=false){
         const p=positions[name]||positions.left;
-        card.dataset.position=name in positions?name:"left";
-        card.classList.toggle("horizontal",name==="top"||name==="bottom");
-        card.style.left=p.left;
-        card.style.right=p.right||"auto";
-        card.style.top=p.top;
-        card.style.bottom=p.bottom||"auto";
-        card.style.transform=p.transform;
+        if(animate){
+          const current=card.getBoundingClientRect();
+          card.classList.add("settling");
+          card.style.left=(current.left+current.width/2)+"px";
+          card.style.top=(current.top+current.height/2)+"px";
+          card.style.right="auto";
+          card.style.bottom="auto";
+          card.style.transform="translate(-50%,-50%)";
+          card.classList.toggle("horizontal",name==="top"||name==="bottom");
+          card.dataset.position=name in positions?name:"left";
+          void card.offsetWidth;
+          requestAnimationFrame(()=>{
+            card.style.left=p.left;
+            card.style.right=p.right||"auto";
+            card.style.top=p.top;
+            card.style.bottom=p.bottom||"auto";
+            card.style.transform=p.transform;
+          });
+          const finish=event=>{
+            if(event.target!==card||event.propertyName!=="left"&&event.propertyName!=="top"&&event.propertyName!=="transform")return;
+            card.classList.remove("settling");
+            card.removeEventListener("transitionend",finish);
+          };
+          card.addEventListener("transitionend",finish);
+        }else{
+          card.dataset.position=name in positions?name:"left";
+          card.classList.toggle("horizontal",name==="top"||name==="bottom");
+          card.style.left=p.left;
+          card.style.right=p.right||"auto";
+          card.style.top=p.top;
+          card.style.bottom=p.bottom||"auto";
+          card.style.transform=p.transform;
+        }
       }
       setPosition("left");
       let drag=null;
@@ -359,7 +387,7 @@
           {name:"left",x:24,y:h/2}
         ];
         targets.sort((a,b)=>Math.hypot(x-a.x,y-a.y)-Math.hypot(x-b.x,y-b.y));
-        setPosition(targets[0].name);
+        setPosition(targets[0].name,true);
       }
       handle.addEventListener("pointerup",finishDrag);
       handle.addEventListener("pointercancel",finishDrag);
