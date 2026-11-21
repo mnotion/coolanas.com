@@ -1015,6 +1015,7 @@ async function uploadEntries(entries,parentId=currentFolderId){
   const folderIds=new Map();
   try{
     const prepared=[];
+    const plannedFolderFiles=new Set();
     for(const entry of entries){
       const displayName=entry.path||entry.file.name;
       const parts=(entry.path||entry.file.name).split("/").filter(Boolean);
@@ -1035,12 +1036,14 @@ async function uploadEntries(entries,parentId=currentFolderId){
       }
       const fileName=parts[parts.length-1];
       const isFolderImport=displayName.includes("/");
-      if(isFolderImport&&items.some(item=>item.item_type==="file"&&item.parent_id===parent&&item.name===fileName)){
+      const plannedKey=(parent||"root")+":"+fileName;
+      if(isFolderImport&&(items.some(item=>item.item_type==="file"&&item.parent_id===parent&&item.name===fileName)||plannedFolderFiles.has(plannedKey))){
         skipped++;
         processed++;
         setUploadProgress(processed,entries.length,"Skipped existing file "+fileName);
         continue;
       }
+      if(isFolderImport)plannedFolderFiles.add(plannedKey);
       prepared.push({entry,parent,fileName,displayName});
     }
     let nextUpload=0;
