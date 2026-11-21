@@ -99,6 +99,34 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const action = body?.action;
+    const profilePictureKey = prefix + "/assets/settings/profile-picture.png";
+
+    if (action === "profile_picture_get") {
+      try {
+        await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: profilePictureKey }));
+      } catch {
+        return json(200, { exists: false, url: null });
+      }
+      const url = await getSignedUrl(s3, new GetObjectCommand({
+        Bucket: bucket, Key: profilePictureKey,
+      }), { expiresIn: 300 });
+      return json(200, { exists: true, url });
+    }
+
+    if (action === "profile_picture_upload") {
+      const contentType = body?.contentType;
+      if (contentType !== "image/png") return json(400, { error: "Profile pictures must be PNG files." });
+      const url = await getSignedUrl(s3, new PutObjectCommand({
+        Bucket: bucket, Key: profilePictureKey, ContentType: "image/png",
+      }), { expiresIn: 300 });
+      return json(200, { uploadUrl: url, contentType: "image/png" });
+    }
+
+    if (action === "profile_picture_delete") {
+      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: profilePictureKey }));
+      return json(200, { success: true, exists: false });
+    }
+    const action = body?.action;
     const parentId = body?.parentId == null ? null : cleanId(body.parentId);
     if (body?.parentId != null && !parentId) return json(400, { error: "Invalid folder." });
 
