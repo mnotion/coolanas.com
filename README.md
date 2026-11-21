@@ -27,3 +27,7 @@ The `coolanas-files-b2` Edge Function supports a `batch` action for metadata cha
 5. Test create, upload, download, move, reorder, bulk delete, tag, colour, interrupted sync, and sign-out/reload flows.
 
 Do not commit `.env.local`, Supabase access tokens, Backblaze application keys, or service-role keys. Do not deploy this function to the currently active Supabase project as part of development-branch work. Validate it against an isolated staging Supabase project and a non-production B2 bucket first.
+
+## Deployment warning
+
+GitHub Pages is currently building and deploying from pushes to `development`. Treat this branch as publicly deployed, not as an isolated preview branch. The B2 Edge Function source in this repository is not automatically deployed to Supabase; the client temporarily falls back to the existing action endpoints until the batch function is deployed to an isolated staging project.
