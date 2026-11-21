@@ -174,7 +174,7 @@
     async function requireUsername(session){
       const {data:profile,error:profileError}=await supabase.from("profiles").select("username").eq("id",session.user.id).maybeSingle();
       if(profileError) throw profileError;
-      if(profile?.username){location.replace("files.html");return;}
+      if(profile?.username){return;}
       accountStatus.textContent="One more step: create your Coolanas username.";
       usernameForm.hidden=false;
       usernameForm.style.display="block";
@@ -199,7 +199,6 @@
             if(metadataError) console.warn("Username profile saved; auth metadata sync failed:",metadataError.message);
             usernameError.textContent="";
             resolve();
-            location.replace("files.html");
           }catch(error){
             usernameError.textContent=error?.message||"Could not save username.";
             usernameSubmit.disabled=false;
