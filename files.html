@@ -490,7 +490,7 @@ function toggleNavPanel(panel,toggle){
 searchToggle.addEventListener("click",()=>toggleNavPanel(searchPanel,searchToggle));
 menuToggle.addEventListener("click",()=>toggleNavPanel(menuPanel,menuToggle));
 document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
-document.getElementById("menu-home").addEventListener("click",()=>location.href="index.html");
+document.getElementById("menu-home").addEventListener("click",()=>location.assign("/dashboard.html"));
 document.getElementById("signout").addEventListener("click",async()=>{
   const button=document.getElementById("signout");
   button.disabled=true;
