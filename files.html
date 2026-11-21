@@ -191,6 +191,18 @@
     .menu-item:hover{background:rgba(0,0,0,.05)}
     @media(max-width:480px){main{padding:16px 16px 90px}.bottom-nav{bottom:12px}.panel{bottom:76px}}
     @media(prefers-reduced-motion:reduce){html,body{transition:none}.nav-button{transition:none}.nav-button:hover,.nav-button:active,.bottom-nav:has(.nav-button:hover) .nav-button:not(:hover){transform:none}body:has(.bottom-nav:hover) main,body:has(.bottom-nav:focus-within) main{filter:none}}
+
+    html.dark-mode,html.dark-mode body{background:#151515!important;color:#eee!important;color-scheme:dark}
+    html.dark-mode .file-card,html.dark-mode .panel,html.dark-mode .confirm-panel,html.dark-mode .viewer-panel,html.dark-mode .card-settings-panel{background:#262626!important;color:#eee!important;border-color:#444!important}
+    html.dark-mode .file-name,html.dark-mode .viewer-head strong,html.dark-mode .panel-heading h2,html.dark-mode .confirm-title,html.dark-mode .settings-header h2,html.dark-mode .settings-section-title{color:#eee!important}
+    html.dark-mode .bottom-nav{background:rgba(45,45,45,.94)!important;border-color:#555!important}
+    html.dark-mode .nav-button{background:#303030!important;color:#eee!important;border-color:#555!important}
+    html.dark-mode .add-button,html.dark-mode .add-menu,html.dark-mode .add-option,html.dark-mode .confirm-button,html.dark-mode .crumb-button,html.dark-mode .search-input,html.dark-mode .settings-section-content input{background:#303030!important;color:#eee!important;border-color:#555!important}
+    html.dark-mode .file-tag{background:#3a3a3a!important;color:#ddd!important}
+    html.dark-mode .upload-card{background:#292929!important;color:#eee!important;border-color:#555!important}
+    html.dark-mode .upload-title{color:#eee!important}
+    html.dark-mode .upload-mini{background:#292929!important;color:#eee!important;border-color:#555!important}
+    html.dark-mode .viewer-content{color:#eee!important}
   </style>
 </head>
 <body>
@@ -252,7 +264,7 @@
   </section>
   <section class="panel" id="menu-panel" aria-label="Menu" hidden>
     <div class="panel-heading"><h2>Menu</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
-    <nav class="menu-list"><button class="menu-item" id="menu-home" type="button">Home</button><button class="menu-item" id="signout" type="button">Sign out</button></nav>
+    <nav class="menu-list"><button class="menu-item" id="menu-home" type="button">Home</button><button class="menu-item" id="files-theme-toggle" type="button">Switch to dark mode</button><button class="menu-item" id="signout" type="button">Sign out</button></nav>
   </section>
   <nav class="bottom-nav" aria-label="Main navigation">
     <a class="nav-button" id="home-toggle" href="/dashboard.html" aria-label="Home">
@@ -286,6 +298,18 @@ const currentFolder=document.getElementById("current-folder");
 const viewer=document.getElementById("file-viewer");
 const viewerTitle=document.getElementById("viewer-title");
 const viewerContent=document.getElementById("viewer-content");
+const filesThemeToggle=document.getElementById("files-theme-toggle");
+function applyFilesTheme(mode){
+  document.documentElement.classList.toggle("dark-mode",mode==="dark");
+  filesThemeToggle.textContent=mode==="dark"?"Switch to light mode":"Switch to dark mode";
+}
+applyFilesTheme(localStorage.getItem("coolanas-theme")==="dark"?"dark":"light");
+filesThemeToggle.addEventListener("click",()=>{
+  const mode=document.documentElement.classList.contains("dark-mode")?"light":"dark";
+  try{localStorage.setItem("coolanas-theme",mode);}catch{}
+  applyFilesTheme(mode);
+});
+window.addEventListener("storage",event=>{if(event.key==="coolanas-theme")applyFilesTheme(event.newValue==="dark"?"dark":"light");});
 const uploadOverlay=document.getElementById("upload-overlay");
 const uploadTitle=document.getElementById("upload-title");
 const uploadDetail=document.getElementById("upload-detail");
