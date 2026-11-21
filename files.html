@@ -420,6 +420,7 @@ async function queueFileMutation(type,itemId,changes){
     const item=items.find(value=>value.id===itemId);
     if(item)Object.assign(item,changes||{});
   }
+  showStatus("Changes saved on this device. Syncing in the background.",true);
   renderItems();
 }
 async function flushPendingMutations(){
@@ -432,8 +433,12 @@ async function flushPendingMutations(){
     for(const item of response.updatedItems||[])upsertItem(item);
     for(const entry of pending)if(entry.type==="delete")removeCachedItems([entry.itemId]);
     renderItems();
+    const remaining=(await readPendingMutations()).some(entry=>entry.userId===user.id);
+    showStatus(remaining?"Some changes are still waiting to sync.":"All changes synced.",true);
+    if(!remaining)setTimeout(()=>{if(status.textContent==="All changes synced.")showStatus("",false);},1800);
   })().catch(error=>{
     console.warn("File changes remain queued until the next sync:",error.message);
+    showStatus("Changes are saved on this device and will retry syncing.",true);
   }).finally(()=>{pendingFlushPromise=null;});
   return pendingFlushPromise;
 }
