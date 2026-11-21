@@ -147,7 +147,7 @@
         <input class="study-subject-input" id="study-subject-input" type="text" maxlength="32" placeholder="Subject name" aria-label="New subject" hidden>
       </div>
     </section>
-    <div class="subject-context-menu" id="subject-context-menu" hidden><button type="button" data-action="rename">Rename</button><button type="button" data-action="colour">Colour</button><div class="subject-menu-colours" id="subject-menu-colours" hidden></div></div>
+    <div class="subject-context-menu" id="subject-context-menu" hidden><button type="button" data-action="rename">Rename</button><button type="button" data-action="colour">Colour</button><div class="subject-menu-colours" id="subject-menu-colours" hidden></div><button type="button" data-action="delete">Delete</button></div>
     <section class="task-placeholder" aria-labelledby="task-placeholder-title">
       <div class="task-placeholder-head"><h2 id="task-placeholder-title">Task list</h2><span class="task-placeholder-tag">Coming soon</span></div>
       <div class="task-placeholder-empty"><strong>Your tasks will live here</strong><p>Task management is not available yet.</p></div>
@@ -505,6 +505,7 @@
         const action=event.target.closest("button")?.dataset.action;
         if(action==="rename")beginInlineEdit(activeIndex);
         if(action==="colour")colourRow.hidden=!colourRow.hidden;
+        if(action==="delete"){subjects.splice(activeIndex,1);persist();render();closeMenu();}
       });
       document.addEventListener("pointerdown",event=>{if(!menu.hidden&&!menu.contains(event.target))closeMenu();});
       document.addEventListener("keydown",event=>{if(event.key==="Escape")closeMenu();});
