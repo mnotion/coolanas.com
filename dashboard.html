@@ -131,6 +131,20 @@
       .nav-button:hover,.nav-button:active,.bottom-nav:has(.nav-button:hover) .nav-button:not(:hover) { transform:none; }
       body:has(.bottom-nav:hover) main, body:has(.bottom-nav:focus-within) main { filter:none; }
     }
+
+    html.dark-mode,html.dark-mode body{background:#111!important;color:#eee!important;color-scheme:dark}
+    html.dark-mode body:has(.bottom-nav:hover),html.dark-mode body:has(.bottom-nav:focus-within){background:#191919!important}
+    html.dark-mode .profile-drawer,html.dark-mode .panel,html.dark-mode .subject-context-menu,html.dark-mode .task-placeholder,html.dark-mode .upload-card{background:rgba(35,35,35,.97)!important;color:#eee!important;border-color:#444!important}
+    html.dark-mode .profile-drawer strong,html.dark-mode .panel-heading h2,html.dark-mode .subject-context-menu button,html.dark-mode .task-placeholder strong{color:#eee!important}
+    html.dark-mode .menu-item,html.dark-mode .study-stopwatch-actions button,html.dark-mode .subject-menu-colours button{background:#292929!important;color:#eee!important;border-color:#555!important}
+    html.dark-mode .study-subject,html.dark-mode .study-subject-add,html.dark-mode .study-subject-input,html.dark-mode input{background:#292929!important;color:#eee!important;border-color:#555!important}
+    html.dark-mode .bottom-nav{background:rgba(45,45,45,.94)!important;border-color:#555!important}
+    html.dark-mode .nav-button{background:#303030!important;color:#eee!important;border-color:#555!important}
+    html.dark-mode .contribution-card{background:#292929!important;border-color:#555!important}
+    html.dark-mode .contribution-day{background:#555!important}
+    html.dark-mode .contribution-day.passed{background:#d94b4b!important}
+    html.dark-mode .task-placeholder-empty{border-color:#555!important}
+    html.dark-mode .subject-context-menu>button:hover,html.dark-mode .menu-item:hover{background:#3a3a3a!important}
   </style>
 </head>
 <body>
@@ -160,6 +174,7 @@
       <button class="menu-item" id="change-pfp" type="button">Change profile picture</button>
       <button class="menu-item" id="remove-pfp" type="button" hidden>Remove profile picture</button>
       <button class="menu-item" id="change-account" type="button">Change account</button>
+      <button class="menu-item" id="theme-toggle" type="button">Switch to dark mode</button>
       <button class="menu-item" id="profile-signout" type="button">Sign out</button>
     </nav>
     <input id="profile-picture-input" type="file" accept="image/*" hidden>
@@ -296,6 +311,15 @@
     const avatarFallback=document.getElementById("profile-avatar-fallback");
     const drawerAvatarFallback=document.getElementById("drawer-avatar-fallback");
     const removePfpButton=document.getElementById("remove-pfp");
+    const themeToggle=document.getElementById("theme-toggle");
+    function applyTheme(mode){
+      document.documentElement.classList.toggle("dark-mode",mode==="dark");
+      themeToggle.textContent=mode==="dark"?"Switch to light mode":"Switch to dark mode";
+      try{localStorage.setItem("coolanas-theme",mode);}catch{}
+    }
+    applyTheme(localStorage.getItem("coolanas-theme")==="dark"?"dark":"light");
+    themeToggle.addEventListener("click",()=>applyTheme(document.documentElement.classList.contains("dark-mode")?"light":"dark"));
+    window.addEventListener("storage",event=>{if(event.key==="coolanas-theme")applyTheme(event.newValue==="dark"?"dark":"light");});
     let googleAvatarUrl="";
 
     function setAvatar(url){
