@@ -15,6 +15,7 @@
     .profile-button{position:fixed;z-index:12;top:20px;right:22px;width:42px;height:42px;padding:0;overflow:hidden;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#eee;color:#555;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
     .profile-button img,.profile-identity img{width:100%;height:100%;object-fit:cover}
     #profile-avatar-fallback,#drawer-avatar-fallback{font-weight:650;font-size:15px}
+    #profile-avatar[hidden],#drawer-avatar[hidden],#profile-avatar-fallback[hidden],#drawer-avatar-fallback[hidden]{display:none!important}
     .profile-backdrop{position:fixed;inset:0;z-index:19;background:rgba(0,0,0,.18);backdrop-filter:blur(2px)}
     .profile-backdrop[hidden]{display:none}
     .profile-drawer{position:fixed;z-index:20;top:0;right:0;width:min(360px,88vw);height:100dvh;padding:22px;background:rgba(255,255,255,.96);border-left:1px solid rgba(0,0,0,.08);box-shadow:-12px 0 40px rgba(0,0,0,.12);transform:translateX(105%);transition:transform .22s ease;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
@@ -119,7 +120,6 @@
     <nav class="menu-list">
       <button class="menu-item" id="menu-home" type="button">Home</button>
       <button class="menu-item" id="menu-files" type="button">Files</button>
-      <button class="menu-item" id="menu-signout" type="button">Sign out</button>
     </nav>
   </section>
 
