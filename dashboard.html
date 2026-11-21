@@ -24,19 +24,13 @@
     .study-subject-add{width:30px;height:30px;padding:0;border:1px dashed #bbb;border-radius:50%;background:#fff;color:#555;font:500 20px/1 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
     .study-subject-add:hover{border-color:#555;background:#f4f4f4}
     .study-subject-input{width:118px;min-width:0;padding:7px 10px;border:1px solid #aaa;border-radius:999px;background:#fff;color:#222;font:inherit;font-size:12px;outline:none}
-    .study-subject-input[hidden],.subject-context-menu[hidden],.subject-editor[hidden]{display:none}
-    .subject-context-menu{position:fixed;z-index:40;min-width:120px;padding:5px;border:1px solid #e4e4e4;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.13)}
-    .subject-context-menu button{display:block;width:100%;padding:9px 10px;border:0;border-radius:6px;background:transparent;text-align:left;font:inherit;font-size:13px;cursor:pointer}
-    .subject-context-menu button:hover{background:#f1f1f1}
-    .subject-editor{position:fixed;z-index:39;top:50%;right:22px;transform:translateY(-50%);width:230px;padding:15px;border:1px solid #e3e3e3;border-radius:14px;background:rgba(255,255,255,.97);box-shadow:0 8px 30px rgba(0,0,0,.12)}
-    .subject-editor-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;font-size:14px}
-    .subject-editor-head button{width:27px;height:27px;border:0;border-radius:7px;background:#f1f1f1;font-size:19px;cursor:pointer}
-    #subject-editor-name{width:100%;height:36px;padding:0 9px;border:1px solid #ddd;border-radius:8px;font:inherit;font-size:13px;outline:none}
-    .subject-colours{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin:16px 0}
-    .subject-colour{width:22px;height:22px;padding:0;border:2px solid transparent;border-radius:50%;cursor:pointer}
+    .study-subject-input[hidden],.subject-context-menu[hidden],.subject-menu-colours[hidden]{display:none}
+    .subject-context-menu{position:fixed;z-index:40;min-width:132px;padding:5px;border:1px solid #e4e4e4;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.13)}
+    .subject-context-menu>button{display:block;width:100%;padding:8px 10px;border:0;border-radius:6px;background:transparent;text-align:left;font:inherit;font-size:12px;cursor:pointer}
+    .subject-context-menu>button:hover{background:#f1f1f1}
+    .subject-menu-colours{display:flex;gap:7px;align-items:center;padding:9px 6px 5px;border-top:1px solid #eee;margin-top:3px}
+    .subject-colour{width:17px;height:17px;flex:none;padding:0;border:1px solid rgba(0,0,0,.08);border-radius:50%;cursor:pointer}
     .subject-colour[aria-pressed="true"]{outline:2px solid #222;outline-offset:2px}
-    .subject-save{width:100%;height:35px;border:0;border-radius:8px;background:#222;color:#fff;font:600 12px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
-    @media(max-width:480px){.subject-editor{top:auto;right:14px;bottom:90px;transform:none;width:220px}.subject-colours{gap:7px}}
         .task-placeholder{position:fixed;top:calc(50% + 155px);right:28px;transform:translateY(-50%);width:min(320px,calc(100vw - 170px));min-width:220px;padding:20px;border:1px solid #e3e3e3;border-radius:16px;background:#f3f3f3;box-shadow:0 4px 18px rgba(0,0,0,.035)}
     .task-placeholder-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
     .task-placeholder h2{margin:0;font-size:18px;font-weight:650;letter-spacing:-.02em}
@@ -153,8 +147,7 @@
         <input class="study-subject-input" id="study-subject-input" type="text" maxlength="32" placeholder="Subject name" aria-label="New subject" hidden>
       </div>
     </section>
-    <div class="subject-context-menu" id="subject-context-menu" hidden><button type="button" data-action="edit">Edit</button><button type="button" data-action="delete">Delete</button></div>
-    <aside class="subject-editor" id="subject-editor" hidden aria-label="Edit subject"><div class="subject-editor-head"><strong>Edit subject</strong><button type="button" id="subject-editor-close" aria-label="Close">×</button></div><input id="subject-editor-name" type="text" maxlength="32" aria-label="Subject name"><div class="subject-colours" id="subject-colours" aria-label="Subject colour"></div><button type="button" class="subject-save" id="subject-save">Save</button></aside>
+    <div class="subject-context-menu" id="subject-context-menu" hidden><button type="button" data-action="rename">Rename</button><button type="button" data-action="colour">Colour</button><div class="subject-menu-colours" id="subject-menu-colours" hidden></div></div>
     <section class="task-placeholder" aria-labelledby="task-placeholder-title">
       <div class="task-placeholder-head"><h2 id="task-placeholder-title">Task list</h2><span class="task-placeholder-tag">Coming soon</span></div>
       <div class="task-placeholder-empty"><strong>Your tasks will live here</strong><p>Task management is not available yet.</p></div>
@@ -454,35 +447,67 @@
       setInterval(render,250);
     })();
 
-    // Subject chips: inline creation, right-click actions and persistent colour/name editing.
+    // Subject chips: inline add/rename and compact colour menu.
     (function setupSubjects(){
       const container=document.getElementById("study-subjects");
       const add=document.getElementById("study-subject-add");
       const input=document.getElementById("study-subject-input");
       const menu=document.getElementById("subject-context-menu");
-      const editor=document.getElementById("subject-editor");
-      const nameInput=document.getElementById("subject-editor-name");
-      const colours=document.getElementById("subject-colours");
+      const colourRow=document.getElementById("subject-menu-colours");
       const palette=["#e7e7e7","#f6caca","#f6dfaa","#d9edbd","#c9e7ef","#d7d0f2","#f0cce8"];
       const key="coolanas-study-subjects-v1";
       let subjects=[...container.querySelectorAll(".study-subject")].map(el=>({name:el.textContent.trim(),color:Number(el.dataset.color)||0}));
       try{const saved=JSON.parse(localStorage.getItem(key)||"null");if(Array.isArray(saved))subjects=saved.filter(s=>s&&typeof s.name==="string").map(s=>({name:s.name.slice(0,32),color:Math.max(0,Math.min(6,Number(s.color)||0))}));}catch(error){console.warn("Could not restore subjects:",error);}
-      let activeIndex=-1,selectedColor=0;
+      let activeIndex=-1,editingIndex=-1;
       function persist(){try{localStorage.setItem(key,JSON.stringify(subjects));}catch(error){console.warn("Could not save subjects:",error);}}
-      function render(){container.querySelectorAll(".study-subject").forEach(el=>el.remove());subjects.forEach((subject,index)=>{const chip=document.createElement("span");chip.className="study-subject";chip.textContent=subject.name;chip.dataset.index=String(index);chip.style.background=palette[subject.color];chip.style.borderColor=palette[subject.color];chip.style.color="#444";chip.title="Double-click to edit or delete";container.insertBefore(chip,add);});}
-      function closeMenu(){menu.hidden=true;}
-      function openEditor(index){activeIndex=index;selectedColor=subjects[index].color;nameInput.value=subjects[index].name;colours.replaceChildren();palette.forEach((color,i)=>{const swatch=document.createElement("button");swatch.type="button";swatch.className="subject-colour";swatch.style.background=color;swatch.setAttribute("aria-label","Colour "+(i+1));swatch.setAttribute("aria-pressed",String(i===selectedColor));swatch.addEventListener("click",()=>{selectedColor=i;colours.querySelectorAll("button").forEach((b,j)=>b.setAttribute("aria-pressed",String(j===i)));});colours.appendChild(swatch);});editor.hidden=false;nameInput.focus();nameInput.select();}
-      function addSubject(){input.hidden=false;add.hidden=true;input.value="";input.focus();}
-      function finishAdd(save){const value=input.value.trim();if(save&&value&&!subjects.some(s=>s.name.toLowerCase()===value.toLowerCase())){subjects.push({name:value.slice(0,32),color:0});persist();render();}input.hidden=true;add.hidden=false;}
-      add.addEventListener("click",addSubject);
-      input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();finishAdd(true);}if(event.key==="Escape")finishAdd(false);});
-      input.addEventListener("blur",()=>finishAdd(true));
-      container.addEventListener("dblclick",event=>{const chip=event.target.closest(".study-subject");if(!chip)return;event.preventDefault();activeIndex=Number(chip.dataset.index);menu.hidden=false;const rect=chip.getBoundingClientRect();menu.style.left=Math.min(rect.left,window.innerWidth-135)+"px";menu.style.top=Math.min(rect.bottom+6,window.innerHeight-85)+"px";});
-      menu.addEventListener("click",event=>{const action=event.target.closest("button")?.dataset.action;if(!action)return;closeMenu();if(action==="edit")openEditor(activeIndex);if(action==="delete"){subjects.splice(activeIndex,1);persist();render();}});
+      function render(){container.querySelectorAll(".study-subject").forEach(el=>el.remove());subjects.forEach((subject,index)=>{const chip=document.createElement("span");chip.className="study-subject";chip.textContent=subject.name;chip.dataset.index=String(index);chip.style.background=palette[subject.color];chip.style.borderColor=palette[subject.color];chip.style.color="#444";chip.title="Double-click for subject options";container.insertBefore(chip,add);});}
+      function closeMenu(){menu.hidden=true;colourRow.hidden=true;}
+      function beginInlineEdit(index,isNew=false){
+        closeMenu();editingIndex=isNew?-1:index;
+        const chip=isNew?null:container.querySelector('.study-subject[data-index="'+index+'"]');
+        if(chip)chip.hidden=true;
+        add.hidden=true;input.hidden=false;input.value=isNew?"":subjects[index].name;
+        if(chip)chip.parentNode.insertBefore(input,chip);
+        else container.insertBefore(input,add);
+        input.focus();input.select();
+      }
+      function finishInlineEdit(save){
+        const value=input.value.trim();
+        if(save&&value){
+          const duplicate=subjects.some((s,i)=>i!==editingIndex&&s.name.toLowerCase()===value.toLowerCase());
+          if(!duplicate){
+            if(editingIndex<0)subjects.push({name:value.slice(0,32),color:0});
+            else subjects[editingIndex].name=value.slice(0,32);
+            persist();
+          }
+        }
+        input.hidden=true;add.hidden=false;render();
+      }
+      function openMenu(chip){
+        activeIndex=Number(chip.dataset.index);closeMenu();menu.hidden=false;
+        const rect=chip.getBoundingClientRect();
+        menu.style.left=Math.max(6,Math.min(rect.left,window.innerWidth-150))+"px";
+        menu.style.top=Math.max(6,Math.min(rect.bottom+5,window.innerHeight-80))+"px";
+        colourRow.replaceChildren();
+        palette.forEach((color,i)=>{
+          const swatch=document.createElement("button");swatch.type="button";swatch.className="subject-colour";
+          swatch.style.background=color;swatch.setAttribute("aria-label","Colour "+(i+1));
+          swatch.setAttribute("aria-pressed",String(subjects[activeIndex].color===i));
+          swatch.addEventListener("click",()=>{subjects[activeIndex].color=i;persist();render();closeMenu();});
+          colourRow.appendChild(swatch);
+        });
+      }
+      add.addEventListener("click",()=>beginInlineEdit(-1,true));
+      input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();finishInlineEdit(true);}if(event.key==="Escape"){event.preventDefault();finishInlineEdit(false);}});
+      input.addEventListener("blur",()=>finishInlineEdit(true));
+      container.addEventListener("dblclick",event=>{const chip=event.target.closest(".study-subject");if(chip)openMenu(chip);});
+      menu.addEventListener("click",event=>{
+        const action=event.target.closest("button")?.dataset.action;
+        if(action==="rename")beginInlineEdit(activeIndex);
+        if(action==="colour")colourRow.hidden=!colourRow.hidden;
+      });
       document.addEventListener("pointerdown",event=>{if(!menu.hidden&&!menu.contains(event.target))closeMenu();});
-      document.getElementById("subject-editor-close").addEventListener("click",()=>editor.hidden=true);
-      document.getElementById("subject-save").addEventListener("click",()=>{const value=nameInput.value.trim();if(!value){nameInput.focus();return;}if(subjects.some((s,i)=>i!==activeIndex&&s.name.toLowerCase()===value.toLowerCase())){nameInput.setCustomValidity("That subject already exists.");nameInput.reportValidity();return;}nameInput.setCustomValidity("");subjects[activeIndex]={name:value.slice(0,32),color:selectedColor};persist();render();editor.hidden=true;});
-      document.addEventListener("keydown",event=>{if(event.key==="Escape"){closeMenu();editor.hidden=true;}});
+      document.addEventListener("keydown",event=>{if(event.key==="Escape")closeMenu();});
       render();
     })();
 
