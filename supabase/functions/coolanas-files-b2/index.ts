@@ -284,11 +284,11 @@ Deno.serve(async (req) => {
       if (selected.some((row) => !row) || selected.some((row: { parent_id: string | null }) => row.parent_id !== targetParent)) {
         return json(400, { error: "Items must be in the same folder to reorder." });
       }
-      for (let index = 0; index < uniqueIds.length; index++) {
-        const { error } = await supabase.from("coolanas_files").update({ sort_order: (index + 1) * 10 })
-          .eq("id", uniqueIds[index]).eq("owner_id", user.id);
-        if (error) throw error;
-      }
+      const { error: reorderError } = await supabase.rpc("coolanas_reorder_files", {
+        p_ids: uniqueIds,
+        p_parent_id: targetParent,
+      });
+      if (reorderError) throw reorderError;
       return json(200, { success: true });
     }
 
@@ -367,13 +367,15 @@ Deno.serve(async (req) => {
         }
         newKeys.push(change.newKey);
       }
-      for (const change of changes) {
-        const { error } = await supabase.from("coolanas_files").update({
-          parent_id: change.newParentId, storage_path: change.newKey,
-        }).eq("id", change.id).eq("owner_id", user.id);
-        if (error) throw error;
-        movedIds.push(change.id);
-      }
+      const { error: moveError } = await supabase.rpc("coolanas_move_files", {
+        p_changes: changes.map((change) => ({
+          id: change.id,
+          parent_id: change.newParentId,
+          storage_path: change.newKey,
+        })),
+      });
+      if (moveError) throw moveError;
+      movedIds.push(...changes.map((change) => change.id));
       for (const oldKey of oldKeys) await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: oldKey }));
       return json(200, { success: true, moved: movedIds.length });
     }
