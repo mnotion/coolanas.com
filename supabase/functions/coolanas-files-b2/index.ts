@@ -262,8 +262,10 @@ Deno.serve(async (req) => {
         patch.folder_color = color;
       }
       if (Object.prototype.hasOwnProperty.call(body, "tag")) {
-        if (typeof body.tag !== "string" || body.tag.length > 32) return json(400, { error: "Tag must be 32 characters or fewer." });
-        patch.tag = body.tag.trim() || null;
+        if (body.tag !== null && (typeof body.tag !== "string" || body.tag.length > 32)) {
+          return json(400, { error: "Tag must be 32 characters or fewer." });
+        }
+        patch.tag = typeof body.tag === "string" ? body.tag.trim() || null : null;
       }
       if (!Object.keys(patch).length) return json(400, { error: "No metadata changes supplied." });
       const { data, error } = await supabase.from("coolanas_files").update(patch)
@@ -450,10 +452,10 @@ Deno.serve(async (req) => {
           patch.folder_color = color;
         }
         if (Object.prototype.hasOwnProperty.call(changes, "tag")) {
-          if (typeof changes.tag !== "string" || changes.tag.length > 32) {
+          if (changes.tag !== null && (typeof changes.tag !== "string" || changes.tag.length > 32)) {
             return json(400, { error: "Tag must be 32 characters or fewer." });
           }
-          patch.tag = changes.tag.trim() || null;
+          patch.tag = typeof changes.tag === "string" ? changes.tag.trim() || null : null;
         }
         if (!Object.keys(patch).length) {
           return json(400, { error: "No metadata changes supplied." });
