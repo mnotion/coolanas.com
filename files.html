@@ -1012,23 +1012,23 @@ function retryDelay(response,attempt){
   }
   return Math.min(1000*2**(attempt-1)+Math.random()*250,15000);
 }
-async function uploadToBackblaze(uploadUrl,contentType,file){
+async function uploadToBackblaze(uploadUrl,contentType,file,signal){
   const maxAttempts=5;
   for(let attempt=1;attempt<=maxAttempts;attempt++){
-    const response=await fetch(uploadUrl,{method:"PUT",headers:{"Content-Type":contentType},body:file});
+    const response=await fetch(uploadUrl,{method:"PUT",headers:{"Content-Type":contentType},body:file,signal});
     if(response.ok)return;
     if(!retryableUploadStatuses.has(response.status)||attempt===maxAttempts){
       if(response.status===503)throw new Error("Backblaze is temporarily unavailable (HTTP 503) after "+attempt+" attempts. Please try the upload again.");
       if(response.status===429)throw new Error("Backblaze asked us to slow down (HTTP 429) after "+attempt+" attempts. Please try the upload again.");
       throw new Error("Backblaze rejected this file (HTTP "+response.status+").");
     }
-    await new Promise(resolve=>setTimeout(resolve,retryDelay(response,attempt)));
+    await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,retryDelay(response,attempt));signal?.addEventListener("abort",()=>{clearTimeout(timer);reject(new DOMException("Upload cancelled","AbortError"));},{once:true});});
   }
 }
-async function saveFile(file,parentId,name=file.name){
+async function saveFile(file,parentId,name=file.name,signal){
   const created=await filesAction("create_upload",{parentId,name,contentType:file.type||"application/octet-stream"});
   try{
-    await uploadToBackblaze(created.uploadUrl,created.contentType,file);
+    await uploadToBackblaze(created.uploadUrl,created.contentType,file,signal);
     await filesAction("finish_upload",{id:created.item.id});
     upsertItem(created.item);
   }catch(error){
@@ -1040,9 +1040,10 @@ async function uploadEntries(entries,parentId=currentFolderId){
   if(!entries.length)return;
   clearSelection();
   uploadTitle.textContent="Uploading files";
-  let done=0;
-  let processed=0;
-  let skipped=0;
+  activeUploadController=new AbortController();
+  const signal=activeUploadController.signal;
+  uploadMinimised=false;uploadCancelled=false;uploadMini.hidden=true;
+  let done=0,processed=0,skipped=0;
   const failedUploads=[];
   setUploadProgress(0,entries.length,"Preparing "+entries.length+" item(s)…");
   const folderIds=new Map();
@@ -1050,66 +1051,57 @@ async function uploadEntries(entries,parentId=currentFolderId){
     const prepared=[];
     const plannedFolderFiles=new Set();
     for(const entry of entries){
+      if(signal.aborted)throw new DOMException("Upload cancelled","AbortError");
       const displayName=entry.path||entry.file.name;
       const parts=(entry.path||entry.file.name).split("/").filter(Boolean);
       if(!parts.length)continue;
       let parent=parentId;
       for(let index=0;index<parts.length-1;index++){
+        if(signal.aborted)throw new DOMException("Upload cancelled","AbortError");
         const key=(parent||"root")+":"+parts.slice(0,index+1).join("/");
         if(!folderIds.has(key)){
           let folder=items.find(item=>item.item_type==="folder"&&item.parent_id===parent&&item.name===parts[index]);
           if(!folder){
             const response=await filesAction("create_folder",{parentId:parent,name:parts[index]});
-            folder=response.item;
-            upsertItem(folder);
+            folder=response.item;upsertItem(folder);
           }
           folderIds.set(key,folder.id);
         }
         parent=folderIds.get(key);
       }
-      const fileName=parts[parts.length-1];
-      const isFolderImport=displayName.includes("/");
+      const fileName=parts[parts.length-1],isFolderImport=displayName.includes("/");
       const plannedKey=(parent||"root")+":"+fileName;
       if(isFolderImport&&(items.some(item=>item.item_type==="file"&&item.parent_id===parent&&item.name===fileName)||plannedFolderFiles.has(plannedKey))){
-        skipped++;
-        processed++;
-        setUploadProgress(processed,entries.length,"Skipped existing file "+fileName);
-        continue;
+        skipped++;processed++;setUploadProgress(processed,entries.length,"Skipped existing file "+fileName);continue;
       }
       if(isFolderImport)plannedFolderFiles.add(plannedKey);
       prepared.push({entry,parent,fileName,displayName});
     }
     let nextUpload=0;
     async function uploadWorker(){
-      while(true){
+      while(!signal.aborted){
         const index=nextUpload++;
         if(index>=prepared.length)return;
         const task=prepared[index];
         setUploadProgress(processed,entries.length,task.displayName);
-        try{
-          await saveFile(task.entry.file,task.parent,task.fileName);
-          done++;
-        }catch(error){
-          failedUploads.push(task.displayName+": "+error.message);
-        }
+        try{await saveFile(task.entry.file,task.parent,task.fileName,signal);done++;}
+        catch(error){if(error.name==="AbortError"||signal.aborted)return;failedUploads.push(task.displayName+": "+error.message);}
         processed++;
         setUploadProgress(processed,entries.length,"Processed "+processed+" of "+entries.length+" · uploaded "+done);
       }
     }
-    const workerCount=Math.min(3,prepared.length);
-    await Promise.all(Array.from({length:workerCount},()=>uploadWorker()));
+    await Promise.all(Array.from({length:Math.min(3,prepared.length)},()=>uploadWorker()));
     renderItems();
     if(failedUploads.length){
       const shownFailures=failedUploads.slice(0,8).join("\n");
       const remaining=failedUploads.length>8?"\n…and "+(failedUploads.length-8)+" more failed file(s).":"";
       alert("Upload finished: "+done+" of "+entries.length+" files uploaded; "+skipped+" existing file(s) skipped. Failed files:\n"+shownFailures+remaining+"\nFiles that uploaded successfully are saved.");
     }
+    if(signal.aborted){await loadItems().catch(()=>{});}
   }catch(error){
     await loadItems().catch(()=>{});
-    alert("Upload stopped after "+processed+" of "+entries.length+" files. "+error.message+" Files that uploaded successfully are saved.");
-  }finally{
-    hideUploadProgress();
-  }
+    if(!signal.aborted)alert("Upload stopped after "+processed+" of "+entries.length+" files. "+error.message+" Files that uploaded successfully are saved.");
+  }finally{hideUploadProgress();}
 }
 const picker=document.getElementById("file-picker");
 const folderPicker=document.getElementById("folder-picker");
