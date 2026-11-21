@@ -18,6 +18,9 @@
     .study-stopwatch-actions button{flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:9px;background:#fff;color:#222;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
     .study-stopwatch-actions .primary{border-color:#222;background:#222;color:#fff}
     .study-stopwatch-actions button:disabled{opacity:.45;cursor:not-allowed}
+    .study-subjects{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-top:16px}
+    .study-subject{padding:7px 11px;border:1px solid #dedede;border-radius:999px;background:#fff;color:#555;font:inherit;font-size:12px;cursor:pointer}
+    .study-subject[aria-pressed="true"]{border-color:#222;background:#222;color:#fff}
     .task-placeholder{position:fixed;top:calc(50% + 155px);right:28px;transform:translateY(-50%);width:min(320px,calc(100vw - 170px));min-width:220px;padding:20px;border:1px solid #e3e3e3;border-radius:16px;background:#f3f3f3;box-shadow:0 4px 18px rgba(0,0,0,.035)}
     .task-placeholder-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
     .task-placeholder h2{margin:0;font-size:18px;font-weight:650;letter-spacing:-.02em}
@@ -128,6 +131,16 @@
     <section class="study-stopwatch" aria-label="Study timer">
 <div class="study-stopwatch-time" id="study-stopwatch-time" role="timer" aria-live="off">00:00:00</div>
       <div class="study-stopwatch-actions"><button class="primary" id="study-stopwatch-toggle" type="button">Start</button><button id="study-stopwatch-reset" type="button">Reset</button></div>
+      <div class="study-subjects" id="study-subjects" aria-label="Subjects">
+        <button class="study-subject" type="button" data-subject="Maths" aria-pressed="true">Maths</button>
+        <button class="study-subject" type="button" data-subject="English" aria-pressed="false">English</button>
+        <button class="study-subject" type="button" data-subject="Biology" aria-pressed="false">Biology</button>
+        <button class="study-subject" type="button" data-subject="Chemistry" aria-pressed="false">Chemistry</button>
+        <button class="study-subject" type="button" data-subject="Physics" aria-pressed="false">Physics</button>
+        <button class="study-subject" type="button" data-subject="History" aria-pressed="false">History</button>
+        <button class="study-subject" type="button" data-subject="Geography" aria-pressed="false">Geography</button>
+        <button class="study-subject" type="button" data-subject="Computer Science" aria-pressed="false">Computer Science</button>
+      </div>
     </section>
     <section class="task-placeholder" aria-labelledby="task-placeholder-title">
       <div class="task-placeholder-head"><h2 id="task-placeholder-title">Task list</h2><span class="task-placeholder-tag">Coming soon</span></div>
@@ -387,11 +400,11 @@
       const toggleButton=document.getElementById("study-stopwatch-toggle");
       const resetButton=document.getElementById("study-stopwatch-reset");
       const storageKey="coolanas-study-stopwatch-v1";
-      let state={elapsed:0,startedAt:null};
+      let state={elapsed:0,startedAt:null,subject:"Maths"};
       try{
         const saved=JSON.parse(localStorage.getItem(storageKey)||"null");
         if(saved&&typeof saved.elapsed==="number"){
-          state={elapsed:Math.max(0,saved.elapsed),startedAt:Number.isFinite(saved.startedAt)?saved.startedAt:null};
+          state={elapsed:Math.max(0,saved.elapsed),startedAt:Number.isFinite(saved.startedAt)?saved.startedAt:null,subject:typeof saved.subject==="string"?saved.subject:"Maths"};
         }
       }catch(error){console.warn("Could not restore stopwatch:",error);}
       const elapsedNow=()=>state.elapsed+(state.startedAt?Math.max(0,Date.now()-state.startedAt):0);
@@ -405,6 +418,13 @@
       function save(){
         try{localStorage.setItem(storageKey,JSON.stringify(state));}catch(error){console.warn("Could not save stopwatch:",error);}
       }
+      const subjectButtons=[...document.querySelectorAll(".study-subject")];
+      subjectButtons.forEach(button=>button.addEventListener("click",()=>{
+        state.subject=button.dataset.subject;
+        subjectButtons.forEach(item=>item.setAttribute("aria-pressed",String(item===button)));
+        save();
+      }));
+      subjectButtons.forEach(button=>button.setAttribute("aria-pressed",String(button.dataset.subject===state.subject)));
       function render(){
         timeEl.textContent=format(elapsedNow());
         const running=Boolean(state.startedAt);
