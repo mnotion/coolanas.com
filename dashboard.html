@@ -171,12 +171,9 @@
     <input class="search-input" id="search-input" type="search" placeholder="Search…" autocomplete="off">
   </section>
 
-  <section class="panel" id="menu-panel" aria-label="Menu" hidden>
-    <div class="panel-heading"><h2>Menu</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
-    <nav class="menu-list">
-      <button class="menu-item" id="menu-home" type="button">Home</button>
-      <button class="menu-item" id="menu-files" type="button">Files</button>
-    </nav>
+  <section class="panel" id="analytics-panel" aria-label="Analytics" hidden>
+    <div class="panel-heading"><h2>Analytics</h2><button class="close-button" type="button" data-close aria-label="Close">×</button></div>
+    <div class="empty-state"><p>Study analytics are coming soon.</p></div>
   </section>
 
   <nav class="bottom-nav" aria-label="Main navigation">
@@ -192,8 +189,8 @@
     <a class="nav-button" id="files-toggle" href="/files.html" aria-label="Open Files">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6a2.5 2.5 0 0 1 2.5 2.5v8A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5z"></path><path d="M3.5 10h17"></path></svg>
     </a>
-    <button class="nav-button" id="menu-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu-panel">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    <button class="nav-button" id="analytics-toggle" type="button" aria-label="Analytics" aria-expanded="false" aria-controls="analytics-panel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5"></path><path d="M4 19h17"></path><path d="m7 15 4-4 3 2 5-6"></path><path d="M19 7h-4"></path><path d="M19 7v4"></path></svg>
     </button>
   </nav>
 
@@ -637,14 +634,14 @@
     }
 
     const navSearch=document.getElementById("search-toggle");
-    const navMenu=document.getElementById("menu-toggle");
+    const navAnalytics=document.getElementById("analytics-toggle");
     const searchPanel=document.getElementById("search-panel");
-    const menuPanel=document.getElementById("menu-panel");
+    const analyticsPanel=document.getElementById("analytics-panel");
     function closeNavPanels(){
       searchPanel.hidden=true;
-      menuPanel.hidden=true;
+      analyticsPanel.hidden=true;
       navSearch.setAttribute("aria-expanded","false");
-      navMenu.setAttribute("aria-expanded","false");
+      navAnalytics.setAttribute("aria-expanded","false");
     }
     function toggleNavPanel(panel,button){
       const shouldOpen=panel.hidden;
@@ -655,10 +652,8 @@
         panel.querySelector("input")?.focus();
       }
     }
-    navMenu.addEventListener("click",()=>toggleNavPanel(menuPanel,navMenu));
+    navAnalytics.addEventListener("click",()=>toggleNavPanel(analyticsPanel,navAnalytics));
     document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
-    document.getElementById("menu-home").addEventListener("click",closeNavPanels);
-    document.getElementById("menu-files").addEventListener("click",()=>location.assign("files.html"));
     document.addEventListener("keydown",event=>{if(event.key==="Escape")closeNavPanels();});
   </script></body>
 </html>
