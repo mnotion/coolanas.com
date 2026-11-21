@@ -12,18 +12,25 @@
     body:has(.bottom-nav:hover) main, body:has(.bottom-nav:focus-within) main { filter:brightness(.72) blur(2px); }
     body { min-height:100vh; font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     main { min-height:100vh; padding:24px 24px 112px; }
-    .contribution-card{position:absolute;top:50%;left:24px;transform:translateY(-50%);box-sizing:border-box;width:112px;max-height:72vh;overflow-y:auto;overflow-x:hidden;padding:16px 14px;border:1px solid #dedede;border-radius:16px;background:#e5e5e5;box-shadow:0 4px 18px rgba(0,0,0,.045)}
-    .contribution-head{margin-bottom:12px;text-align:center}
+    .contribution-card{position:fixed;z-index:10;top:50%;left:24px;transform:translateY(-50%);box-sizing:border-box;width:112px;max-height:72vh;overflow:auto;padding:13px 14px;border:1px solid #dedede;border-radius:16px;background:#e5e5e5;box-shadow:0 4px 18px rgba(0,0,0,.045);touch-action:pan-y}
+    .contribution-head{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:12px}
     .contribution-head h1{margin:0;font-size:17px;font-weight:650;letter-spacing:-.02em}
+    .contribution-drag-handle{display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid #d0d0d0;border-radius:7px;background:#f1f1f1;color:#777;cursor:grab;touch-action:none;font-size:15px;line-height:1;letter-spacing:-2px}
+    .contribution-drag-handle:active{cursor:grabbing}
+    .contribution-card.dragging{opacity:.88;box-shadow:0 8px 28px rgba(0,0,0,.16);user-select:none}
     .contribution-scroll{width:100%;overflow:visible}
     .contribution-grid{display:grid;grid-auto-flow:row;grid-template-columns:repeat(7,9px);grid-auto-rows:9px;gap:3px;width:max-content;max-width:100%;margin:0 auto}
+    .contribution-card.horizontal{width:min(90vw,760px);max-width:calc(100vw - 24px);max-height:40vh;overflow:auto}
+    .contribution-card.horizontal .contribution-head{margin-bottom:10px}
+    .contribution-card.horizontal .contribution-grid{grid-auto-flow:column;grid-template-columns:none;grid-template-rows:repeat(7,9px);grid-auto-columns:9px}
+    .contribution-card.horizontal .contribution-scroll{overflow-x:auto;overflow-y:hidden;padding:2px 0 5px}
     .contribution-day{width:9px;height:9px;border-radius:2.5px;background:#f5f5f5}
     .contribution-day.passed{background:#d94b4b}
     .contribution-day.today{outline:1px solid #d94b4b;outline-offset:1px}
     .contribution-day.empty{visibility:hidden}
     .contribution-tooltip{position:fixed;z-index:30;display:none;pointer-events:none;padding:6px 9px;border:1px solid rgba(0,0,0,.1);border-radius:7px;background:#222;color:#fff;font-size:12px;font-weight:550;line-height:1.2;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.16)}
     .contribution-tooltip.visible{display:block}
-    @media(max-width:480px){.contribution-card{left:10px;width:104px;padding:13px 14px;max-height:66vh}.contribution-head h1{font-size:15px}.contribution-grid{grid-template-columns:repeat(7,8px);grid-auto-rows:8px;gap:3px}.contribution-day{width:8px;height:8px}}
+    @media(max-width:480px){.contribution-card{width:104px;padding:13px 12px;max-height:66vh}.contribution-head h1{font-size:15px}.contribution-grid{grid-template-columns:repeat(7,8px);grid-auto-rows:8px;gap:3px}.contribution-card.horizontal{width:calc(100vw - 20px);max-height:36vh}.contribution-card.horizontal .contribution-grid{grid-template-rows:repeat(7,8px);grid-auto-columns:8px}.contribution-day{width:8px;height:8px}}
     .profile-button{position:fixed;z-index:12;top:20px;right:22px;width:42px;height:42px;padding:0;overflow:hidden;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#eee;color:#555;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
     .profile-button img,.profile-identity img{width:100%;height:100%;object-fit:cover}
     #profile-avatar-fallback,#drawer-avatar-fallback{font-weight:650;font-size:15px}
@@ -109,8 +116,8 @@
 </head>
 <body>
   <main aria-label="Dashboard"><div id="account-status" class="visually-hidden" aria-live="polite"></div><button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
-    <section class="contribution-card" aria-labelledby="contribution-title">
-      <div class="contribution-head"><h1 id="contribution-title">2026</h1></div>
+    <section class="contribution-card" id="contribution-card" data-position="left" aria-labelledby="contribution-title">
+      <div class="contribution-head"><h1 id="contribution-title">2026</h1><button class="contribution-drag-handle" id="contribution-drag-handle" type="button" aria-label="Drag calendar to another screen edge" title="Drag to move calendar">⠿</button></div>
       <div class="contribution-scroll"><div class="contribution-grid" id="contribution-grid" aria-label="Days passed in 2026"></div></div>
     </section>
   </main>
@@ -300,7 +307,64 @@
       customProfilePicture=Boolean(result.exists&&result.url);
       setAvatar(customProfilePicture?result.url:googleAvatarUrl);
     }
+    function setupContributionPosition(){
+      const card=document.getElementById("contribution-card");
+      const handle=document.getElementById("contribution-drag-handle");
+      const positions={
+        top:{left:"50%",top:"18px",transform:"translateX(-50%)"},
+        right:{left:"auto",right:"18px",top:"50%",transform:"translateY(-50%)"},
+        bottom:{left:"50%",top:"auto",bottom:"18px",transform:"translateX(-50%)"},
+        left:{left:"18px",right:"auto",top:"50%",bottom:"auto",transform:"translateY(-50%)"}
+      };
+      function setPosition(name){
+        const p=positions[name]||positions.left;
+        card.dataset.position=name in positions?name:"left";
+        card.classList.toggle("horizontal",name==="top"||name==="bottom");
+        card.style.left=p.left;
+        card.style.right=p.right||"auto";
+        card.style.top=p.top;
+        card.style.bottom=p.bottom||"auto";
+        card.style.transform=p.transform;
+      }
+      setPosition("left");
+      let drag=null;
+      handle.addEventListener("pointerdown",event=>{
+        event.preventDefault();
+        const rect=card.getBoundingClientRect();
+        drag={pointerId:event.pointerId,dx:event.clientX-(rect.left+rect.width/2),dy:event.clientY-(rect.top+rect.height/2)};
+        handle.setPointerCapture(event.pointerId);
+        card.classList.add("dragging");
+        card.style.left=(rect.left+rect.width/2)+"px";
+        card.style.top=(rect.top+rect.height/2)+"px";
+        card.style.right="auto";
+        card.style.bottom="auto";
+        card.style.transform="translate(-50%,-50%)";
+      });
+      handle.addEventListener("pointermove",event=>{
+        if(!drag||event.pointerId!==drag.pointerId)return;
+        card.style.left=Math.max(12,Math.min(window.innerWidth-12,event.clientX-drag.dx))+"px";
+        card.style.top=Math.max(12,Math.min(window.innerHeight-12,event.clientY-drag.dy))+"px";
+      });
+      function finishDrag(event){
+        if(!drag||event.pointerId!==drag.pointerId)return;
+        drag=null;
+        card.classList.remove("dragging");
+        const x=event.clientX,y=event.clientY,w=window.innerWidth,h=window.innerHeight;
+        const targets=[
+          {name:"top",x:w/2,y:Math.min(h*.18,100)},
+          {name:"right",x:w-24,y:h/2},
+          {name:"bottom",x:w/2,y:h-Math.min(h*.18,100)},
+          {name:"left",x:24,y:h/2}
+        ];
+        targets.sort((a,b)=>Math.hypot(x-a.x,y-a.y)-Math.hypot(x-b.x,y-b.y));
+        setPosition(targets[0].name);
+      }
+      handle.addEventListener("pointerup",finishDrag);
+      handle.addEventListener("pointercancel",finishDrag);
+    }
+
     function loadContributionGraph(){
+      setupContributionPosition();
       const grid=document.getElementById("contribution-grid");
       const today=new Date();
       const yearStart=new Date(2026,0,1);
