@@ -349,7 +349,32 @@ async function pendingMutationTransaction(mode,work){
   });
 }
 async function savePendingMutation(mutation){
-  await pendingMutationTransaction("readwrite",store=>store.put(mutation));
+  const db=await pendingMutationDb;
+  await new Promise((resolve,reject)=>{
+    const transaction=db.transaction("mutations","readwrite");
+    const store=transaction.objectStore("mutations");
+    const request=store.getAll();
+    request.onsuccess=()=>{
+      const existing=(request.result||[]).filter(entry=>entry.userId===mutation.userId&&entry.itemId===mutation.itemId);
+      if(mutation.type==="delete"){
+        existing.forEach(entry=>store.delete(entry.id));
+        store.put(mutation);
+        return;
+      }
+      if(existing.some(entry=>entry.type==="delete"))return;
+      const metadata=existing.filter(entry=>entry.type==="metadata");
+      if(metadata.length){
+        const base=metadata[0];
+        const merged={...base,changes:{...(base.changes||{}),...(mutation.changes||{})}};
+        metadata.slice(1).forEach(entry=>store.delete(entry.id));
+        store.put(merged);
+      }else store.put(mutation);
+    };
+    request.onerror=()=>reject(request.error||new Error("Could not read queued file changes."));
+    transaction.oncomplete=()=>resolve();
+    transaction.onerror=()=>reject(transaction.error||new Error("Could not save pending file changes."));
+    transaction.onabort=()=>reject(transaction.error||new Error("Pending file change was not saved."));
+  });
 }
 async function readPendingMutations(){
   const db=await pendingMutationDb;
@@ -365,7 +390,9 @@ async function removePendingMutations(ids){
 }
 let pendingFlushPromise=null;
 async function applyPendingToCache(){
-  const pending=(await readPendingMutations()).filter(entry=>entry.userId===user.id).sort((a,b)=>a.createdAt-b.createdAt);
+  let pending=[];
+  try{pending=(await readPendingMutations()).filter(entry=>entry.userId===user.id).sort((a,b)=>a.createdAt-b.createdAt);}
+  catch(error){console.warn("Could not restore pending file changes:",error.message);return;}
   for(const entry of pending){
     if(entry.type==="delete")removeCachedItems([entry.itemId]);
     else if(entry.type==="metadata"){
@@ -376,7 +403,18 @@ async function applyPendingToCache(){
 }
 async function queueFileMutation(type,itemId,changes){
   const mutation={id:crypto.randomUUID(),userId:user.id,type,itemId,changes:changes||{},createdAt:Date.now()};
-  await savePendingMutation(mutation);
+  try{await savePendingMutation(mutation);}
+  catch(error){
+    if(type==="delete"){
+      await filesAction("delete",{id:itemId});
+      removeCachedItems([itemId]);
+    }else{
+      const result=await filesAction("update_metadata",{id:itemId,...(changes||{})});
+      upsertItem(result.item);
+    }
+    renderItems();
+    return;
+  }
   if(type==="delete")removeCachedItems([itemId]);
   else{
     const item=items.find(value=>value.id===itemId);
@@ -1187,6 +1225,7 @@ let migrated={migrated:0,userFolder:""};
 try{migrated=await filesAction("migrate_prefix");}
 catch(error){console.warn("Existing file prefix migration could not finish:",error.message);}
 await loadItems();
+flushPendingMutations();
 if(migrated.migrated>0)showStatus("Updated storage folder: "+migrated.userFolder,true);
 
   </script></body>
