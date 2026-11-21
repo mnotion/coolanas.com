@@ -1014,6 +1014,7 @@ async function uploadEntries(entries,parentId=currentFolderId){
   setUploadProgress(0,entries.length,"Preparing "+entries.length+" item(s)…");
   const folderIds=new Map();
   try{
+    const prepared=[];
     for(const entry of entries){
       const displayName=entry.path||entry.file.name;
       const parts=(entry.path||entry.file.name).split("/").filter(Boolean);
@@ -1040,16 +1041,27 @@ async function uploadEntries(entries,parentId=currentFolderId){
         setUploadProgress(processed,entries.length,"Skipped existing file "+fileName);
         continue;
       }
-      setUploadProgress(processed,entries.length,displayName);
-      try{
-        await saveFile(entry.file,parent,fileName);
-        done++;
-      }catch(error){
-        failedUploads.push(displayName+": "+error.message);
-      }
-      processed++;
-      setUploadProgress(processed,entries.length,"Processed "+processed+" of "+entries.length+" · uploaded "+done);
+      prepared.push({entry,parent,fileName,displayName});
     }
+    let nextUpload=0;
+    async function uploadWorker(){
+      while(true){
+        const index=nextUpload++;
+        if(index>=prepared.length)return;
+        const task=prepared[index];
+        setUploadProgress(processed,entries.length,task.displayName);
+        try{
+          await saveFile(task.entry.file,task.parent,task.fileName);
+          done++;
+        }catch(error){
+          failedUploads.push(task.displayName+": "+error.message);
+        }
+        processed++;
+        setUploadProgress(processed,entries.length,"Processed "+processed+" of "+entries.length+" · uploaded "+done);
+      }
+    }
+    const workerCount=Math.min(3,prepared.length);
+    await Promise.all(Array.from({length:workerCount},()=>uploadWorker()));
     renderItems();
     if(failedUploads.length){
       const shownFailures=failedUploads.slice(0,8).join("\n");
