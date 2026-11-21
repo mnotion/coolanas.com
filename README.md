@@ -23,8 +23,9 @@ The `coolanas-files-b2` Edge Function supports a `batch` action for metadata cha
 1. Install the Supabase CLI and Deno.
 2. Start a local Supabase stack with `supabase start`.
 3. Configure the required local environment values for Supabase and Backblaze B2 outside version control.
-4. Serve the function locally with `supabase functions serve coolanas-files-b2 --env-file .env.local`.
-5. Test create, upload, download, move, reorder, bulk delete, tag, colour, interrupted sync, and sign-out/reload flows.
+4. Apply the SQL migration in `supabase/migrations/` to an isolated staging database before enabling the new move/reorder RPC calls.
+5. Serve the function locally with `supabase functions serve coolanas-files-b2 --env-file .env.local`.
+6. Test create, upload, download, move, reorder, bulk delete, tag, colour, interrupted sync, and sign-out/reload flows.
 
 Do not commit `.env.local`, Supabase access tokens, Backblaze application keys, or service-role keys. Do not deploy this function to the currently active Supabase project as part of development-branch work. Validate it against an isolated staging Supabase project and a non-production B2 bucket first.
 
