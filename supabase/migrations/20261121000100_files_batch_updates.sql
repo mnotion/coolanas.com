@@ -102,6 +102,31 @@ begin
   end if;
 
   if exists (
+    with recursive folder_descendants(root_id, id) as (
+      select item.id, item.id
+      from public.coolanas_files item
+      join jsonb_to_recordset(p_changes) as change(id uuid, parent_id uuid, storage_path text)
+        on change.id = item.id
+      where item.owner_id = auth.uid()
+        and item.item_type = 'folder'
+      union
+      select descendants.root_id, child.id
+      from folder_descendants descendants
+      join public.coolanas_files child
+        on child.parent_id = descendants.id
+      where child.owner_id = auth.uid()
+        and child.item_type = 'folder'
+    )
+    select 1
+    from jsonb_to_recordset(p_changes) as change(id uuid, parent_id uuid, storage_path text)
+    join folder_descendants descendants
+      on descendants.root_id = change.id
+     and descendants.id = change.parent_id
+  ) then
+    raise exception 'A folder cannot be moved inside itself or one of its descendants';
+  end if;
+
+  if exists (
     select 1
     from public.coolanas_files item
     join jsonb_to_recordset(p_changes) as change(id uuid, parent_id uuid, storage_path text)
