@@ -471,6 +471,20 @@ Deno.serve(async (req) => {
         }
       }
 
+      const validatedMetadataGroups: Array<{ patch: Record<string, unknown>; ids: string[] }> = [];
+      for (const group of metadataGroups.values()) {
+        const { data: owned, error: ownedError } = await supabase.from("coolanas_files")
+          .select("id, item_type").eq("owner_id", userId).in("id", group.ids);
+        if (ownedError) throw ownedError;
+        const existingIds = (owned ?? []).map((row: { id: string }) => row.id);
+        if (!existingIds.length) continue;
+        if (Object.prototype.hasOwnProperty.call(group.patch, "folder_color") &&
+            (owned ?? []).some((row: { item_type: string }) => row.item_type !== "folder")) {
+          return json(400, { error: "Folder colours can only be changed on folders." });
+        }
+        validatedMetadataGroups.push({ patch: group.patch, ids: existingIds });
+      }
+
       let deleted = 0;
       if (uniqueDeleteIds.length) {
         const rows = await ownedItems();
@@ -507,25 +521,18 @@ Deno.serve(async (req) => {
             throw new Error("Backblaze could not delete every selected object.");
           }
         }
-        const { error: deleteError } = await supabase.from("coolanas_files")
-          .delete().eq("owner_id", user.id).in("id", [...allIds]);
-        if (deleteError) throw deleteError;
+        if (allIds.size) {
+          const { error: deleteError } = await supabase.from("coolanas_files")
+            .delete().eq("owner_id", userId).in("id", [...allIds]);
+          if (deleteError) throw deleteError;
+        }
         deleted = allIds.size;
       }
 
       const updatedItems: unknown[] = [];
-      for (const group of metadataGroups.values()) {
-        const { data: owned, error: ownedError } = await supabase.from("coolanas_files")
-          .select("id, item_type").eq("owner_id", user.id).in("id", group.ids);
-        if (ownedError) throw ownedError;
-        const existingIds = (owned ?? []).map((row: { id: string }) => row.id);
-        if (!existingIds.length) continue;
-        if (Object.prototype.hasOwnProperty.call(group.patch, "folder_color") &&
-            (owned ?? []).some((row: { item_type: string }) => row.item_type !== "folder")) {
-          return json(400, { error: "Folder colours can only be changed on folders." });
-        }
+      for (const group of validatedMetadataGroups) {
         const { data, error } = await supabase.from("coolanas_files")
-          .update(group.patch).eq("owner_id", user.id).in("id", existingIds).select("*");
+          .update(group.patch).eq("owner_id", userId).in("id", group.ids).select("*");
         if (error) throw error;
         updatedItems.push(...(data ?? []));
       }
