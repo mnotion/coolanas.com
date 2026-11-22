@@ -17,16 +17,16 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Check files page JavaScript syntax
+      - name: Check exhibitions page JavaScript syntax
         run: |
           python3 - <<'PY'
           import re
           from pathlib import Path
-          html = Path("files.html").read_text()
+          html = Path("exhibitions.html").read_text()
           match = re.search(r'<script type="module">\s*(.*?)\s*</script>', html, re.S)
           if not match:
-              raise SystemExit("Could not find files page module script")
-          Path("/tmp/files-inline.mjs").write_text(match.group(1))
+              raise SystemExit("Could not find exhibitions page module script")
+          Path("/tmp/exhibitions-inline.mjs").write_text(match.group(1))
           PY
           node --check /tmp/files-inline.mjs
       - name: Type-check B2 Edge Function
