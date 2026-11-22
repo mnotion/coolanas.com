@@ -31,13 +31,23 @@
     .subject-menu-colours{display:flex;gap:7px;align-items:center;padding:9px 6px 5px;border-top:1px solid #eee;margin-top:3px}
     .subject-colour{width:17px;height:17px;flex:none;padding:0;border:1px solid rgba(0,0,0,.08);border-radius:50%;cursor:pointer}
     .subject-colour[aria-pressed="true"]{outline:2px solid #222;outline-offset:2px}
-        .task-placeholder{position:fixed;top:calc(50% + 155px);right:28px;transform:translateY(-50%);width:min(320px,calc(100vw - 170px));min-width:220px;padding:20px;border:1px solid #e3e3e3;border-radius:16px;background:#f3f3f3;box-shadow:0 4px 18px rgba(0,0,0,.035)}
-    .task-placeholder-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-    .task-placeholder h2{margin:0;font-size:18px;font-weight:650;letter-spacing:-.02em}
-    .task-placeholder-tag{padding:4px 8px;border-radius:999px;background:#e5e5e5;color:#666;font-size:11px;font-weight:600}
-    .task-placeholder-empty{padding:22px 12px;text-align:center;border:1px dashed #d4d4d4;border-radius:11px;color:#777}
-    .task-placeholder-empty strong{display:block;margin-bottom:4px;color:#444;font-size:13px;font-weight:600}
-    .task-placeholder-empty p{margin:0;font-size:12px}
+    .task-list-card{position:fixed;top:calc(50% + 155px);right:28px;transform:translateY(-50%);width:min(320px,calc(100vw - 170px));min-width:220px;padding:18px;border:1px solid #e3e3e3;border-radius:16px;background:#f3f3f3;box-shadow:0 4px 18px rgba(0,0,0,.035)}
+    .task-list-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+    .task-list-card h2{margin:0;font-size:18px;font-weight:650;letter-spacing:-.02em}
+    .task-add-row{display:flex;gap:7px;margin-bottom:10px}
+    .task-add-input{min-width:0;flex:1;height:36px;padding:0 10px;border:1px solid #d5d5d5;border-radius:8px;background:#fff;color:#222;font:inherit;font-size:12px;outline:none}
+    .task-add-button{width:36px;height:36px;border:1px solid #222;border-radius:8px;background:#222;color:#fff;font-size:20px;cursor:pointer}
+    .task-items{display:grid;gap:6px;max-height: min(34vh,280px);overflow:auto}
+    .task-row{display:flex;align-items:center;gap:8px;min-height:38px;padding:7px 8px;border:1px solid #e1e1e1;border-radius:8px;background:#fff;cursor:grab}
+    .task-row.dragging{opacity:.4}
+    .task-row.drag-over{border-color:#888;background:#ececec}
+    .task-drag-handle{color:#999;font-size:15px;user-select:none}
+    .task-text{min-width:0;flex:1;overflow-wrap:anywhere;font-size:12px}
+    .task-delete{width:25px;height:25px;border:0;border-radius:6px;background:transparent;color:#888;font-size:17px;cursor:pointer}
+    .task-delete:hover{background:#f0e5e5;color:#a22}
+    .task-empty{padding:16px 8px;text-align:center;border:1px dashed #d4d4d4;border-radius:9px;color:#777;font-size:12px}
+    .task-error{min-height:15px;margin-top:6px;color:#a22;font-size:11px}
+    @media(max-width:620px){.study-stopwatch{top:35%;right:14px;bottom:auto;left:132px;transform:translateY(-50%);width:auto;min-width:0;padding:0}.study-stopwatch-time{font-size:32px}.task-list-card{top:auto;right:14px;bottom:100px;left:132px;transform:none;width:auto;min-width:0;padding:13px}.task-list-card h2,.study-stopwatch h2{font-size:16px}}
     @media(max-width:620px){.study-stopwatch{top:42%;right:14px;bottom:auto;left:132px;transform:translateY(-50%);width:auto;min-width:0;padding:0}.study-stopwatch-time{font-size:32px}.task-placeholder{top:auto;right:14px;bottom:100px;left:132px;transform:none;width:auto;min-width:0;padding:15px}.task-placeholder h2,.study-stopwatch h2{font-size:16px}.task-placeholder-empty{padding:16px 8px}}
     .contribution-card{position:fixed;z-index:10;top:50%;left:18px;transform:translateY(-50%);box-sizing:border-box;width:112px;max-height:72vh;overflow:visible;padding:10px 14px;border:1px solid #dedede;border-radius:16px;background:#bdbdbd;box-shadow:0 4px 18px rgba(0,0,0,.045)}
     .contribution-scroll{width:100%;max-height:72vh;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
@@ -143,7 +153,10 @@
     html.dark-mode .contribution-card{background:#292929!important;border-color:#555!important}
     html.dark-mode .contribution-day{background:#555!important}
     html.dark-mode .contribution-day.passed{background:#d94b4b!important}
-    html.dark-mode .task-placeholder-empty{border-color:#555!important}
+    html.dark-mode .task-empty{border-color:#555!important}
+    html.dark-mode .task-add-input,html.dark-mode .task-row{background:#292929!important;color:#eee!important;border-color:#555!important}
+    html.dark-mode .task-add-button{background:#eee!important;color:#111!important;border-color:#eee!important}
+    html.dark-mode .task-row.drag-over{background:#3a3a3a!important}
     html.dark-mode .subject-context-menu>button:hover,html.dark-mode .menu-item:hover{background:#3a3a3a!important}
   </style>
 </head>
@@ -162,9 +175,14 @@
       </div>
     </section>
     <div class="subject-context-menu" id="subject-context-menu" hidden><button type="button" data-action="rename">Rename</button><button type="button" data-action="colour">Colour</button><div class="subject-menu-colours" id="subject-menu-colours" hidden></div><button type="button" data-action="delete">Delete</button></div>
-    <section class="task-placeholder" aria-labelledby="task-placeholder-title">
-      <div class="task-placeholder-head"><h2 id="task-placeholder-title">Task list</h2><span class="task-placeholder-tag">Coming soon</span></div>
-      <div class="task-placeholder-empty"><strong>Your tasks will live here</strong><p>Task management is not available yet.</p></div>
+    <section class="task-list-card" aria-labelledby="task-list-title">
+      <div class="task-list-head"><h2 id="task-list-title">Task list</h2></div>
+      <form class="task-add-row" id="task-add-form">
+        <input class="task-add-input" id="task-add-input" type="text" maxlength="180" placeholder="Add a task…" aria-label="New task" autocomplete="off">
+        <button class="task-add-button" type="submit" aria-label="Add task">+</button>
+      </form>
+      <div class="task-items" id="task-items" aria-live="polite"><div class="task-empty">Loading tasks…</div></div>
+      <div class="task-error" id="task-error" role="status"></div>
     </section>
   </main>
   <div class="profile-backdrop" id="profile-backdrop" hidden></div>
@@ -533,6 +551,77 @@
       render();
     })();
 
+
+    const taskItemsEl=document.getElementById("task-items");
+    const taskAddForm=document.getElementById("task-add-form");
+    const taskAddInput=document.getElementById("task-add-input");
+    const taskError=document.getElementById("task-error");
+    let tasks=[];
+    let tasksReady=false;
+    let taskDragId=null;
+    async function taskAction(action,payload={}){
+      const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action,...payload}});
+      if(error)throw new Error(error.message||"Could not save tasks.");
+      if(data?.error)throw new Error(data.error);
+      return data;
+    }
+    async function persistTasks(){
+      taskError.textContent="";
+      try{await taskAction("tasks_save",{tasks});}
+      catch(error){taskError.textContent=error.message||"Tasks could not be saved.";}
+    }
+    function renderTasks(){
+      taskItemsEl.replaceChildren();
+      if(!tasks.length){
+        const empty=document.createElement("div");
+        empty.className="task-empty";empty.textContent="No tasks yet. Add one above.";
+        taskItemsEl.appendChild(empty);return;
+      }
+      tasks.forEach((task,index)=>{
+        const row=document.createElement("div");
+        row.className="task-row";row.draggable=true;row.dataset.taskId=task.id;
+        const handle=document.createElement("span");handle.className="task-drag-handle";handle.textContent="⠿";handle.setAttribute("aria-hidden","true");
+        const label=document.createElement("span");label.className="task-text";label.textContent=task.text;
+        const remove=document.createElement("button");remove.className="task-delete";remove.type="button";remove.textContent="×";remove.setAttribute("aria-label","Delete "+task.text);
+        remove.addEventListener("click",async()=>{
+          const previous=tasks;tasks=tasks.filter(item=>item.id!==task.id);renderTasks();await persistTasks();
+          if(taskError.textContent){tasks=previous;renderTasks();}
+        });
+        row.append(handle,label,remove);
+        row.addEventListener("dragstart",event=>{taskDragId=task.id;row.classList.add("dragging");event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",task.id);});
+        row.addEventListener("dragend",()=>{taskDragId=null;taskItemsEl.querySelectorAll(".task-row").forEach(el=>el.classList.remove("dragging","drag-over"));});
+        row.addEventListener("dragover",event=>{event.preventDefault();if(taskDragId&&taskDragId!==task.id)row.classList.add("drag-over");});
+        row.addEventListener("dragleave",()=>row.classList.remove("drag-over"));
+        row.addEventListener("drop",async event=>{
+          event.preventDefault();row.classList.remove("drag-over");
+          const sourceId=taskDragId||event.dataTransfer.getData("text/plain");
+          if(!sourceId||sourceId===task.id)return;
+          const previous=tasks.slice();const moved=tasks.find(item=>item.id===sourceId);
+          if(!moved)return;
+          tasks=tasks.filter(item=>item.id!==sourceId);
+          const targetIndex=tasks.findIndex(item=>item.id===task.id);
+          tasks.splice(targetIndex<index?targetIndex:targetIndex,0,moved);
+          renderTasks();await persistTasks();if(taskError.textContent){tasks=previous;renderTasks();}
+        });
+        taskItemsEl.appendChild(row);
+      });
+    }
+    taskAddForm.addEventListener("submit",async event=>{
+      event.preventDefault();const value=taskAddInput.value.trim();
+      if(!value||!tasksReady)return;
+      if(tasks.length>=100){taskError.textContent="You can have up to 100 tasks.";return;}
+      const previous=tasks.slice();tasks.push({id:crypto.randomUUID(),text:value});
+      taskAddInput.value="";renderTasks();await persistTasks();
+      if(taskError.textContent){tasks=previous;renderTasks();taskAddInput.value=value;}
+    });
+    async function loadTasks(){
+      try{
+        const result=await taskAction("tasks_get");
+        tasks=Array.isArray(result.tasks)?result.tasks:[];
+        tasksReady=true;taskError.textContent="";renderTasks();
+      }catch(error){taskItemsEl.textContent="Tasks could not be loaded.";taskError.textContent=error.message||"Try refreshing the page.";}
+    }
+
     async function initialiseProfile(session){
       const meta=session.user.user_metadata||{};
       googleAvatarUrl=typeof meta.avatar_url==="string"?meta.avatar_url:(typeof meta.picture==="string"?meta.picture:"");
@@ -540,6 +629,7 @@
       document.getElementById("profile-name").textContent=displayName;
       document.getElementById("profile-email").textContent=session.user.email||"";
       loadContributionGraph();
+      await loadTasks();
       avatarFallback.textContent=String(displayName).trim().charAt(0).toUpperCase()||"?";
       drawerAvatarFallback.textContent=avatarFallback.textContent;
       // Keep the Google avatar hidden until storage confirms whether a custom
