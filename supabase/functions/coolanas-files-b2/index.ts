@@ -838,9 +838,21 @@ Deno.serve(async (req) => {
           return json(403, { error: "A selected item has a storage path outside this account." });
         }
         if (change.oldKey && change.oldKey !== change.newKey) {
-          await s3.send(new CopyObjectCommand({
-            Bucket: bucket, CopySource: copySource(bucket, change.oldKey), Key: change.newKey,
-          }));
+          try {
+            await s3.send(new CopyObjectCommand({
+              Bucket: bucket, CopySource: copySource(bucket, change.oldKey), Key: change.newKey,
+            }));
+          } catch (error) {
+            const movingItem = byId.get(change.id) as { item_type: string } | undefined;
+            // Folder marker objects can be absent even when the folder and its
+            // descendants exist. Recreate the empty marker at the new location;
+            // missing file objects must still fail the move.
+            if (movingItem?.item_type !== "folder") throw error;
+            await s3.send(new PutObjectCommand({
+              Bucket: bucket, Key: change.newKey, Body: new Uint8Array(0),
+              ContentType: "application/x-directory",
+            }));
+          }
           oldKeys.push(change.oldKey);
         }
         newKeys.push(change.newKey);
