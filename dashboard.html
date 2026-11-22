@@ -510,6 +510,7 @@
         setMailUnreadIndicator(notifications.some(notification=>!notification.read_at));
         mailNotifications.replaceChildren();
         if(!notifications.length){const empty=document.createElement("p");empty.className="mail-empty";empty.textContent="No new mails.";mailNotifications.append(empty);return;}
+        const markReadRequests=[];
         for(const notification of notifications){
           const card=document.createElement("article");card.className="mail-notification"+(notification.read_at?"":" unread");
           const title=document.createElement("h3");title.textContent=notification.title||"Coolanas notification";
@@ -538,9 +539,10 @@
             label.textContent=(status==="accepted"||status==="accept")?"Invitation accepted":(status==="declined"||status==="decline")?"Invitation declined":status==="revoked"?"Access withdrawn":"";
             card.append(label);
           }
-          if(markVisibleAsRead&&!notification.read_at)supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_mark_read",notificationId:notification.id}}).catch(()=>{});
+          if(markVisibleAsRead&&!notification.read_at)markReadRequests.push(supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_mark_read",notificationId:notification.id}}));
           mailNotifications.append(card);
         }
+        if(markReadRequests.length){await Promise.all(markReadRequests);await refreshMail(false);}
       }catch(error){mailNotifications.replaceChildren();const empty=document.createElement("p");empty.className="mail-empty";empty.textContent=error.message||"Could not load mail.";mailNotifications.append(empty);}
     }
 
