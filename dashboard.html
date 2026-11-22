@@ -268,6 +268,24 @@
     body.timer-running::before{display:block}
     body:not(.timer-running)::before{display:none}
     @media(prefers-reduced-motion:reduce){body.timer-running::before,body.timer-running::after{animation:none;opacity:.45}}
+    /* Subject colour creates a soft horizon preview, then colours the running timer glow. */
+    body.subject-colour-preview:not(.timer-running)::before{
+      display:block!important;inset:-10% -20% 0;z-index:0;
+      background:radial-gradient(ellipse 85% 48% at 50% 78%,color-mix(in srgb,var(--subject-colour) 42%,transparent) 0%,color-mix(in srgb,var(--subject-colour) 18%,transparent) 42%,transparent 76%);
+      filter:blur(30px);opacity:1;animation:none;
+    }
+    body.timer-running::before{
+      background:radial-gradient(ellipse at 50% 55%,color-mix(in srgb,var(--subject-colour,#888888) 36%,transparent) 0%,color-mix(in srgb,var(--subject-colour,#888888) 16%,transparent) 38%,transparent 70%);
+      filter:blur(38px);animation:subject-colour-drift 9s ease-in-out infinite alternate;
+    }
+    body.timer-running::after{
+      background:radial-gradient(ellipse at 50% 78%,color-mix(in srgb,var(--subject-colour,#888888) 28%,transparent) 0%,transparent 68%);
+      filter:blur(54px);opacity:.9;animation:subject-colour-drift 13s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes subject-colour-drift{
+      0%{transform:translate3d(-2%,1%,0) scale(.96);opacity:.65}
+      100%{transform:translate3d(2%,-2%,0) scale(1.08);opacity:1}
+    }
     body.timer-running main > *:not(.study-stopwatch),
     body.timer-running > *:not(main){
       visibility:hidden!important;opacity:0!important;pointer-events:none!important;
@@ -884,6 +902,13 @@
         });
         const chosen=selected===null?null:subjects[selected];
         window.coolanasSubjectState.selected=chosen?chosen.name:null;
+        if(chosen){
+          document.body.style.setProperty("--subject-colour",palette[chosen.color]);
+          document.body.classList.add("subject-colour-preview");
+        }else{
+          document.body.classList.remove("subject-colour-preview");
+          document.body.style.removeProperty("--subject-colour");
+        }
         activeLabel.textContent=chosen?chosen.name:"";
         activeLabel.style.background=chosen?palette[chosen.color]:"#f7f7f7";
         activeLabel.style.borderColor=chosen?palette[chosen.color]:"#dedede";
@@ -921,7 +946,9 @@
           swatch.style.background=color;swatch.setAttribute("aria-label","Colour "+(i+1));
           swatch.setAttribute("aria-pressed",String(subjects[activeIndex].color===i));
           swatch.addEventListener("click",()=>{
-            subjects[activeIndex].color=i;persist();render();closeMenu();
+            subjects[activeIndex].color=i;
+            if(selected===activeIndex)document.body.style.setProperty("--subject-colour",color);
+            persist();render();closeMenu();
           });
           colourRow.appendChild(swatch);
         });
@@ -936,6 +963,9 @@
         const chip=event.target.closest(".study-subject");if(!chip)return;
         selected=Number(chip.dataset.index);
         window.coolanasSubjectState.selected=subjects[selected]?.name||null;
+        const selectedColour=palette[subjects[selected]?.color??0];
+        document.body.style.setProperty("--subject-colour",selectedColour);
+        document.body.classList.add("subject-colour-preview");
         activeLabel.textContent=subjects[selected]?.name||"";
         activeLabel.style.background=subjects[selected]?palette[subjects[selected].color]:"#f7f7f7";
         activeLabel.style.borderColor=subjects[selected]?palette[subjects[selected].color]:"#dedede";
