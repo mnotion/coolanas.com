@@ -685,14 +685,15 @@
       const toggleButton=document.getElementById("study-stopwatch-toggle");
       const resetButton=document.getElementById("study-stopwatch-reset");
       const storageKey="coolanas-study-stopwatch-v1";
-      let state={elapsed:0,startedAt:null};
+      let state={elapsed:0,startedAt:null},restoredCloudCheckpointAt=null;
       try{
         const saved=JSON.parse(localStorage.getItem(storageKey)||"null");
         if(saved&&typeof saved.elapsed==="number"){
           state={elapsed:Math.max(0,saved.elapsed),startedAt:Number.isFinite(saved.startedAt)?saved.startedAt:null};
+          restoredCloudCheckpointAt=Number.isFinite(saved.cloudCheckpointAt)?saved.cloudCheckpointAt:null;
         }
       }catch(error){console.warn("Could not restore stopwatch:",error);}
-      let cloudCheckpointAt=state.startedAt;
+      let cloudCheckpointAt=restoredCloudCheckpointAt??state.startedAt;
       const monthlyKey="coolanas-study-monthly-time-v1";
       function readMonthly(){try{const value=JSON.parse(localStorage.getItem(monthlyKey)||"{}");return value&&typeof value==="object"&&!Array.isArray(value)?value:{};}catch{return {};}}
       function monthKey(timestamp){const date=new Date(timestamp);return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0");}
@@ -712,7 +713,7 @@
         return [hours,minutes,seconds].map(value=>String(value).padStart(2,"0")).join(":");
       };
       function save(){
-        try{localStorage.setItem(storageKey,JSON.stringify(state));}catch(error){console.warn("Could not save stopwatch:",error);}
+        try{localStorage.setItem(storageKey,JSON.stringify({...state,cloudCheckpointAt}));}catch(error){console.warn("Could not save stopwatch:",error);}
       }
       function render(){
         timeEl.textContent=format(elapsedNow());
@@ -761,7 +762,7 @@
       });
       render();
       void bootstrapCloudAnalytics();
-      setInterval(()=>{if(state.startedAt&&cloudCheckpointAt){const checkpoint=Date.now();addIntervalToMonthly(cloudCheckpointAt,checkpoint);cloudCheckpointAt=checkpoint;}void flushPendingAnalytics();},30000);
+      setInterval(()=>{if(state.startedAt&&cloudCheckpointAt){const checkpoint=Date.now();addIntervalToMonthly(cloudCheckpointAt,checkpoint);cloudCheckpointAt=checkpoint;save();}void flushPendingAnalytics();},30000);
       setInterval(render,250);
     })();
 
