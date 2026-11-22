@@ -54,10 +54,10 @@
     .shared-bucket-card-open:hover{background:#fafafa}
     .shared-bucket-card-open .folder-icon{width:88px;height:88px}
     .shared-bucket-owner-status{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#2563eb}
-    .shared-bucket-manage-wrap{position:absolute;top:8px;right:8px;z-index:3}
-    .shared-bucket-manage{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:#2563eb;color:#fff;cursor:pointer;box-shadow:0 2px 5px rgba(37,99,235,.22)}
-    .shared-bucket-manage:hover{background:#1d4ed8}
-    .shared-bucket-manage svg{width:16px;height:16px;display:block}
+    .shared-bucket-manage-wrap{position:absolute;top:27px;right:9px;z-index:3}
+    .shared-bucket-manage{display:block;width:13px;height:13px;padding:0;border:0;border-radius:50%;background:#3985ed;box-shadow:0 0 0 2px #fff;cursor:pointer;transition:transform .12s ease,background .12s ease}
+    .shared-bucket-manage:hover{background:#216bd0;transform:scale(1.15)}
+    .shared-bucket-manage:focus-visible{outline:2px solid #3985ed;outline-offset:3px}
     .shared-bucket-menu{position:absolute;top:34px;right:0;z-index:8;width:158px;padding:5px;border:1px solid #e5e7eb;border-radius:9px;background:#fff;box-shadow:0 8px 22px rgba(0,0,0,.14)}
     .shared-bucket-menu[hidden]{display:none}
     .shared-bucket-menu button{display:block;width:100%;padding:9px 10px;border:0;border-radius:6px;background:transparent;color:#222;text-align:left;font:500 12px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
@@ -1373,7 +1373,7 @@ async function refreshSharedBuckets(){
       open.addEventListener("click",()=>openFolder(bucket.id));
 
       const wrap=document.createElement("div");wrap.className="shared-bucket-manage-wrap";
-      const manage=document.createElement("button");manage.type="button";manage.className="shared-bucket-manage";manage.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"></circle><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"></circle></svg>';manage.setAttribute("aria-label","Manage sharing for "+bucket.name);manage.title="Manage";
+      const manage=document.createElement("button");manage.type="button";manage.className="shared-bucket-manage";manage.setAttribute("aria-label","Manage sharing for "+bucket.name);manage.title="Manage sharing";
       const menu=document.createElement("div");menu.className="shared-bucket-menu";menu.hidden=true;
       manage.addEventListener("click",event=>{
         event.stopPropagation();
