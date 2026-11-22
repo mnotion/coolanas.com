@@ -21,6 +21,14 @@ h1{margin:0 0 22px;font-size:26px;letter-spacing:-.04em}
 .user-empty,.user-error{margin:0;color:#777;font-size:13px}
     .profile-button{position:fixed;z-index:12;top:20px;right:22px;width:42px;height:42px;padding:0;overflow:hidden;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#eee;color:#555;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
     .profile-button img,.profile-identity img{width:100%;height:100%;object-fit:cover}
+    .mail-button{position:fixed;z-index:12;top:20px;right:72px;width:42px;height:42px;padding:0;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:rgba(255,255,255,.92);color:#444;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
+    .mail-button svg{width:19px;height:19px}
+    .mail-popover{position:fixed;z-index:18;top:72px;right:72px;width:min(300px,calc(100vw - 32px));padding:20px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:rgba(255,255,255,.97);box-shadow:0 12px 36px rgba(0,0,0,.13);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+    .mail-popover[hidden]{display:none}
+    .mail-popover h2{margin:0 0 8px;font-size:15px;font-weight:650}
+    .mail-popover p{margin:0;color:#777;font-size:13px}
+    html.dark-mode .mail-button,html.dark-mode .mail-popover{background:rgba(38,38,38,.97);color:#eee;border-color:rgba(255,255,255,.1)}
+    html.dark-mode .mail-popover p{color:#aaa}
     #profile-avatar-fallback,#drawer-avatar-fallback{font-weight:650;font-size:15px}
     #profile-avatar[hidden],#drawer-avatar[hidden],#profile-avatar-fallback[hidden],#drawer-avatar-fallback[hidden]{display:none!important}
     .profile-backdrop{position:fixed;inset:0;z-index:19;background:rgba(0,0,0,.18);backdrop-filter:blur(2px)}
@@ -168,6 +176,10 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 </style>
 </head>
 <body>
+<button id="mail-button" class="mail-button" type="button" aria-label="Open mail" aria-expanded="false" aria-controls="mail-popover">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="m4 7 8 6 8-6"></path></svg>
+</button>
+<section class="mail-popover" id="mail-popover" aria-label="Mail" hidden><h2>Mail</h2><p>No new mails.</p></section>
 <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
 <main>
 <h1>Coolanas</h1>
@@ -241,6 +253,19 @@ try{
   userList.append(li);
  }
 }catch(error){userList.replaceChildren();const li=document.createElement("li");li.className="user-empty";li.textContent="Could not load users.";userList.append(li);document.getElementById("user-error").textContent=error.message||"";}
+const mailButton=document.getElementById("mail-button");
+const mailPopover=document.getElementById("mail-popover");
+mailButton.addEventListener("click",()=>{
+ const opening=mailPopover.hidden;
+ mailPopover.hidden=!opening;
+ mailButton.setAttribute("aria-expanded",String(opening));
+});
+document.addEventListener("click",event=>{
+ if(!mailPopover.hidden&&!mailPopover.contains(event.target)&&!mailButton.contains(event.target)){
+  mailPopover.hidden=true;
+  mailButton.setAttribute("aria-expanded","false");
+ }
+});
 const profileButton=document.getElementById("profile-button");
 const profileDrawer=document.getElementById("profile-drawer");
 const profileBackdrop=document.getElementById("profile-backdrop");
