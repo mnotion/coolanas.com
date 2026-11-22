@@ -315,6 +315,12 @@
     .profile-actions #change-pfp,.profile-actions #remove-pfp,.profile-actions #theme-toggle{display:none!important}
     .profile-actions .menu-item{display:flex;align-items:center;gap:12px}
     .profile-actions .menu-item svg{width:19px;height:19px;flex:0 0 19px}
+    /* Mobile: keep the contribution graph below the task list in the scrollable page. */
+    @media(max-width:620px){
+      main{min-height:1420px}
+      .task-list-card{position:absolute;top:500px;right:14px;bottom:auto;left:14px;max-height:none;overflow:visible}
+      .contribution-card{position:absolute;top:1030px;left:14px;right:14px;bottom:auto;transform:none;width:auto;height:94px;padding:10px 11px}
+    }
     /* Mobile dashboard: horizontal contribution graph, then a single-column workspace. */
     @media(max-width:620px){
       main{min-height:100svh;padding:0 14px calc(104px + env(safe-area-inset-bottom));}
