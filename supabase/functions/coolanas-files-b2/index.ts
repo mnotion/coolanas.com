@@ -541,6 +541,12 @@ Deno.serve(async (req) => {
         const ancestorRow = byId.get(destinationAncestor) as { parent_id: string | null } | undefined;
         destinationAncestor = ancestorRow?.parent_id ?? null;
       }
+      const { data: exhibitionsRoot } = await supabase.from("coolanas_files")
+        .select("id").eq("owner_id", user.id).eq("item_type", "folder")
+        .eq("name", "exhibitions").is("parent_id", null).maybeSingle();
+      if (exhibitionsRoot && selectedRows.some((item) => item.parent_id === exhibitionsRoot.id)) {
+        return json(400, { error: "Exhibitions cannot be moved out of the exhibitions area." });
+      }
       const roots = selectedRows.filter((item) => {
         let parent = item.parent_id;
         while (parent) {
