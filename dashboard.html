@@ -315,6 +315,41 @@
     .profile-actions #change-pfp,.profile-actions #remove-pfp,.profile-actions #theme-toggle{display:none!important}
     .profile-actions .menu-item{display:flex;align-items:center;gap:12px}
     .profile-actions .menu-item svg{width:19px;height:19px;flex:0 0 19px}
+    /* Mobile dashboard: horizontal contribution graph, then a single-column workspace. */
+    @media(max-width:620px){
+      main{min-height:100svh;padding:0 14px calc(104px + env(safe-area-inset-bottom));}
+      .contribution-card{top:88px;left:14px;right:14px;bottom:auto;transform:none;width:auto;height:94px;padding:10px 11px;border-radius:14px}
+      .contribution-scroll{width:100%;height:100%;overflow:hidden}
+      .contribution-grid{display:grid;grid-auto-flow:column;grid-template-columns:repeat(53,minmax(0,1fr));grid-template-rows:repeat(7,minmax(0,1fr));gap:3px;width:100%;height:100%}
+      .contribution-day{border-radius:3px}
+      .study-stopwatch{top:218px;left:50%;right:auto;bottom:auto;transform:translateX(-50%);width:min(390px,calc(100vw - 28px));min-width:0;padding:8px 10px;border-radius:16px}
+      .study-stopwatch-actions{min-height:48px}
+      .study-stopwatch-actions button{width:38px;height:38px}
+      .study-stopwatch-actions .primary{width:46px;height:46px}
+      .study-stopwatch-time{font-size:clamp(25px,7.2vw,32px);letter-spacing:-.055em}
+      .study-subjects{top:300px;left:50%;right:auto;transform:translateX(-50%);width:calc(100vw - 28px);justify-content:center;gap:7px}
+      body.timer-paused #study-subjects,body.timer-running #study-subjects{top:300px}
+      .active-subject-label{font-size:11px;padding:5px 9px}
+      .study-stopwatch .active-subject-label,body.timer-paused .active-subject-label{top:calc(100% + 8px)}
+      .task-list-card{position:fixed;top:360px;right:14px;bottom:calc(82px + env(safe-area-inset-bottom));left:14px;transform:none;width:auto;min-width:0;max-height:none;overflow:auto;padding:15px;border-radius:16px}
+      .task-list-card h2{font-size:18px}
+      .task-add-row{gap:8px}
+      .task-add-input{height:42px;font-size:14px;padding:0 12px}
+      .task-add-button{width:42px;height:42px;flex:none}
+      .task-items{max-height:min(28vh,230px);overflow:auto}
+      .task-text,.task-edit-input{font-size:13px}
+      .bottom-nav{bottom:calc(12px + env(safe-area-inset-bottom));width:calc(100% - 28px);max-width:420px}
+      .mail-button{top:20px;right:76px}
+      .profile-button{top:20px;right:20px}
+    }
+    @media(max-width:380px){
+      .contribution-card{height:86px;top:86px}
+      .contribution-grid{gap:2px}
+      .study-stopwatch{top:202px}
+      .study-subjects,body.timer-paused #study-subjects,body.timer-running #study-subjects{top:280px}
+      .task-list-card{top:340px}
+      .study-stopwatch-time{font-size:25px}
+    }
   </style>
 </head>
 <body>
