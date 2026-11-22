@@ -176,6 +176,7 @@ Deno.serve(async (req) => {
       }
 
       const copiedKeys: string[] = [];
+      const changedRows: Array<{ id: string; oldPath: string }> = [];
       try {
         for (const oldKey of oldObjects) {
           const newKey = newPrefix + oldKey.slice(prefix.length);
@@ -198,6 +199,7 @@ Deno.serve(async (req) => {
             const { error: pathError } = await supabase.from("coolanas_files")
               .update({ storage_path: updatedPath }).eq("id", row.id).eq("owner_id", userId);
             if (pathError) throw pathError;
+            changedRows.push({ id: row.id, oldPath: row.storage_path });
           }
         }
 
@@ -210,6 +212,9 @@ Deno.serve(async (req) => {
         return json(200, { success: true, username: newUsername });
       } catch (error) {
         // Keep the original files available if a later step fails.
+        for (const row of changedRows) {
+          await supabase.from("coolanas_files").update({ storage_path: row.oldPath }).eq("id", row.id).eq("owner_id", userId);
+        }
         await supabase.from("profiles").update({ username }).eq("id", userId);
         for (let offset = 0; offset < copiedKeys.length; offset += 1000) {
           const batch = copiedKeys.slice(offset, offset + 1000);
