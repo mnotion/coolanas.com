@@ -188,6 +188,106 @@ Deno.serve(async (req) => {
       return json(200, { success: true, migrated, userFolder: prefix });
     }
 
+
+    if (action === "ensure_structure") {
+      const rows = await ownedItems();
+      let exhibitions = rows.find((row: any) => row.item_type === "folder" && row.parent_id === null && row.name === "exhibitions");
+      if (!exhibitions) {
+        const id = crypto.randomUUID();
+        const key = prefix + "/exhibitions/";
+        const { data, error } = await supabase.from("coolanas_files")
+          .insert({ id, owner_id: user.id, parent_id: null, name: "exhibitions", item_type: "folder", storage_path: key })
+          .select("*").single();
+        if (error) throw error;
+        exhibitions = data;
+      }
+      const exhibitionsKey = prefix + "/exhibitions/";
+      await s3.send(new PutObjectCommand({Bucket:bucket,Key:exhibitionsKey,Body:new Uint8Array(0),ContentType:"application/x-directory"}));
+      const statsKey = prefix + "/stats/";
+      await s3.send(new PutObjectCommand({Bucket:bucket,Key:statsKey,Body:new Uint8Array(0),ContentType:"application/x-directory"}));
+
+      const byId = new Map(rows.map((row: any) => [row.id, row]));
+      const descendants = rows.filter((row: any) => row.id !== exhibitions.id);
+      const relativePath = (row: any): string => {
+        const parts = [row.name];
+        let parent = row.parent_id;
+        let depth = 0;
+        while (parent && parent !== exhibitions.id) {
+          if (++depth > 40) throw new Error("Folder nesting is too deep.");
+          const ancestor: any = byId.get(parent);
+          if (!ancestor) throw new Error("A file's parent folder could not be found.");
+          parts.unshift(ancestor.name);
+          parent = ancestor.parent_id;
+        }
+        return parts.join("/");
+      };
+      for (const row of descendants) {
+        const relative = relativePath(row);
+        const newKey = row.item_type === "folder"
+          ? exhibitionsKey + relative + "/"
+          : exhibitionsKey + relative.split("/").slice(0,-1).concat(row.id + "-" + row.name).join("/");
+        if (row.storage_path !== newKey) {
+          if (row.storage_path && belongsToUserPath(row.storage_path)) {
+            try {
+              await s3.send(new CopyObjectCommand({Bucket:bucket,CopySource:copySource(bucket,row.storage_path),Key:newKey}));
+            } catch (error) {
+              if (row.item_type !== "folder") throw error;
+            }
+          }
+          const { error } = await supabase.from("coolanas_files").update({
+            parent_id: row.parent_id === null ? exhibitions.id : row.parent_id,
+            storage_path: newKey,
+          }).eq("id",row.id).eq("owner_id",user.id);
+          if (error) throw error;
+          if (row.storage_path && row.storage_path !== newKey && belongsToUserPath(row.storage_path)) {
+            await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:row.storage_path}));
+          }
+        } else if (row.parent_id === null) {
+          const { error } = await supabase.from("coolanas_files").update({parent_id:exhibitions.id})
+            .eq("id",row.id).eq("owner_id",user.id);
+          if (error) throw error;
+        }
+      }
+      return json(200,{success:true,exhibitionsId:exhibitions.id,userFolder:prefix});
+    }
+
+    if (action === "tasks_get") {
+      const key = prefix + "/stats/tasks.json";
+      try {
+        const object = await s3.send(new GetObjectCommand({Bucket:bucket,Key:key}));
+        const raw = await object.Body?.transformToString();
+        const parsed = JSON.parse(raw || "[]");
+        const tasks = Array.isArray(parsed) ? parsed.filter((task:any) =>
+          task && typeof task.id === "string" && typeof task.text === "string"
+        ).slice(0,100) : [];
+        return json(200,{tasks});
+      } catch (error) {
+        if ((error as any)?.$metadata?.httpStatusCode !== 404 && (error as any)?.name !== "NoSuchKey") throw error;
+        await s3.send(new PutObjectCommand({Bucket:bucket,Key:key,Body:"[]",ContentType:"application/json; charset=utf-8"}));
+        return json(200,{tasks:[]});
+      }
+    }
+
+    if (action === "tasks_save") {
+      if (!Array.isArray(body.tasks) || body.tasks.length > 100) return json(400,{error:"Tasks must be a list of at most 100 items."});
+      const seen = new Set<string>();
+      const tasks = [];
+      for (const task of body.tasks) {
+        if (!task || typeof task.id !== "string" || !/^[0-9a-f-]{36}$/i.test(task.id) ||
+            typeof task.text !== "string" || !task.text.trim() || task.text.length > 180 || seen.has(task.id)) {
+          return json(400,{error:"One or more tasks are invalid."});
+        }
+        seen.add(task.id);
+        tasks.push({id:task.id,text:task.text.trim()});
+      }
+      const key = prefix + "/stats/tasks.json";
+      await s3.send(new PutObjectCommand({
+        Bucket:bucket,Key:key,Body:JSON.stringify(tasks,null,2),
+        ContentType:"application/json; charset=utf-8",
+      }));
+      return json(200,{success:true,count:tasks.length});
+    }
+
     if (action === "list") {
       const { data, error } = await supabase.from("coolanas_files")
         .select("id, owner_id, parent_id, name, item_type, folder_color, tag, sort_order, created_at, updated_at")
