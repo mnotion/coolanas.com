@@ -10,36 +10,64 @@
 *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f7f7f7;color:#171717}button,a{font:inherit}
 .topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 max(24px,calc((100vw - 1080px)/2));background:#fff;border-bottom:1px solid #e9e9e9}
 .brand{font-size:19px;font-weight:750;color:inherit;text-decoration:none;letter-spacing:-.5px}.back{border:0;background:transparent;color:#555;padding:9px 12px;border-radius:8px;text-decoration:none}.back:hover{background:#f1f1f1}
-main{width:min(1080px,calc(100% - 40px));margin:42px auto 100px}
-.page-heading{margin-bottom:26px}.page-heading h1{font-size:30px;letter-spacing:-1px;margin:0 0 7px}.page-heading p{margin:0;color:#777;font-size:14px}
-.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-.stat-card,.section-card{background:#fff;border:1px solid #e8e8e8;border-radius:16px;box-shadow:0 3px 14px rgba(0,0,0,.035)}
-.stat-card{padding:22px}.stat-label{font-size:13px;color:#777;font-weight:550}.stat-value{font-size:30px;font-weight:750;letter-spacing:-1px;margin-top:12px}.stat-note{font-size:12px;color:#888;margin-top:5px}
-.content-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.7fr);gap:16px;margin-top:16px}
-.section-card{padding:24px;min-height:220px}.section-card h2{font-size:17px;letter-spacing:-.3px;margin:0 0 7px}.section-intro{font-size:12px;color:#888;margin:0 0 18px}
-.subject-list{display:grid;gap:13px}.subject-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border-bottom:1px solid #f0f0f0}.subject-row:last-child{border-bottom:0}.subject-name{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:550}.subject-dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px}.subject-tag{font-size:11px;color:#888}
-.empty{padding:20px 0;color:#888;font-size:13px;line-height:1.6}.notice{border-radius:11px;background:#f5f7fa;padding:14px;color:#6f7783;font-size:12px;line-height:1.6;margin-top:14px}
+.layout{width:min(1080px,calc(100% - 40px));margin:42px auto 100px;display:grid;grid-template-columns:220px minmax(0,1fr);gap:0;align-items:stretch;background:#fff;border:1px solid #e8e8e8;border-radius:16px;box-shadow:0 3px 14px rgba(0,0,0,.035);overflow:hidden;min-height:490px}
+.sidebar{padding:20px 14px;border-right:1px solid #e5e5e5;display:flex;flex-direction:column;gap:5px}
+.sidebar h1{font-size:19px;margin:8px 10px 12px;letter-spacing:-.3px}
+.topic{width:100%;display:flex;align-items:center;gap:11px;text-align:left;border:0;background:transparent;color:#555;padding:12px 11px;border-radius:9px;font-size:14px;font-weight:550;cursor:pointer}
+.topic svg{width:17px;height:17px;flex:0 0 17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.topic:hover{background:#f5f5f5}.topic.active{background:#edf3ff;color:#2167d5}
+.content{padding:30px;min-width:0}.section{display:none}.section.active{display:block}
+.section h2{font-size:22px;margin:0 0 7px;letter-spacing:-.4px}.intro{margin:0 0 25px;color:#777;font-size:13px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:19px 0;border-top:1px solid #eee}
+.setting-copy{min-width:0}.setting-copy strong{display:block;font-size:14px;font-weight:650}.setting-copy p{margin:5px 0 0;color:#777;font-size:12px;line-height:1.5}
+.time-value{font-size:34px;font-weight:750;letter-spacing:-1.2px;margin:8px 0 4px}.time-status{font-size:13px;color:#777}
+.time-card{padding:20px 0;border-top:1px solid #eee}.time-card:first-of-type{border-top:0}
+.calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 18px}
+.calendar-month{font-size:17px;font-weight:650}.calendar-controls{display:flex;gap:6px}
+.calendar-controls button{width:34px;height:34px;border:1px solid #e2e2e2;border-radius:8px;background:#fff;color:#444;cursor:pointer}.calendar-controls button:hover{background:#f5f5f5}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.calendar-weekday{text-align:center;color:#888;font-size:11px;font-weight:600;padding:8px 0}
+.calendar-day{min-height:58px;border:1px solid #eee;border-radius:9px;padding:8px;font-size:12px;color:#444;background:#fff}
+.calendar-day.muted{color:#bbb;background:#fafafa}.calendar-day.today{border-color:#3985ed;background:#edf3ff;color:#2167d5;font-weight:700}
+.bucket-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:8px 0 22px}
+.bucket-stat{padding:17px;border:1px solid #e8e8e8;border-radius:11px}.bucket-stat strong{display:block;font-size:25px;letter-spacing:-.5px}.bucket-stat span{display:block;margin-top:4px;color:#777;font-size:12px}
+.bucket-list{display:grid;gap:0}.bucket-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-top:1px solid #eee;font-size:13px}.bucket-row-name{display:flex;align-items:center;gap:10px;min-width:0}.bucket-row-name svg{width:18px;height:18px;stroke:#777;fill:none;stroke-width:1.7;flex:0 0 18px}.bucket-row-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bucket-row-type{color:#888;font-size:11px}
+.empty{padding:20px 0;color:#888;font-size:13px;line-height:1.6}
 .bottom-nav{position:fixed;z-index:10;left:50%;bottom:20px;transform:translateX(-50%);width:min(300px,calc(100% - 24px));min-height:44px;padding:3px;display:grid;grid-template-columns:repeat(4,1fr);gap:3px;background:rgba(235,236,238,.9);border:1px solid rgba(0,0,0,.06);border-radius:14px;box-shadow:0 3px 10px rgba(0,0,0,.055),inset 0 1px 0 rgba(255,255,255,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .nav-button{display:flex;align-items:center;justify-content:center;min-height:36px;text-decoration:none;border:1px solid rgba(0,0,0,.045);border-radius:9px;color:#444;background:rgba(255,255,255,.42)}.nav-button:hover{background:rgba(255,255,255,.8)}.nav-button[aria-current=page]{background:#d8dadd;border-color:rgba(0,0,0,.07)}.nav-button svg{width:20px;height:20px}
 [hidden]{display:none!important}
-html.dark-mode,html.dark-mode body{background:#171717;color:#eee}html.dark-mode .topbar,html.dark-mode .stat-card,html.dark-mode .section-card{background:#242424;border-color:#3c3c3c;color:#eee}html.dark-mode .back{color:#ccc}html.dark-mode .back:hover{background:#333}html.dark-mode .page-heading p,html.dark-mode .stat-label,html.dark-mode .stat-note,html.dark-mode .section-intro,html.dark-mode .empty,html.dark-mode .subject-tag{color:#aaa}html.dark-mode .subject-row{border-color:#3b3b3b}html.dark-mode .notice{background:#303030;color:#bbb}html.dark-mode .bottom-nav{background:rgba(40,40,40,.92);border-color:#444}html.dark-mode .nav-button{color:#ddd;background:#303030;border-color:#444}html.dark-mode .nav-button[aria-current=page]{background:#454545}
-@media(max-width:700px){main{margin:26px auto 90px}.overview{grid-template-columns:1fr 1fr}.content-grid{grid-template-columns:1fr}.stat-card{padding:18px}.stat-value{font-size:25px}}
-@media(max-width:420px){.overview{grid-template-columns:1fr}.topbar{padding:0 18px}.page-heading h1{font-size:26px}}
+html.dark-mode,html.dark-mode body{background:#171717;color:#eee}html.dark-mode .topbar,html.dark-mode .layout{background:#242424;border-color:#3c3c3c;color:#eee}html.dark-mode .sidebar{border-color:#3b3b3b}html.dark-mode .back,html.dark-mode .topic{color:#ccc}html.dark-mode .back:hover,html.dark-mode .topic:hover{background:#333}html.dark-mode .topic.active{background:#26364d;color:#8dbaff}html.dark-mode .intro,html.dark-mode .setting-copy p,html.dark-mode .time-status,html.dark-mode .calendar-weekday,html.dark-mode .bucket-stat span,html.dark-mode .bucket-row-type,html.dark-mode .empty{color:#aaa}html.dark-mode .setting-row,html.dark-mode .time-card,html.dark-mode .bucket-row{border-color:#3b3b3b}html.dark-mode .calendar-controls button,html.dark-mode .calendar-day,html.dark-mode .bucket-stat{background:#303030;border-color:#4a4a4a;color:#eee}html.dark-mode .calendar-day.muted{background:#282828;color:#777}html.dark-mode .calendar-day.today{background:#26364d;border-color:#3985ed;color:#8dbaff}html.dark-mode .bottom-nav{background:rgba(40,40,40,.92);border-color:#444}html.dark-mode .nav-button{color:#ddd;background:#303030;border-color:#444}html.dark-mode .nav-button[aria-current=page]{background:#454545}
+@media(max-width:700px){.layout{grid-template-columns:1fr;margin:20px auto 90px;min-height:0}.sidebar{border-right:0;border-bottom:1px solid #e5e5e5;padding:14px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.sidebar h1{grid-column:1/-1;margin:4px 6px 8px}.topic{justify-content:center;padding:11px 5px;font-size:12px;gap:6px}.content{padding:22px 18px;min-height:390px}html.dark-mode .sidebar{border-bottom-color:#3b3b3b}}
+@media(max-width:420px){.topbar{padding:0 18px}.calendar-day{min-height:45px;padding:6px 4px}.calendar-grid{gap:3px}.bucket-summary{gap:8px}.bucket-stat{padding:13px}}
 </style>
 </head>
 <body>
 <header class="topbar"><a class="brand" href="/dashboard.html">Coolanas</a><a class="back" href="/dashboard.html">← Back</a></header>
-<main>
-  <header class="page-heading"><h1>Analytics</h1><p>An overview of your study activity.</p></header>
-  <section class="overview" aria-label="Study overview">
-    <article class="stat-card"><div class="stat-label">Total tracked study time</div><div class="stat-value" id="total-time">00:00:00</div><div class="stat-note">From your study stopwatch on this device</div></article>
-    <article class="stat-card"><div class="stat-label">Stopwatch</div><div class="stat-value" id="timer-status">Not started</div><div class="stat-note" id="timer-note">No active study session</div></article>
-    <article class="stat-card"><div class="stat-label">Subjects</div><div class="stat-value" id="subject-count">—</div><div class="stat-note">Saved to your Coolanas account</div></article>
-  </section>
-  <section class="content-grid">
-    <article class="section-card"><h2>Your subjects</h2><p class="section-intro">Subjects currently saved to your account.</p><div class="subject-list" id="subject-list"><p class="empty">Loading your subjects…</p></div></article>
-    <article class="section-card"><h2>Study history</h2><p class="section-intro">Daily and weekly activity</p><div class="empty">Session history is not being recorded yet. This page currently shows the total saved by your stopwatch, not a daily or per-subject breakdown.</div><div class="notice">Keep using the study stopwatch on the dashboard. Historical charts can be added once Coolanas records individual sessions.</div></article>
-  </section>
+<main class="layout">
+<aside class="sidebar" aria-label="Analytics sections">
+<h1>Analytics</h1>
+<button class="topic active" type="button" data-section="time" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6M12 2v3"/></svg>Time</button>
+<button class="topic" type="button" data-section="calendar" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Calendar</button>
+<button class="topic" type="button" data-section="buckets" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.1 8.2C3.3 5.1 5.7 2.5 12 2.5s8.7 2.6 6.9 5.7"/><path d="M3.2 8.2h17.6l-2 12.1c-4.4 1.6-9.2 1.6-13.6 0L3.2 8.2Z"/><path d="M3.2 8.2c4.9 1.1 12.7 1.1 17.6 0"/></svg>Buckets</button>
+</aside>
+<div class="content">
+<section class="section active" id="section-time">
+<h2>Time</h2><p class="intro">Your tracked study time and current stopwatch.</p>
+<div class="time-card"><div class="setting-copy"><strong>Total tracked study time</strong><p>Time saved by your study stopwatch on this device.</p></div><div class="time-value" id="total-time">00:00:00</div><div class="time-status" id="timer-note">No active study session</div></div>
+<div class="time-card"><div class="setting-copy"><strong>Stopwatch status</strong><p id="timer-status">Not started</p></div></div>
+</section>
+<section class="section" id="section-calendar">
+<h2>Calendar</h2><p class="intro">A calendar view of the current month.</p>
+<div class="calendar-toolbar"><div class="calendar-month" id="calendar-month"></div><div class="calendar-controls"><button type="button" id="calendar-prev" aria-label="Previous month">‹</button><button type="button" id="calendar-next" aria-label="Next month">›</button></div></div>
+<div class="calendar-grid" id="calendar-grid" aria-label="Monthly calendar"></div>
+<p class="empty">Study sessions are not recorded by date yet, so the calendar currently shows dates only.</p>
+</section>
+<section class="section" id="section-buckets">
+<h2>Buckets</h2><p class="intro">An overview of the files and folders in your Bucket.</p>
+<div class="bucket-summary"><div class="bucket-stat"><strong id="bucket-count">—</strong><span>Buckets</span></div><div class="bucket-stat"><strong id="file-count">—</strong><span>Files</span></div></div>
+<div class="bucket-list" id="bucket-list"><p class="empty">Loading your buckets…</p></div>
+</section>
+</div>
 </main>
 <nav class="bottom-nav" aria-label="Main navigation">
 <a class="nav-button" href="/dashboard.html" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M9 20v-6h6v6"/></svg></a>
@@ -57,10 +85,15 @@ function applyTheme(){document.documentElement.classList.toggle("dark-mode",loca
 applyTheme();window.addEventListener("storage",event=>{if(event.key==="coolanas-theme")applyTheme();});
 const {data:{session},error:sessionError}=await supabase.auth.getSession();
 if(sessionError||!session?.user){location.replace("/index.html");throw new Error("Sign in required.");}
+for(const button of document.querySelectorAll(".topic"))button.addEventListener("click",()=>{for(const item of document.querySelectorAll(".topic")){const active=item===button;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active));}for(const section of document.querySelectorAll(".section"))section.classList.toggle("active",section.id==="section-"+button.dataset.section);});
 function formatDuration(ms){const total=Math.floor(Math.max(0,ms)/1000),h=Math.floor(total/3600),m=Math.floor(total%3600/60),s=total%60;return [h,m,s].map(v=>String(v).padStart(2,"0")).join(":");}
 function renderTimer(){let state={elapsed:0,startedAt:null};try{const saved=JSON.parse(localStorage.getItem("coolanas-study-stopwatch-v1")||"null");if(saved&&typeof saved.elapsed==="number")state={elapsed:Math.max(0,saved.elapsed),startedAt:Number.isFinite(saved.startedAt)?saved.startedAt:null};}catch{}const running=Boolean(state.startedAt);const total=state.elapsed+(running?Math.max(0,Date.now()-state.startedAt):0);$("total-time").textContent=formatDuration(total);$("timer-status").textContent=running?"Running":(state.elapsed>0?"Paused":"Not started");$("timer-note").textContent=running?"A study timer is currently active":(state.elapsed>0?"Your stopwatch is paused":"No active study session");}
-async function loadSubjects(){const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"subjects_get"}});if(error||data?.error){$("subject-count").textContent="—";$("subject-list").innerHTML='<p class="empty">Could not load your subjects right now.</p>';return;}const subjects=Array.isArray(data?.subjects)?data.subjects:[];$("subject-count").textContent=String(subjects.length);const palette=["#e7e7e7","#f6caca","#f6dfaa","#d9edbd","#c9e7ef","#d7d0f2","#f0cce8"];$("subject-list").replaceChildren();if(!subjects.length){const empty=document.createElement("p");empty.className="empty";empty.textContent="No subjects saved yet. Add subjects from the dashboard."; $("subject-list").append(empty);return;}for(const subject of subjects){const row=document.createElement("div");row.className="subject-row";const name=document.createElement("span");name.className="subject-name";const dot=document.createElement("span");dot.className="subject-dot";dot.style.background=palette[Math.max(0,Math.min(6,Number(subject.color)||0))];const label=document.createElement("span");label.textContent=subject.name;name.append(dot,label);const tag=document.createElement("span");tag.className="subject-tag";tag.textContent="Subject";row.append(name,tag);$("subject-list").append(row);}}
-renderTimer();loadSubjects();setInterval(renderTimer,1000);setInterval(loadSubjects,60000);
+let calendarDate=new Date();calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth(),1);
+function renderCalendar(){const year=calendarDate.getFullYear(),month=calendarDate.getMonth(),firstDay=new Date(year,month,1).getDay(),days=new Date(year,month+1,0).getDate(),previousDays=new Date(year,month,0).getDate();$("calendar-month").textContent=calendarDate.toLocaleDateString(undefined,{month:"long",year:"numeric"});const grid=$("calendar-grid");grid.replaceChildren();for(const day of ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]){const el=document.createElement("div");el.className="calendar-weekday";el.textContent=day;grid.append(el);}const total=Math.ceil((firstDay+days)/7)*7;const today=new Date();for(let index=0;index<total;index++){let day,muted=false,date;if(index<firstDay){day=previousDays-firstDay+index+1;muted=true;date=new Date(year,month-1,day);}else if(index>=firstDay+days){day=index-(firstDay+days)+1;muted=true;date=new Date(year,month+1,day);}else{day=index-firstDay+1;date=new Date(year,month,day);}const cell=document.createElement("div");cell.className="calendar-day"+(muted?" muted":"");if(date.getFullYear()===today.getFullYear()&&date.getMonth()===today.getMonth()&&date.getDate()===today.getDate())cell.classList.add("today");cell.textContent=String(day);cell.setAttribute("aria-label",date.toLocaleDateString(undefined,{dateStyle:"full"}));grid.append(cell);}}
+$("calendar-prev").addEventListener("click",()=>{calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth()-1,1);renderCalendar();});
+$("calendar-next").addEventListener("click",()=>{calendarDate=new Date(calendarDate.getFullYear(),calendarDate.getMonth()+1,1);renderCalendar();});
+async function loadBuckets(){const list=$("bucket-list");try{const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"list"}});if(error||data?.error)throw new Error(data?.error||error.message);const items=Array.isArray(data?.items)?data.items:[];const folders=items.filter(item=>item.item_type==="folder"&&item.parent_id===null);const files=items.filter(item=>item.item_type==="file");$("bucket-count").textContent=String(folders.length);$("file-count").textContent=String(files.length);list.replaceChildren();if(!folders.length){const empty=document.createElement("p");empty.className="empty";empty.textContent="You have not created any buckets yet.";list.append(empty);return;}for(const folder of folders){const row=document.createElement("div");row.className="bucket-row";const name=document.createElement("div");name.className="bucket-row-name";name.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h7l2 2H21v10H3z"/><path d="M3 7.5V5h7l2 2.5"/></svg>';const label=document.createElement("span");label.textContent=folder.name;name.append(label);const type=document.createElement("span");type.className="bucket-row-type";type.textContent="Bucket";row.append(name,type);list.append(row);}}catch(error){$("bucket-count").textContent="—";$("file-count").textContent="—";list.replaceChildren();const message=document.createElement("p");message.className="empty";message.textContent=error.message||"Could not load your buckets.";list.append(message);}}
+renderTimer();renderCalendar();loadBuckets();setInterval(renderTimer,1000);setInterval(loadBuckets,60000);
 </script>
 </body>
 </html>
