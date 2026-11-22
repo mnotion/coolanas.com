@@ -60,17 +60,16 @@
     .task-error{min-height:15px;margin-top:6px;color:#a22;font-size:11px}
     @media(max-width:620px){.study-stopwatch{top:35%;right:14px;bottom:auto;left:132px;transform:translateY(-50%);width:auto;min-width:0;padding:0}.study-stopwatch-time{font-size:32px}.task-list-card{top:auto;right:14px;bottom:100px;left:132px;transform:none;width:auto;min-width:0;padding:13px}.task-list-card h2,.study-stopwatch h2{font-size:16px}}
     @media(max-width:620px){.study-stopwatch{top:42%;right:14px;bottom:auto;left:132px;transform:translateY(-50%);width:auto;min-width:0;padding:0}.study-stopwatch-time{font-size:32px}.task-placeholder{top:auto;right:14px;bottom:100px;left:132px;transform:none;width:auto;min-width:0;padding:15px}.task-placeholder h2,.study-stopwatch h2{font-size:16px}.task-placeholder-empty{padding:16px 8px}}
-    .contribution-card{position:fixed;z-index:10;top:50%;left:18px;transform:translateY(-50%);box-sizing:border-box;width:112px;max-height:72vh;overflow:visible;padding:10px 14px;border:1px solid #dedede;border-radius:16px;background:#bdbdbd;box-shadow:0 4px 18px rgba(0,0,0,.045)}
-    .contribution-scroll{width:100%;max-height:72vh;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
-    .contribution-scroll::-webkit-scrollbar{display:none}
-    .contribution-grid{display:grid;grid-auto-flow:row;grid-template-columns:repeat(7,9px);grid-auto-rows:9px;gap:3px;width:max-content;max-width:100%;margin:0 auto}
-    .contribution-day{width:9px;height:9px;border-radius:2.5px;background:#f5f5f5}
+    .contribution-card{position:fixed;z-index:10;top:50%;left:18px;transform:translateY(-50%);box-sizing:border-box;width:112px;height:min(72vh,650px);max-height:none;overflow:hidden;padding:10px 12px;border:1px solid #dedede;border-radius:16px;background:#bdbdbd;box-shadow:0 4px 18px rgba(0,0,0,.045)}
+    .contribution-scroll{width:100%;height:100%;overflow:hidden}
+    .contribution-grid{display:grid;grid-auto-flow:row;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(53,minmax(0,1fr));gap:clamp(1px,.28vw,3px);width:100%;height:100%;margin:0}
+    .contribution-day{width:100%;height:100%;min-width:0;min-height:0;border-radius:2.5px;background:#f5f5f5}
     .contribution-day.passed{background:#d94b4b}
     .contribution-day.today{outline:1px solid #d94b4b;outline-offset:1px}
     .contribution-day.empty{visibility:hidden}
     .contribution-tooltip{position:fixed;z-index:30;display:none;pointer-events:none;padding:6px 9px;border:1px solid rgba(0,0,0,.1);border-radius:7px;background:#222;color:#fff;font-size:12px;font-weight:550;line-height:1.2;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.16)}
     .contribution-tooltip.visible{display:block}
-    @media(max-width:480px){.contribution-card{width:104px;padding:13px 12px;max-height:66vh}.contribution-scroll{max-height:66vh}.contribution-grid{grid-template-columns:repeat(7,8px);grid-auto-rows:8px;gap:3px}.contribution-day{width:8px;height:8px}}
+    @media(max-width:480px){.contribution-card{width:104px;height:66vh;padding:10px 11px}.contribution-scroll{height:100%}.contribution-grid{grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:repeat(53,minmax(0,1fr));gap:2px}.contribution-day{width:100%;height:100%}}
     .profile-button{position:fixed;z-index:12;top:20px;right:22px;width:42px;height:42px;padding:0;overflow:hidden;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#eee;color:#555;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
     .profile-button img,.profile-identity img{width:100%;height:100%;object-fit:cover}
     #profile-avatar-fallback,#drawer-avatar-fallback{font-weight:650;font-size:15px}
