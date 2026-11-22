@@ -29,5 +29,17 @@ jobs:
           Path("/tmp/exhibitions-inline.mjs").write_text(match.group(1))
           PY
           node --check /tmp/exhibitions-inline.mjs
+      - name: Check Coolanas Mail JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path("coming-soon.html").read_text()
+          match = re.search(r'<script type="module">\\s*(.*?)\\s*</script>', html, re.S)
+          if not match:
+              raise SystemExit("Could not find Coolanas Mail module script")
+          Path("/tmp/coolanas-mail-inline.mjs").write_text(match.group(1))
+          PY
+          node --check /tmp/coolanas-mail-inline.mjs
       - name: Type-check B2 Edge Function
         run: deno check --no-lock supabase/functions/coolanas-files-b2/index.ts
