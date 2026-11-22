@@ -84,17 +84,15 @@
     @media(prefers-reduced-motion:reduce){.task-drop-indicator,.task-row{transition:none!important}}
     .task-drag-handle{color:#999;font-size:15px;user-select:none;cursor:grab;padding:3px 2px;touch-action:none}
     .task-drag-handle:active{cursor:grabbing}
-    .task-row.completed{border-color:#75c98a;background:#effbf1;box-shadow:0 0 0 1px rgba(65,190,100,.16),0 0 13px rgba(65,190,100,.28)}
+    .task-row.completed{border-color:#36a852;background:transparent;box-shadow:none}
     .task-row.completed .task-text{text-decoration:line-through;color:#558362}
-    .task-complete{flex:0 0 32px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:0;border-radius:7px;background:#aeb4ae;transition:background .2s ease,box-shadow .2s ease,transform .2s ease}
+    .task-complete{flex:0 0 32px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:0;border-radius:7px;background:transparent;transition:transform .2s ease}
     .container{cursor:pointer}
     .container input{display:none}
     .container svg{overflow:visible}
-    .container .path{fill:none;stroke:white;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;transition:stroke-dasharray 0.5s ease,stroke-dashoffset 0.5s ease;stroke-dasharray:241 9999999;stroke-dashoffset:0}
+    .container .path{fill:none;stroke:#36a852;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;transition:stroke-dasharray 0.5s ease,stroke-dashoffset 0.5s ease;stroke-dasharray:241 9999999;stroke-dashoffset:0}
     .container input:checked~svg .path{stroke-dasharray:70.5096664428711 9999999;stroke-dashoffset:-262.2723388671875}
-    .task-complete:hover{transform:scale(1.06);background:#8caa91}
-    .task-row.completed .task-complete{background:#36a852;box-shadow:0 0 10px rgba(65,190,100,.42)}
-    .task-row.completed .task-complete:hover{background:#278e43}
+    .task-complete:hover{transform:scale(1.06)}
         .task-row.editing{border-color:#888;background:#fafafa}
     .task-edit-input{flex:1;min-width:0;border:0;outline:none;background:transparent;color:inherit;font:inherit;font-size:12px}
     .task-text{min-width:0;flex:1;overflow-wrap:anywhere;font-size:12px}
