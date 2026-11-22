@@ -103,28 +103,50 @@ Deno.serve(async (req) => {
     const profilePictureKey = prefix + "/assets/settings/profile-picture.png";
 
     if (action === "profile_picture_get") {
-      try {
-        await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: profilePictureKey }));
-      } catch {
-        return json(200, { exists: false, url: null });
+      for (const key of [prefix + "/assets/settings/profile-picture.gif", profilePictureKey]) {
+        try {
+          await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+          const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 300 });
+          return json(200, { exists: true, url, contentType: key.endsWith(".gif") ? "image/gif" : "image/png" });
+        } catch { /* Try the next supported format. */ }
       }
-      const url = await getSignedUrl(s3, new GetObjectCommand({
-        Bucket: bucket, Key: profilePictureKey,
-      }), { expiresIn: 300 });
-      return json(200, { exists: true, url });
+      return json(200, { exists: false, url: null });
+    }
+
+    if (action === "profile_picture_directory") {
+      const { data: directory, error: directoryError } = await supabase.rpc("coolanas_public_usernames");
+      if (directoryError || !Array.isArray(directory)) return json(500, { error: "Could not load the user directory." });
+      const users = await Promise.all(directory.map(async (entry: { user_id: string; username: string | null; google_avatar: string | null }) => {
+        const userPrefix = "userdata/" + encodeURIComponent(entry.username || "user") + "_" + entry.user_id;
+        let pictureUrl: string | null = null;
+        for (const extension of ["gif", "png"]) {
+          const key = userPrefix + "/assets/settings/profile-picture." + extension;
+          try {
+            await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+            pictureUrl = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 900 });
+            break;
+          } catch { /* No custom picture in this format. */ }
+        }
+        return { username: entry.username, pictureUrl, googleAvatar: entry.google_avatar };
+      }));
+      return json(200, { users });
     }
 
     if (action === "profile_picture_upload") {
       const contentType = body?.contentType;
-      if (contentType !== "image/png") return json(400, { error: "Profile pictures must be PNG files." });
+      const extension = contentType === "image/gif" ? "gif" : contentType === "image/png" ? "png" : null;
+      if (!extension) return json(400, { error: "Profile pictures must be PNG or GIF files." });
+      const key = prefix + "/assets/settings/profile-picture." + extension;
       const url = await getSignedUrl(s3, new PutObjectCommand({
-        Bucket: bucket, Key: profilePictureKey, ContentType: "image/png",
+        Bucket: bucket, Key: key, ContentType: contentType,
       }), { expiresIn: 300 });
-      return json(200, { uploadUrl: url, contentType: "image/png" });
+      return json(200, { uploadUrl: url, contentType });
     }
 
     if (action === "profile_picture_delete") {
-      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: profilePictureKey }));
+      await Promise.all(["png", "gif"].map(extension =>
+        s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: prefix + "/assets/settings/profile-picture." + extension }))
+      ));
       return json(200, { success: true, exists: false });
     }
     const parentId = body?.parentId == null ? null : cleanId(body.parentId);
