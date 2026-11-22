@@ -468,7 +468,8 @@ const {data:{session},error:sessionError}=await supabase.auth.getSession();
 if(sessionError||!session){location.replace("index.html");throw new Error("Sign-in required");}
 const user=session.user;
 const filesFunction="coolanas-files-b2";
-const folderSvg='<svg class="folder-icon bucket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.1 8.2C3.3 5.1 5.7 2.5 12 2.5s8.7 2.6 6.9 5.7"/><path d="M3.2 8.2h17.6l-2 12.1c-4.4 1.6-9.2 1.6-13.6 0L3.2 8.2Z"/><path d="M3.2 8.2c4.9 1.1 12.7 1.1 17.6 0"/><path d="M6.1 17.5c3.8 1 8 1 11.8 0"/></svg>';
+const bucketSvg='<svg class="folder-icon bucket-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.1 8.2C3.3 5.1 5.7 2.5 12 2.5s8.7 2.6 6.9 5.7"/><path d="M3.2 8.2h17.6l-2 12.1c-4.4 1.6-9.2 1.6-13.6 0L3.2 8.2Z"/><path d="M3.2 8.2c4.9 1.1 12.7 1.1 17.6 0"/><path d="M6.1 17.5c3.8 1 8 1 11.8 0"/></svg>';
+const folderSvg='<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6.5h6l2 2H20a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-16A1.5 1.5 0 0 1 2.5 18V8a1.5 1.5 0 0 1 1-1.5Z"/></svg>';
 const fileSvg='<svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.8h8l4 4V20H6z"/><path d="M14 3.8V8h4"/></svg>';
 const list=document.getElementById("files-list");
 const toolbar=document.getElementById("files-toolbar");
@@ -1195,7 +1196,7 @@ function renderItems(){
     card.dataset.id=item.id;
     card.dataset.type=item.item_type;
     card.setAttribute("role","listitem");
-    card.innerHTML=item.item_type==="folder"?folderSvg:fileSvg;
+    card.innerHTML=item.item_type==="folder"?(isBucketCard?bucketSvg:folderSvg):fileSvg;
     const icon=card.querySelector("svg");
     if(item.item_type==="folder"&&item.folder_color)icon.style.color=item.folder_color;
     let settings=null;
@@ -1352,7 +1353,7 @@ async function refreshSharedBuckets(){
     }
     for(const bucket of sharedBucketRecords){
       const card=document.createElement("button");card.type="button";card.className="shared-bucket-card";
-      const icon=document.createElement("span");icon.innerHTML=folderSvg;const svg=icon.firstElementChild;if(bucket.folder_color)svg.style.color=bucket.folder_color;
+      const icon=document.createElement("span");icon.innerHTML=bucketSvg;const svg=icon.firstElementChild;if(bucket.folder_color)svg.style.color=bucket.folder_color;
       const name=document.createElement("span");name.className="shared-bucket-name";name.textContent=bucket.name;
       const owner=document.createElement("span");owner.className="shared-bucket-owner";owner.textContent="Shared by "+bucket.ownerUsername;
       card.append(svg,name,owner);card.addEventListener("click",()=>openSharedBucket(bucket));grid.append(card);
@@ -1362,7 +1363,7 @@ async function refreshSharedBuckets(){
     for(const bucket of sharedByYou){
       const card=document.createElement("div");card.className="shared-bucket-card-owner";
       const open=document.createElement("button");open.type="button";open.className="shared-bucket-card-open";
-      const icon=document.createElement("span");icon.innerHTML=folderSvg;const svg=icon.firstElementChild;if(bucket.folder_color)svg.style.color=bucket.folder_color;
+      const icon=document.createElement("span");icon.innerHTML=bucketSvg;const svg=icon.firstElementChild;if(bucket.folder_color)svg.style.color=bucket.folder_color;
       const name=document.createElement("span");name.className="shared-bucket-name";name.textContent=bucket.name;
       const status=document.createElement("span");status.className="shared-bucket-owner-status";status.textContent="You shared this";
       open.append(svg,name,status);
