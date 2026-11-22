@@ -25,8 +25,12 @@
     html.dark-mode .study-stopwatch-actions .primary{background:#eee;color:#111;border-color:#eee}
     .active-subject-label{position:absolute;top:calc(100% + 18px);left:0;right:0;text-align:center;font-size:16px;font-weight:600;color:#f5f5f5;letter-spacing:.01em;pointer-events:none}
     body:not(.timer-running) .active-subject-label{display:none}
-    .subject-selection-hint{position:fixed;top:calc(50% + 58px);left:50%;transform:translateX(-50%);font-size:12px;color:#a22;opacity:0;pointer-events:none;transition:opacity .18s}
+    .subject-selection-hint{position:fixed;z-index:32;top:18%;left:50%;transform:translateX(-50%);padding:12px 20px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:#202020;color:#fff;font-size:15px;font-weight:600;letter-spacing:.01em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
     .subject-selection-hint.visible{opacity:1}
+    body.subject-pick-mode main::before{content:"";position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.68);pointer-events:none}
+    body.subject-pick-mode #study-subjects{z-index:30;padding:14px 16px;border:1px solid rgba(255,255,255,.85);border-radius:18px;background:#fff;box-shadow:0 0 0 5px rgba(255,255,255,.12),0 12px 42px rgba(0,0,0,.28)}
+    body.subject-pick-mode #study-subjects .study-subject{opacity:1;filter:none}
+    body.subject-pick-mode .subject-selection-hint{opacity:1}
     .study-subject.selected{outline:2px solid #222;outline-offset:2px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
     body.timer-running .active-subject-label,body.timer-paused .active-subject-label{display:block}
     .study-subjects.loading::before{content:"Loading subjects…";font-size:13px;color:#777;white-space:nowrap}.study-subjects{position:fixed;top:calc(50% + 53px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:7px;width:min(460px,calc(100vw - 32px));margin:0}
@@ -581,8 +585,9 @@
         const subjectState=window.coolanasSubjectState;
         if(!subjectState?.ready)return;
         if(!state.startedAt&&!subjectState.selected){
+          document.body.classList.add("subject-pick-mode");
           const hint=document.getElementById("subject-selection-hint");
-          if(hint){hint.textContent="Choose a subject before starting.";hint.classList.add("visible");}
+          if(hint){hint.textContent="Select a subject to start your session";hint.classList.add("visible");}
           return;
         }
         if(state.startedAt){
@@ -700,6 +705,7 @@
         const chip=event.target.closest(".study-subject");if(!chip)return;
         selected=Number(chip.dataset.index);
         window.coolanasSubjectState.selected=subjects[selected]?.name||null;
+        document.body.classList.remove("subject-pick-mode");
         hint.textContent="";hint.classList.remove("visible");
         container.querySelectorAll(".study-subject").forEach((item,index)=>{
           item.classList.toggle("selected",index===selected);
