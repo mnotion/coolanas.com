@@ -251,6 +251,44 @@ Deno.serve(async (req) => {
       return json(200,{success:true,exhibitionsId:exhibitions.id,userFolder:prefix});
     }
 
+    if (action === "subjects_get") {
+      const key = prefix + "/stats/subjects.json";
+      try {
+        const object = await s3.send(new GetObjectCommand({Bucket:bucket,Key:key}));
+        const raw = await object.Body?.transformToString();
+        const parsed = JSON.parse(raw || "[]");
+        const subjects = Array.isArray(parsed) ? parsed.filter((subject:any) =>
+          subject && typeof subject.name === "string" && subject.name.trim() &&
+          Number.isInteger(subject.color) && subject.color >= 0 && subject.color <= 6
+        ).slice(0,40) : [];
+        return json(200,{subjects});
+      } catch (error) {
+        if ((error as any)?.$metadata?.httpStatusCode !== 404 && (error as any)?.name !== "NoSuchKey") throw error;
+        return json(200,{subjects:null});
+      }
+    }
+
+    if (action === "subjects_save") {
+      if (!Array.isArray(body.subjects) || body.subjects.length > 40) return json(400,{error:"Subjects must be a list of at most 40 items."});
+      const names = new Set<string>();
+      const subjects = [];
+      for (const subject of body.subjects) {
+        if (!subject || typeof subject.name !== "string" || !subject.name.trim() ||
+            subject.name.length > 32 || !Number.isInteger(subject.color) || subject.color < 0 || subject.color > 6 ||
+            names.has(subject.name.trim().toLowerCase())) {
+          return json(400,{error:"One or more subjects are invalid."});
+        }
+        names.add(subject.name.trim().toLowerCase());
+        subjects.push({name:subject.name.trim(),color:subject.color});
+      }
+      const key = prefix + "/stats/subjects.json";
+      await s3.send(new PutObjectCommand({
+        Bucket:bucket,Key:key,Body:JSON.stringify(subjects,null,2),
+        ContentType:"application/json; charset=utf-8",
+      }));
+      return json(200,{success:true,count:subjects.length});
+    }
+
     if (action === "tasks_get") {
       const key = prefix + "/stats/tasks.json";
       try {
