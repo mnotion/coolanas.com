@@ -356,10 +356,12 @@
       .task-list-card{margin-top:360px}
       .study-stopwatch-time{font-size:25px}
     }
+    /* Final mobile layout override: the page scrolls, while navigation stays fixed. */
     @media(max-width:620px){
-      main{min-height:1420px}
-      .task-list-card{position:absolute;top:500px;right:14px;bottom:auto;left:14px;max-height:none;overflow:visible}
-      .contribution-card{position:absolute;top:1030px;left:14px;right:14px;bottom:auto;transform:none;width:auto;height:94px;padding:10px 11px}
+      html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
+      main{min-height:calc(100svh + 560px);padding:0 14px calc(104px + env(safe-area-inset-bottom))}
+      .contribution-card,.contribution-tooltip{display:none!important}
+      .task-list-card{position:relative;top:auto;right:auto;bottom:auto;left:auto;transform:none;width:auto;min-width:0;max-height:none;overflow:visible;margin:380px 0 28px;padding:15px;border-radius:16px}
     }
   </style>
 </head>
