@@ -356,7 +356,7 @@
   <main aria-label="Bucket">
     <input id="file-picker" type="file" multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
     <input id="folder-picker" type="file" webkitdirectory multiple style="position:fixed;left:-10000px;width:1px;height:1px;opacity:0">
-    <section class="exhibitions-header" id="exhibitions-header"><div><h1>Bucket</h1></div><form id="exhibition-create-form"><input id="exhibition-name" type="text" maxlength="180" placeholder="e.g. Maths" aria-label="Exhibition name" required><button type="submit" id="exhibition-create-button">Add bucket</button></form><div class="storage-summary" id="storage-summary">Calculating storage…</div><p class="exhibition-error" id="exhibition-error" role="status"></p></section>
+    <section class="exhibitions-header" id="exhibitions-header"><div><h1 id="bucket-title">Bucket • Calculating storage…</h1></div><form id="exhibition-create-form"><input id="exhibition-name" type="text" maxlength="180" placeholder="e.g. Maths" aria-label="Exhibition name" required><button type="submit" id="exhibition-create-button">Add bucket</button></form><p class="exhibition-error" id="exhibition-error" role="status"></p></section>
     <div class="files-toolbar" id="files-toolbar" hidden><button class="crumb-button" id="back-folder" type="button">← Back</button><span class="crumb-current" id="current-folder"></span></div>
     <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
      <section class="shared-buckets" id="shared-buckets" hidden aria-labelledby="shared-buckets-title"><div class="shared-buckets-divider"></div><h2 id="shared-buckets-title">Shared buckets</h2><h3 class="shared-buckets-subtitle">Shared with you</h3><div class="shared-buckets-grid" id="shared-buckets-list"><p class="shared-bucket-empty">Loading shared buckets…</p></div><h3 class="shared-buckets-subtitle" id="shared-by-you-title" hidden>Shared by you</h3><div class="shared-buckets-grid" id="shared-by-you-list"></div><p class="shared-buckets-feedback" id="shared-buckets-feedback" role="status" aria-live="polite"></p></section>
@@ -1480,7 +1480,7 @@ async function refreshExhibitions(){
   const data=await filesAction("exhibitions_list");
   exhibitionRecords=data.exhibitions||[];exhibitionTotalBytes=Number(data.totalBytes)||0;
   await refreshSharedBuckets();
-  document.getElementById("storage-summary").textContent="Total storage used · "+formatStorage(exhibitionTotalBytes);
+  document.getElementById("bucket-title").textContent="Bucket • "+formatStorage(exhibitionTotalBytes);
   const blocked=exhibitionRecords.length>=2;
   document.getElementById("exhibition-create-form").hidden=blocked;
   renderItems();
