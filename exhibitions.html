@@ -506,6 +506,7 @@ async function flushPendingMutations(){
     for(const item of updatedItems)upsertItem(item);
     for(const entry of pending)if(entry.type==="delete")removeCachedItems([entry.itemId]);
     renderItems();
+    if(exhibitionRootId)refreshExhibitions().catch(error=>console.warn("Storage usage refresh failed:",error.message));
   })().catch(error=>{
     console.warn("File changes remain queued until the next sync:",error.message);
   }).finally(()=>{pendingFlushPromise=null;});
