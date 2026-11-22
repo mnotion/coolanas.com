@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
       }
 
       const copiedKeys: string[] = [];
-      const changedRows: Array<{ id: string; oldPath: string }> = [];
+      let databaseUpdated = false;
       try {
         for (const oldKey of oldObjects) {
           const newKey = newPrefix + oldKey.slice(prefix.length);
@@ -190,23 +190,17 @@ Deno.serve(async (req) => {
           .update({ username: newUsername }).eq("id", userId);
         if (usernameError) throw usernameError;
 
-        const { data: fileRows, error: filesError } = await supabase.from("coolanas_files")
-          .select("id,storage_path").eq("owner_id", userId);
-        if (filesError) throw filesError;
-        for (const row of fileRows ?? []) {
-          if (typeof row.storage_path === "string" && row.storage_path.startsWith(prefix + "/")) {
-            const updatedPath = newPrefix + row.storage_path.slice(prefix.length);
-            const { error: pathError } = await supabase.from("coolanas_files")
-              .update({ storage_path: updatedPath }).eq("id", row.id).eq("owner_id", userId);
-            if (pathError) throw pathError;
-            changedRows.push({ id: row.id, oldPath: row.storage_path });
-          }
-        }
-
+        const { error: prefixError } = await supabase.rpc("coolanas_update_storage_prefix", {
+          p_old_prefix: prefix, p_new_prefix: newPrefix,
+        });
+        if (prefixError) throw prefixError;
+        databaseUpdated = true;
       } catch (error) {
-        // Keep the original files available if a later step fails.
-        for (const row of changedRows) {
-          await supabase.from("coolanas_files").update({ storage_path: row.oldPath }).eq("id", row.id).eq("owner_id", userId);
+        // Restore database paths and the original username before removing copied objects.
+        if (databaseUpdated) {
+          await supabase.rpc("coolanas_update_storage_prefix", {
+            p_old_prefix: newPrefix, p_new_prefix: prefix,
+          });
         }
         await supabase.from("profiles").update({ username }).eq("id", userId);
         for (let offset = 0; offset < copiedKeys.length; offset += 1000) {
