@@ -408,10 +408,12 @@ Deno.serve(async (req) => {
     }
 
     if (action === "mail_clear") {
-      const { error } = await supabase.from("mail_notifications")
-        .delete().eq("recipient_id", userId);
-      if (error) throw error;
-      return json(200, { success: true });
+      const { data: deletedCount, error } = await supabase.rpc("coolanas_clear_mail_notifications");
+      if (error) {
+        console.error("mail_clear failed:", error);
+        return json(500, { error: "Could not clear mail notifications.", details: error.message });
+      }
+      return json(200, { success: true, deletedCount: deletedCount ?? 0 });
     }
 
     if (action === "mail_mark_read") {
