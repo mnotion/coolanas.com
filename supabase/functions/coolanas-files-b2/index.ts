@@ -149,6 +149,142 @@ Deno.serve(async (req) => {
       ));
       return json(200, { success: true, exists: false });
     }
+
+    if (action === "bucket_share_users") {
+      const { data: directory, error } = await supabase.rpc("coolanas_public_usernames");
+      if (error || !Array.isArray(directory)) throw new Error("Could not load Coolanas users.");
+      const users = directory
+        .filter((entry: any) => entry.user_id !== userId && validUsername(entry.username))
+        .map((entry: any) => ({ userId: entry.user_id, username: entry.username }));
+      return json(200, { users });
+    }
+
+    if (action === "bucket_share_invite") {
+      const bucketId = cleanId(body.bucketId);
+      const recipientId = cleanId(body.recipientId);
+      if (!bucketId || !recipientId) return json(400, { error: "Choose a valid bucket and Coolanas user." });
+      const { data, error } = await supabase.rpc("coolanas_create_bucket_invitation", {
+        p_bucket_id: bucketId,
+        p_recipient_id: recipientId,
+      });
+      if (error) return json(400, { error: error.message });
+      return json(200, { success: true, invitationId: data });
+    }
+
+    if (action === "bucket_share_owner_list") {
+      const bucketId = cleanId(body.bucketId);
+      if (!bucketId) return json(400, { error: "Invalid bucket." });
+      const [{ data: shares, error: shareError }, { data: invitations, error: invitationError }, { data: directory, error: directoryError }] = await Promise.all([
+        supabase.from("bucket_shares").select("id,bucket_id,recipient_id,created_at")
+          .eq("owner_id", userId).eq("bucket_id", bucketId).is("revoked_at", null),
+        supabase.from("bucket_share_invitations").select("id,bucket_id,recipient_id,status,created_at")
+          .eq("owner_id", userId).eq("bucket_id", bucketId).eq("status", "pending"),
+        supabase.rpc("coolanas_public_usernames"),
+      ]);
+      if (shareError || invitationError || directoryError || !Array.isArray(directory)) {
+        throw new Error("Could not load this bucket's sharing settings.");
+      }
+      const usernames = new Map(directory.map((entry: any) => [entry.user_id, entry.username]));
+      return json(200, {
+        shares: (shares ?? []).map((share: any) => ({
+          id: share.id, recipientId: share.recipient_id,
+          username: usernames.get(share.recipient_id) || "Coolanas user",
+          createdAt: share.created_at, status: "accepted",
+        })),
+        invitations: (invitations ?? []).map((invitation: any) => ({
+          id: invitation.id, recipientId: invitation.recipient_id,
+          username: usernames.get(invitation.recipient_id) || "Coolanas user",
+          createdAt: invitation.created_at, status: "pending",
+        })),
+      });
+    }
+
+    if (action === "bucket_share_revoke") {
+      const bucketId = cleanId(body.bucketId);
+      const recipientId = cleanId(body.recipientId);
+      if (!bucketId || !recipientId) return json(400, { error: "Invalid share." });
+      const { data, error } = await supabase.rpc("coolanas_revoke_bucket_share", {
+        p_bucket_id: bucketId, p_recipient_id: recipientId,
+      });
+      if (error) return json(400, { error: error.message });
+      return json(200, { success: data === true });
+    }
+
+    if (action === "shared_buckets_list") {
+      const [{ data: shares, error: shareError }, { data: directory, error: directoryError }] = await Promise.all([
+        supabase.from("bucket_shares").select("id,bucket_id,owner_id,created_at")
+          .eq("recipient_id", userId).is("revoked_at", null).order("created_at", { ascending: false }),
+        supabase.rpc("coolanas_public_usernames"),
+      ]);
+      if (shareError || directoryError || !Array.isArray(directory)) throw new Error("Could not load shared buckets.");
+      const usernames = new Map(directory.map((entry: any) => [entry.user_id, entry.username]));
+      const buckets = [];
+      for (const share of shares ?? []) {
+        const { data: bucketRow, error: bucketError } = await supabase.from("coolanas_files")
+          .select("id,name,folder_color,created_at,storage_path")
+          .eq("id", share.bucket_id).eq("owner_id", share.owner_id).eq("item_type", "folder").maybeSingle();
+        if (bucketError) throw bucketError;
+        if (!bucketRow || !bucketRow.storage_path) continue;
+        buckets.push({
+          id: bucketRow.id, name: bucketRow.name, folder_color: bucketRow.folder_color,
+          ownerId: share.owner_id, ownerUsername: usernames.get(share.owner_id) || "Coolanas user",
+          sharedAt: share.created_at,
+        });
+      }
+      return json(200, { buckets });
+    }
+
+    if (action === "shared_bucket_open") {
+      const bucketId = cleanId(body.bucketId);
+      if (!bucketId) return json(400, { error: "Invalid shared bucket." });
+      const { data: share, error: shareError } = await supabase.from("bucket_shares")
+        .select("bucket_id,owner_id,bucket_path")
+        .eq("bucket_id", bucketId).eq("recipient_id", userId).is("revoked_at", null).maybeSingle();
+      if (shareError || !share) return json(404, { error: "This bucket is no longer shared with you." });
+      const { data: rows, error } = await supabase.from("coolanas_files")
+        .select("id,owner_id,parent_id,name,item_type,folder_color,tag,sort_order,created_at,updated_at,storage_path")
+        .eq("owner_id", share.owner_id).order("item_type").order("sort_order").order("name");
+      if (error) throw error;
+      const items = (rows ?? [])
+        .filter((row: any) => typeof row.storage_path === "string" && row.storage_path.startsWith(share.bucket_path))
+        .map((row: any) => ({ ...row, shared_read_only: true }));
+      if (!items.some((row: any) => row.id === bucketId)) {
+        return json(404, { error: "The shared bucket could not be found." });
+      }
+      return json(200, { items, bucketId, readOnly: true });
+    }
+
+    if (action === "bucket_invitation_respond") {
+      const invitationId = cleanId(body.invitationId);
+      const response = body.response;
+      if (!invitationId || (response !== "accept" && response !== "decline")) {
+        return json(400, { error: "Invalid invitation response." });
+      }
+      const { data, error } = await supabase.rpc("coolanas_respond_bucket_invitation", {
+        p_invitation_id: invitationId, p_response: response,
+      });
+      if (error) return json(400, { error: error.message });
+      return json(200, { success: true, status: data });
+    }
+
+    if (action === "mail_list") {
+      const { data, error } = await supabase.from("mail_notifications")
+        .select("id,type,title,message,created_at,read_at,bucket_id,invitation_id,payload,sender_id")
+        .eq("recipient_id", userId).order("created_at", { ascending: false }).limit(50);
+      if (error) throw error;
+      return json(200, { notifications: data ?? [] });
+    }
+
+    if (action === "mail_mark_read") {
+      const notificationId = cleanId(body.notificationId);
+      if (!notificationId) return json(400, { error: "Invalid notification." });
+      const { error } = await supabase.from("mail_notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", notificationId).eq("recipient_id", userId);
+      if (error) throw error;
+      return json(200, { success: true });
+    }
+
     const parentId = body?.parentId == null ? null : cleanId(body.parentId);
     if (body?.parentId != null && !parentId) return json(400, { error: "Invalid folder." });
 
@@ -490,9 +626,20 @@ Deno.serve(async (req) => {
       if (!id) return json(400, { error: "Invalid file." });
       const { data, error } = await supabase.from("coolanas_files")
         .select("id, owner_id, storage_path, item_type").eq("id", id)
-        .eq("owner_id", user.id).eq("item_type", "file").single();
+        .eq("item_type", "file").single();
       if (error || !data) return json(404, { error: "File not found or access denied." });
-      if (!belongsToUserPath(data.storage_path)) return json(403, { error: "File path does not belong to this account." });
+      if (data.owner_id === userId) {
+        if (!belongsToUserPath(data.storage_path)) return json(403, { error: "File path does not belong to this account." });
+      } else {
+        const { data: share, error: shareError } = await supabase.from("bucket_shares")
+          .select("bucket_path")
+          .eq("owner_id", data.owner_id).eq("recipient_id", userId).is("revoked_at", null);
+        if (shareError || !(share ?? []).some((entry: any) =>
+          typeof data.storage_path === "string" && data.storage_path.startsWith(entry.bucket_path)
+        )) {
+          return json(403, { error: "This file is not in a bucket currently shared with you." });
+        }
+      }
       const url = await getSignedUrl(s3, new GetObjectCommand({
         Bucket: bucket, Key: data.storage_path,
       }), { expiresIn: 180 });
