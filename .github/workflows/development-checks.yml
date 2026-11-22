@@ -28,6 +28,6 @@ jobs:
               raise SystemExit("Could not find exhibitions page module script")
           Path("/tmp/exhibitions-inline.mjs").write_text(match.group(1))
           PY
-          node --check /tmp/files-inline.mjs
+          node --check /tmp/exhibitions-inline.mjs
       - name: Type-check B2 Edge Function
         run: deno check --no-lock supabase/functions/coolanas-files-b2/index.ts
