@@ -44,9 +44,9 @@
     body.subject-pick-mode #study-subjects .study-subject{opacity:1;filter:none}
     body.subject-pick-mode .subject-selection-hint{opacity:1}
     .study-subject.selected{outline:2px solid #222;outline-offset:2px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-    body.timer-running .active-subject-label{display:inline-flex;z-index:5}
-    body.timer-paused #study-subjects{top:calc(50% + 112px)}
-    body.timer-paused .active-subject-label{display:none!important}
+    body.timer-running .active-subject-label,body.timer-paused .active-subject-label{display:inline-flex;z-index:5}
+    body.timer-paused .active-subject-label{top:calc(100% + 18px)}
+    body.timer-paused #study-subjects{top:calc(50% + 145px)}
     .study-subjects.loading::before{content:"Loading subjects…";font-size:13px;color:#777;white-space:nowrap}.study-subjects{position:fixed;top:calc(50% + 53px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:7px;width:min(460px,calc(100vw - 32px));margin:0}
     .study-subject{padding:7px 11px;border:1px solid #dedede;border-radius:999px;background:#f7f7f7;color:#555;font:inherit;font-size:12px}
 .study-subject{cursor:context-menu;user-select:none;transition:background .15s,border-color .15s,color .15s}
