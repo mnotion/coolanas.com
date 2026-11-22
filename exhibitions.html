@@ -365,7 +365,7 @@
     <div class="profile-drawer-head"><div class="profile-identity"><img id="drawer-avatar" alt="" hidden><span id="drawer-avatar-fallback">?</span><div><strong id="profile-name">Account</strong><small id="profile-email"></small></div></div><button class="close-button" id="profile-close" type="button" aria-label="Close">×</button></div>
     <nav class="profile-actions">
       <button id="change-pfp" type="button">Change profile picture</button><button id="remove-pfp" type="button" hidden>Remove profile picture</button>
-      <button id="change-account" type="button">Change account</button><button id="theme-toggle" type="button">Switch to dark mode</button><button id="profile-signout" type="button">Sign out</button>
+      <button id="change-account" type="button">Change account</button><button id="profile-settings" type="button">Settings</button><button id="theme-toggle" type="button">Switch to dark mode</button><button id="profile-signout" type="button">Sign out</button>
     </nav><input id="profile-picture-input" type="file" accept="image/*" hidden>
   </aside>
 
@@ -629,6 +629,7 @@ profilePictureInput.addEventListener("change",async()=>{const file=profilePictur
  }catch(error){alert(error.message||"Could not update profile picture.");}});
 removePfpButton.addEventListener("click",async()=>{try{await profileAction("profile_picture_delete");customProfilePicture=false;setAvatar(googleAvatarUrl);closeProfileDrawer();}catch(error){alert(error.message||"Could not remove profile picture.");}});
 async function leaveAccount(){const {error}=await supabase.auth.signOut({scope:"local"});if(error)throw error;location.assign("/index.html");}
+document.getElementById("profile-settings").addEventListener("click",()=>location.assign("/settings.html"));
 document.getElementById("profile-signout").addEventListener("click",()=>leaveAccount().catch(error=>alert(error.message)));
 document.getElementById("change-account").addEventListener("click",()=>leaveAccount().catch(error=>alert(error.message)));
 document.addEventListener("keydown",event=>{if(event.key==="Escape")closeProfileDrawer();});
