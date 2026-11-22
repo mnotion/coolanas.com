@@ -211,6 +211,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 <button class="menu-item" id="change-pfp" type="button">Change profile picture</button>
 <button class="menu-item" id="remove-pfp" type="button" hidden>Remove profile picture</button>
 <button class="menu-item" id="change-account" type="button">Change account</button>
+<button class="menu-item" id="profile-settings" type="button">Settings</button>
 <button class="menu-item" id="theme-toggle" type="button">Switch to dark mode</button>
 <button class="menu-item" id="profile-signout" type="button">Sign out</button>
 </nav>
@@ -356,6 +357,7 @@ async function refreshProfilePicture(){const result=await profileAction("profile
 function closeProfileDrawer(){profileDrawer.classList.remove("open");profileDrawer.setAttribute("aria-hidden","true");profileButton.setAttribute("aria-expanded","false");profileBackdrop.hidden=true;}
 function openProfileDrawer(){profileDrawer.classList.add("open");profileDrawer.setAttribute("aria-hidden","false");profileButton.setAttribute("aria-expanded","true");profileBackdrop.hidden=false;}
 profileButton.addEventListener("click",openProfileDrawer);
+document.getElementById("profile-settings").addEventListener("click",()=>location.assign("/settings.html"));
 document.getElementById("profile-close").addEventListener("click",closeProfileDrawer);
 profileBackdrop.addEventListener("click",closeProfileDrawer);
 document.getElementById("change-pfp").addEventListener("click",()=>profilePictureInput.click());
