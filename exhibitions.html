@@ -294,8 +294,11 @@
     html.dark-mode .viewer-content{color:#eee!important}
   
     .global-top-controls{position:fixed;z-index:90;top:20px;right:22px;display:flex;align-items:center;gap:8px}
-    .mail-button{width:42px;height:42px;padding:0;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:rgba(255,255,255,.92);color:#444;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
+    .mail-button{position:relative;width:42px;height:42px;padding:0;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:rgba(255,255,255,.92);color:#444;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
     .mail-button svg{width:19px;height:19px}
+    .mail-unread-indicator{position:absolute;right:1px;bottom:1px;width:11px;height:11px;border:2px solid #fff;border-radius:50%;background:#2563eb;display:none;pointer-events:none}
+    .mail-unread-indicator.visible{display:block}
+    html.dark-mode .mail-unread-indicator{border-color:#242424}
     .profile-button{width:42px;height:42px;padding:0;overflow:hidden;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#eee;color:#555;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
     .profile-button img{width:100%;height:100%;object-fit:cover}
     .mail-popover{position:fixed;z-index:92;top:72px;right:72px;width:min(360px,calc(100vw - 32px));max-height:min(620px,calc(100vh - 92px));display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:rgba(255,255,255,.97);box-shadow:0 12px 36px rgba(0,0,0,.13);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
@@ -332,7 +335,7 @@
 <body>
 
   <div class="global-top-controls">
-    <button id="mail-button" class="mail-button" type="button" aria-label="Open mail" aria-expanded="false" aria-controls="mail-popover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="m4 7 8 6 8-6"></path></svg></button>
+    <button id="mail-button" class="mail-button" type="button" aria-label="Open mail" aria-expanded="false" aria-controls="mail-popover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="m4 7 8 6 8-6"></path></svg><span id="mail-unread-indicator" class="mail-unread-indicator" aria-hidden="true"></span></button>
     <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback">?</span></button>
   </div>
   <section class="mail-popover" id="mail-popover" aria-label="Mail" hidden><h2>Mail</h2><div class="mail-notifications" id="mail-notifications"><p class="mail-empty">Loading mail…</p></div></section>
@@ -518,12 +521,20 @@ async function filesAction(action,payload={}){
 }
 
 const mailButton=document.getElementById("mail-button"),mailPopover=document.getElementById("mail-popover"),mailNotifications=document.getElementById("mail-notifications");
-async function refreshMail(){
+const mailUnreadIndicator=document.getElementById("mail-unread-indicator");
+function setMailUnreadIndicator(hasUnread){
+ mailUnreadIndicator.classList.toggle("visible",hasUnread);
+ mailButton.setAttribute("aria-label",hasUnread?"Open mail (unread notifications)":"Open mail");
+}
+async function refreshMail(markVisibleAsRead=false){
  try{
   const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_list"}});
   if(error)throw error;if(data?.error)throw new Error(data.error);
-  const notifications=data?.notifications||[];mailNotifications.replaceChildren();
+  const notifications=data?.notifications||[];
+  setMailUnreadIndicator(notifications.some(notification=>!notification.read_at));
+  mailNotifications.replaceChildren();
   if(!notifications.length){const empty=document.createElement("p");empty.className="mail-empty";empty.textContent="No new mails.";mailNotifications.append(empty);return;}
+  const markReadRequests=[];
   for(const notification of notifications){
    const card=document.createElement("article");card.className="mail-notification"+(notification.read_at?"":" unread");
    const title=document.createElement("h3");title.textContent=notification.title||"Coolanas notification";
@@ -541,12 +552,20 @@ async function refreshMail(){
    }else if(notification.type==="bucket_invitation"&&status){
     const label=document.createElement("span");label.className="mail-notification-status";label.textContent=(status==="accepted"||status==="accept")?"Invitation accepted":(status==="declined"||status==="decline")?"Invitation declined":status==="revoked"?"Access withdrawn":"";card.append(label);
    }
-   if(!notification.read_at)supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_mark_read",notificationId:notification.id}}).catch(()=>{});
+   if(markVisibleAsRead&&!notification.read_at){
+    markReadRequests.push(supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_mark_read",notificationId:notification.id}}));
+   }
    mailNotifications.append(card);
+  }
+  if(markReadRequests.length){
+   await Promise.allSettled(markReadRequests);
+   await refreshMail(false);
   }
  }catch(error){mailNotifications.replaceChildren();const empty=document.createElement("p");empty.className="mail-empty";empty.textContent=error.message||"Could not load mail.";mailNotifications.append(empty);}
 }
-mailButton.addEventListener("click",()=>{const opening=mailPopover.hidden;mailPopover.hidden=!opening;mailButton.setAttribute("aria-expanded",String(opening));if(opening)refreshMail();});
+mailButton.addEventListener("click",()=>{const opening=mailPopover.hidden;mailPopover.hidden=!opening;mailButton.setAttribute("aria-expanded",String(opening));if(opening)refreshMail(true);});
+refreshMail();
+window.setInterval(()=>refreshMail(false),30000);
 document.addEventListener("click",event=>{if(!mailPopover.hidden&&!mailPopover.contains(event.target)&&!mailButton.contains(event.target)){mailPopover.hidden=true;mailButton.setAttribute("aria-expanded","false");}});
 const profileButton=document.getElementById("profile-button"),profileDrawer=document.getElementById("profile-drawer"),profileBackdrop=document.getElementById("profile-backdrop");
 const profileAvatar=document.getElementById("profile-avatar"),drawerAvatar=document.getElementById("drawer-avatar"),avatarFallback=document.getElementById("profile-avatar-fallback"),drawerAvatarFallback=document.getElementById("drawer-avatar-fallback");
