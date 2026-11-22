@@ -23,6 +23,12 @@
     html.dark-mode .study-stopwatch{background:#242424;border-color:#444}
     html.dark-mode .study-stopwatch-actions button{background:#333;color:#eee;border-color:#555}
     html.dark-mode .study-stopwatch-actions .primary{background:#eee;color:#111;border-color:#eee}
+    .active-subject-label{position:absolute;top:calc(100% + 18px);left:0;right:0;text-align:center;font-size:16px;font-weight:600;color:#f5f5f5;letter-spacing:.01em;pointer-events:none}
+    body:not(.timer-running) .active-subject-label{display:none}
+    .subject-selection-hint{position:fixed;top:calc(50% + 58px);left:50%;transform:translateX(-50%);font-size:12px;color:#a22;opacity:0;pointer-events:none;transition:opacity .18s}
+    .subject-selection-hint.visible{opacity:1}
+    .study-subject.selected{outline:2px solid #222;outline-offset:2px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+    body.timer-running .active-subject-label{display:block}
     .study-subjects{position:fixed;top:calc(50% + 53px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:7px;width:min(460px,calc(100vw - 32px));margin:0}
     .study-subject{padding:7px 11px;border:1px solid #dedede;border-radius:999px;background:#f7f7f7;color:#555;font:inherit;font-size:12px}
 .study-subject{cursor:context-menu;user-select:none;transition:background .15s,border-color .15s,color .15s}
@@ -258,7 +264,9 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2l-11 7.1c-.7.4-1.6-.1-1.6-.9z"/></svg>
         </button>
       </div>
+      <div class="active-subject-label" id="active-subject-label" aria-live="polite"></div>
     </section>
+    <div class="subject-selection-hint" id="subject-selection-hint" role="status"></div>
     <div class="study-subjects" id="study-subjects" aria-label="Subjects">
       <span class="study-subject" data-color="0">Maths</span><span class="study-subject" data-color="0">English</span><span class="study-subject" data-color="0">Biology</span><span class="study-subject" data-color="0">Chemistry</span><span class="study-subject" data-color="0">Physics</span><span class="study-subject" data-color="0">History</span><span class="study-subject" data-color="0">Geography</span><span class="study-subject" data-color="0">Computer Science</span>
       <button class="study-subject-add" id="study-subject-add" type="button" aria-label="Add subject">+</button>
@@ -568,7 +576,16 @@
           ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>'
           : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2l-11 7.1c-.7.4-1.6-.1-1.6-.9z"/></svg>';
       }
+      toggleButton.disabled=true;
+      toggleButton.title="Loading subjects…";
       toggleButton.addEventListener("click",()=>{
+        const subjectState=window.coolanasSubjectState;
+        if(!subjectState?.ready)return;
+        if(!state.startedAt&&!subjectState.selected){
+          const hint=document.getElementById("subject-selection-hint");
+          if(hint){hint.textContent="Choose a subject before starting.";hint.classList.add("visible");}
+          return;
+        }
         if(state.startedAt){
           state.elapsed=elapsedNow();
           state.startedAt=null;
@@ -586,28 +603,63 @@
       setInterval(render,250);
     })();
 
-    // Subject chips: inline add/rename and compact colour menu.
+    // Subjects are account-synced in stats/subjects.json.
     (function setupSubjects(){
       const container=document.getElementById("study-subjects");
       const add=document.getElementById("study-subject-add");
       const input=document.getElementById("study-subject-input");
       const menu=document.getElementById("subject-context-menu");
       const colourRow=document.getElementById("subject-menu-colours");
+      const activeLabel=document.getElementById("active-subject-label");
+      const timerButton=document.getElementById("study-stopwatch-toggle");
+      const hint=document.getElementById("subject-selection-hint");
       const palette=["#e7e7e7","#f6caca","#f6dfaa","#d9edbd","#c9e7ef","#d7d0f2","#f0cce8"];
-      const key="coolanas-study-subjects-v1";
-      let subjects=[...container.querySelectorAll(".study-subject")].map(el=>({name:el.textContent.trim(),color:Number(el.dataset.color)||0}));
-      try{const saved=JSON.parse(localStorage.getItem(key)||"null");if(Array.isArray(saved))subjects=saved.filter(s=>s&&typeof s.name==="string").map(s=>({name:s.name.slice(0,32),color:Math.max(0,Math.min(6,Number(s.color)||0))}));}catch(error){console.warn("Could not restore subjects:",error);}
-      let activeIndex=-1,editingIndex=-1;
-      function persist(){try{localStorage.setItem(key,JSON.stringify(subjects));}catch(error){console.warn("Could not save subjects:",error);}}
-      function render(){container.querySelectorAll(".study-subject").forEach(el=>el.remove());subjects.forEach((subject,index)=>{const chip=document.createElement("span");chip.className="study-subject";chip.textContent=subject.name;chip.dataset.index=String(index);chip.style.background=palette[subject.color];chip.style.borderColor=palette[subject.color];chip.style.color="#444";chip.title="Double-click for subject options";container.insertBefore(chip,add);});}
+      const defaults=[...container.querySelectorAll(".study-subject")].map(el=>({name:el.textContent.trim(),color:Number(el.dataset.color)||0}));
+      const localKey="coolanas-study-subjects-v1";
+      let subjects=defaults;
+      let selected=null,activeIndex=-1,editingIndex=-1,saveQueue=Promise.resolve();
+      window.coolanasSubjectState={ready:false,selected:null};
+      async function subjectAction(action,payload={}){
+        const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action,...payload}});
+        if(error)throw new Error(error.message||"Could not sync subjects.");
+        if(data?.error)throw new Error(data.error);
+        return data;
+      }
+      function normalize(list){
+        if(!Array.isArray(list))return null;
+        return list.filter(s=>s&&typeof s.name==="string"&&s.name.trim()).slice(0,40)
+          .map(s=>({name:s.name.trim().slice(0,32),color:Math.max(0,Math.min(6,Number(s.color)||0))}));
+      }
+      function persist(){
+        const snapshot=subjects.map(s=>({...s}));
+        saveQueue=saveQueue.then(()=>subjectAction("subjects_save",{subjects:snapshot})).catch(error=>{
+          console.error("Could not sync subjects:",error);
+          hint.textContent="Subjects could not sync. Changes will retry when you edit again.";
+          hint.classList.add("visible");
+        });
+      }
+      function render(){
+        container.querySelectorAll(".study-subject").forEach(el=>el.remove());
+        subjects.forEach((subject,index)=>{
+          const chip=document.createElement("button");chip.type="button";chip.className="study-subject";
+          chip.textContent=subject.name;chip.dataset.index=String(index);
+          chip.style.background=palette[subject.color];chip.style.borderColor=palette[subject.color];chip.style.color="#444";
+          chip.classList.toggle("selected",selected===index);
+          chip.setAttribute("aria-pressed",String(selected===index));
+          chip.title="Click to select; double-click for options";
+          container.insertBefore(chip,add);
+        });
+        const chosen=selected===null?null:subjects[selected];
+        window.coolanasSubjectState.selected=chosen?chosen.name:null;
+        activeLabel.textContent=chosen?chosen.name:"";
+      }
       function closeMenu(){menu.hidden=true;colourRow.hidden=true;}
       function beginInlineEdit(index,isNew=false){
         closeMenu();editingIndex=isNew?-1:index;
         const chip=isNew?null:container.querySelector('.study-subject[data-index="'+index+'"]');
         if(chip)chip.hidden=true;
         add.hidden=true;input.hidden=false;input.value=isNew?"":subjects[index].name;
-        if(chip)chip.parentNode.insertBefore(input,chip);
-        else container.insertBefore(input,add);
+        if(chip)chip.parentNode.insertBefore(input,chip);else container.insertBefore(input,add);
         input.focus();input.select();
       }
       function finishInlineEdit(save){
@@ -615,7 +667,7 @@
         if(save&&value){
           const duplicate=subjects.some((s,i)=>i!==editingIndex&&s.name.toLowerCase()===value.toLowerCase());
           if(!duplicate){
-            if(editingIndex<0)subjects.push({name:value.slice(0,32),color:0});
+            if(editingIndex<0){if(subjects.length<40)subjects.push({name:value.slice(0,32),color:0});}
             else subjects[editingIndex].name=value.slice(0,32);
             persist();
           }
@@ -632,25 +684,63 @@
           const swatch=document.createElement("button");swatch.type="button";swatch.className="subject-colour";
           swatch.style.background=color;swatch.setAttribute("aria-label","Colour "+(i+1));
           swatch.setAttribute("aria-pressed",String(subjects[activeIndex].color===i));
-          swatch.addEventListener("click",()=>{subjects[activeIndex].color=i;persist();render();closeMenu();});
+          swatch.addEventListener("click",()=>{
+            subjects[activeIndex].color=i;persist();render();closeMenu();
+          });
           colourRow.appendChild(swatch);
         });
       }
       add.addEventListener("click",()=>beginInlineEdit(-1,true));
-      input.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();finishInlineEdit(true);}if(event.key==="Escape"){event.preventDefault();finishInlineEdit(false);}});
+      input.addEventListener("keydown",event=>{
+        if(event.key==="Enter"){event.preventDefault();finishInlineEdit(true);}
+        if(event.key==="Escape"){event.preventDefault();finishInlineEdit(false);}
+      });
       input.addEventListener("blur",()=>finishInlineEdit(true));
-      container.addEventListener("dblclick",event=>{const chip=event.target.closest(".study-subject");if(chip)openMenu(chip);});
+      container.addEventListener("click",event=>{
+        const chip=event.target.closest(".study-subject");if(!chip)return;
+        selected=Number(chip.dataset.index);
+        window.coolanasSubjectState.selected=subjects[selected]?.name||null;
+        hint.textContent="";hint.classList.remove("visible");render();
+      });
+      container.addEventListener("dblclick",event=>{
+        const chip=event.target.closest(".study-subject");if(chip)openMenu(chip);
+      });
       menu.addEventListener("click",event=>{
         const action=event.target.closest("button")?.dataset.action;
         if(action==="rename")beginInlineEdit(activeIndex);
         if(action==="colour")colourRow.hidden=!colourRow.hidden;
-        if(action==="delete"){subjects.splice(activeIndex,1);persist();render();closeMenu();}
+        if(action==="delete"){
+          subjects.splice(activeIndex,1);
+          if(selected===activeIndex)selected=null;
+          else if(selected!==null&&selected>activeIndex)selected--;
+          persist();render();closeMenu();
+        }
       });
       document.addEventListener("pointerdown",event=>{if(!menu.hidden&&!menu.contains(event.target))closeMenu();});
       document.addEventListener("keydown",event=>{if(event.key==="Escape")closeMenu();});
+      (async()=>{
+        try{
+          const result=await subjectAction("subjects_get");
+          const cloud=normalize(result.subjects);
+          if(cloud){subjects=cloud;}
+          else{
+            try{const local=normalize(JSON.parse(localStorage.getItem(localKey)||"null"));if(local)subjects=local;}catch{}
+            await subjectAction("subjects_save",{subjects});
+          }
+          localStorage.removeItem(localKey);
+          selected=null;
+          render();
+          window.coolanasSubjectState.ready=true;
+          timerButton.disabled=false;timerButton.title="Start";
+        }catch(error){
+          console.error("Could not load subjects:",error);
+          hint.textContent="Could not load your subjects. Refresh to retry.";
+          hint.classList.add("visible");
+          timerButton.disabled=true;timerButton.title="Subjects unavailable";
+        }
+      })();
       render();
     })();
-
 
     const taskItemsEl=document.getElementById("task-items");
     const taskAddForm=document.getElementById("task-add-form");
