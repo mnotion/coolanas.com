@@ -87,10 +87,11 @@
     .task-row.completed{border-color:#75c98a;background:#effbf1;box-shadow:0 0 0 1px rgba(65,190,100,.16),0 0 13px rgba(65,190,100,.28)}
     .task-row.completed .task-text{text-decoration:line-through;color:#558362}
     .task-complete{flex:0 0 32px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:0;border-radius:7px;background:#aeb4ae;transition:background .2s ease,box-shadow .2s ease,transform .2s ease}
-    .task-complete input{display:none}
-    .task-complete svg{width:2em;height:2em;overflow:visible}
-    .task-complete .path{fill:none;stroke:#fff;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:241 9999999;stroke-dashoffset:0;transition:stroke-dasharray .5s ease,stroke-dashoffset .5s ease}
-    .task-complete input:checked~svg .path{stroke-dasharray:70.5096664428711 9999999;stroke-dashoffset:-262.2723388671875}
+    .container{cursor:pointer}
+    .container input{display:none}
+    .container svg{overflow:visible}
+    .container .path{fill:none;stroke:white;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;transition:stroke-dasharray 0.5s ease,stroke-dashoffset 0.5s ease;stroke-dasharray:241 9999999;stroke-dashoffset:0}
+    .container input:checked~svg .path{stroke-dasharray:70.5096664428711 9999999;stroke-dashoffset:-262.2723388671875}
     .task-complete:hover{transform:scale(1.06);background:#8caa91}
     .task-row.completed .task-complete{background:#36a852;box-shadow:0 0 10px rgba(65,190,100,.42)}
     .task-row.completed .task-complete:hover{background:#278e43}
@@ -830,15 +831,25 @@
         const handle=document.createElement("span");handle.className="task-drag-handle";handle.textContent="⠿";handle.title="Drag to reorder";handle.setAttribute("aria-label","Drag to reorder");
         handle.draggable=true;
         const label=document.createElement("span");label.className="task-text";label.textContent=task.text;
-        const complete=document.createElement("label");complete.className="task-complete";complete.title=task.completed?"Mark as incomplete":"Mark as completed";
+        const complete=document.createElement("label");complete.className="container task-complete";complete.title=task.completed?"Mark as incomplete":"Mark as completed";
         const completeInput=document.createElement("input");completeInput.type="checkbox";completeInput.checked=task.completed;completeInput.setAttribute("aria-label",complete.title);
         const completeSvg=document.createElementNS("http://www.w3.org/2000/svg","svg");completeSvg.setAttribute("viewBox","0 0 64 64");completeSvg.setAttribute("height","2em");completeSvg.setAttribute("width","2em");
         const completePath=document.createElementNS("http://www.w3.org/2000/svg","path");completePath.setAttribute("d","M 0 16 V 56 A 8 8 90 0 0 8 64 H 56 A 8 8 90 0 0 64 56 V 8 A 8 8 90 0 0 56 0 H 8 A 8 8 90 0 0 0 8 V 16 L 32 48 L 64 16 V 8 A 8 8 90 0 0 56 0 H 8 A 8 8 90 0 0 0 8 V 56 A 8 8 90 0 0 8 64 H 56 A 8 8 90 0 0 64 56 V 16");completePath.setAttribute("pathLength","575.0541381835938");completePath.setAttribute("class","path");
         completeSvg.appendChild(completePath);complete.append(completeInput,completeSvg);
         completeInput.addEventListener("change",async()=>{
-          const previous=tasks.map(item=>({...item}));
-          task.completed=completeInput.checked;renderTasks();await persistTasks();
-          if(taskError.textContent){tasks=previous;renderTasks();}
+          const previous=task.completed;
+          task.completed=completeInput.checked;
+          row.classList.toggle("completed",task.completed);
+          complete.title=task.completed?"Mark as incomplete":"Mark as completed";
+          completeInput.setAttribute("aria-label",complete.title);
+          taskError.textContent="";
+          await new Promise(resolve=>setTimeout(resolve,520));
+          try{await taskAction("tasks_save",{tasks});}
+          catch(error){
+            task.completed=previous;
+            taskError.textContent=error.message||"Tasks could not be saved.";
+            renderTasks();
+          }
         });
         const remove=document.createElement("button");remove.className="task-delete";remove.type="button";remove.textContent="×";remove.setAttribute("aria-label","Delete "+task.text);
         remove.addEventListener("click",async()=>{
