@@ -35,7 +35,7 @@ jobs:
           import re
           from pathlib import Path
           html = Path("coming-soon.html").read_text()
-          match = re.search(r'<script type="module">\\s*(.*?)\\s*</script>', html, re.S)
+          match = re.search(r'<script type="module">\s*(.*?)\s*</script>', html, re.S)
           if not match:
               raise SystemExit("Could not find Coolanas Mail module script")
           Path("/tmp/coolanas-mail-inline.mjs").write_text(match.group(1))
