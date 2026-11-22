@@ -197,13 +197,16 @@
     body.timer-running::before{display:block}
     body:not(.timer-running)::before{display:none}
     @media(prefers-reduced-motion:reduce){body.timer-running::before{animation:none;opacity:.55}}
-    body.timer-focus #contribution-card,
-    body.timer-focus #study-subjects,
-    body.timer-focus .task-list-card,
-    body.timer-focus .bottom-nav,
-    body.timer-focus #profile-button{
-      opacity:.08;filter:none;pointer-events:none;
+    body.timer-running main > *:not(.study-stopwatch),
+    body.timer-running > *:not(main){
+      visibility:hidden!important;opacity:0!important;pointer-events:none!important;
     }
+    body.timer-running .study-stopwatch{visibility:visible!important;opacity:1!important;pointer-events:auto!important;}
+    body.timer-paused .study-stopwatch{width:min(390px,calc(100vw - 180px));padding:13px 14px;transform:translate(-50%,-50%);box-shadow:0 5px 22px rgba(0,0,0,.055);}
+    body.timer-paused .study-stopwatch-time{font-size:34px}
+    body.timer-paused .study-stopwatch-actions{min-height:46px}
+    body.timer-paused .study-stopwatch-actions .primary{width:46px;height:46px}
+    body.timer-paused .study-stopwatch-actions button:not(.primary){width:38px;height:38px}
     body.timer-focus .study-stopwatch{
       width:min(490px,calc(100vw - 64px));padding:18px 20px;
       transform:translate(-50%,-50%) scale(1.04);
@@ -539,7 +542,7 @@
         document.body.classList.toggle("timer-running",running);
         document.body.classList.toggle("timer-paused",paused);
         document.body.classList.toggle("timer-idle",!running&&!paused);
-        document.body.classList.toggle("timer-focus",running||paused);
+        document.body.classList.toggle("timer-focus",running);
         const label=running?"Pause":(state.elapsed>0?"Resume":"Start");
         toggleButton.setAttribute("aria-label",label+" timer");
         toggleButton.title=label;
