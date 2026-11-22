@@ -55,8 +55,9 @@
     .shared-bucket-card-open .folder-icon{width:88px;height:88px}
     .shared-bucket-owner-status{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#2563eb}
     .shared-bucket-manage-wrap{position:absolute;top:8px;right:8px;z-index:3}
-    .shared-bucket-manage{min-width:62px;height:28px;padding:0 9px;border:1px solid #2563eb;border-radius:7px;background:#2563eb;color:#fff;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .shared-bucket-manage{display:grid;place-items:center;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:#2563eb;color:#fff;cursor:pointer;box-shadow:0 2px 5px rgba(37,99,235,.22)}
     .shared-bucket-manage:hover{background:#1d4ed8}
+    .shared-bucket-manage svg{width:16px;height:16px;display:block}
     .shared-bucket-menu{position:absolute;top:34px;right:0;z-index:8;width:158px;padding:5px;border:1px solid #e5e7eb;border-radius:9px;background:#fff;box-shadow:0 8px 22px rgba(0,0,0,.14)}
     .shared-bucket-menu[hidden]{display:none}
     .shared-bucket-menu button{display:block;width:100%;padding:9px 10px;border:0;border-radius:6px;background:transparent;color:#222;text-align:left;font:500 12px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
@@ -1350,7 +1351,7 @@ async function refreshSharedBuckets(){
     ownerGrid.replaceChildren();
 
     if(!sharedBucketRecords.length){
-      const empty=document.createElement("p");empty.className="shared-bucket-empty";empty.textContent="No buckets have been shared with you yet.";grid.append(empty);
+      const empty=document.createElement("p");empty.className="shared-bucket-empty";empty.textContent="No buckets shared with you yet";grid.append(empty);
     }
     for(const bucket of sharedBucketRecords){
       const card=document.createElement("button");card.type="button";card.className="shared-bucket-card";
@@ -1361,6 +1362,7 @@ async function refreshSharedBuckets(){
     }
 
     ownerTitle.hidden=!sharedByYou.length;
+    if(!sharedByYou.length){const empty=document.createElement("p");empty.className="shared-bucket-empty";empty.textContent="You have not shared any buckets yet";ownerGrid.append(empty);}
     for(const bucket of sharedByYou){
       const card=document.createElement("div");card.className="shared-bucket-card-owner";
       const open=document.createElement("button");open.type="button";open.className="shared-bucket-card-open";
@@ -1371,7 +1373,7 @@ async function refreshSharedBuckets(){
       open.addEventListener("click",()=>openFolder(bucket.id));
 
       const wrap=document.createElement("div");wrap.className="shared-bucket-manage-wrap";
-      const manage=document.createElement("button");manage.type="button";manage.className="shared-bucket-manage";manage.textContent="Manage";manage.setAttribute("aria-label","Manage sharing for "+bucket.name);
+      const manage=document.createElement("button");manage.type="button";manage.className="shared-bucket-manage";manage.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"></circle><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"></circle></svg>';manage.setAttribute("aria-label","Manage sharing for "+bucket.name);manage.title="Manage";
       const menu=document.createElement("div");menu.className="shared-bucket-menu";menu.hidden=true;
       manage.addEventListener("click",event=>{
         event.stopPropagation();
