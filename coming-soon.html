@@ -306,7 +306,7 @@ async function refreshMail(){
     actions.append(accept,decline);card.append(actions);
    }else if(notification.type==="bucket_invitation"&&status){
     const label=document.createElement("span");label.className="mail-notification-status";
-    label.textContent=status==="accepted"?"Invitation accepted":status==="declined"?"Invitation declined":status==="revoked"?"Access withdrawn":"";
+    label.textContent=(status==="accepted"||status==="accept")?"Invitation accepted":(status==="declined"||status==="decline")?"Invitation declined":status==="revoked"?"Access withdrawn":"";
     card.append(label);
    }
    if(!notification.read_at){
