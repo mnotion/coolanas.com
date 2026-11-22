@@ -203,13 +203,6 @@ Deno.serve(async (req) => {
           }
         }
 
-        for (let offset = 0; offset < oldObjects.length; offset += 1000) {
-          const batch = oldObjects.slice(offset, offset + 1000);
-          if (batch.length) await s3.send(new DeleteObjectsCommand({
-            Bucket: bucket, Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
-          }));
-        }
-        return json(200, { success: true, username: newUsername });
       } catch (error) {
         // Keep the original files available if a later step fails.
         for (const row of changedRows) {
@@ -224,6 +217,20 @@ Deno.serve(async (req) => {
         }
         throw error;
       }
+
+      // Database paths now point at the new prefix. Old-object cleanup is best-effort:
+      // a cleanup failure must not roll back the new username or delete the new copies.
+      try {
+        for (let offset = 0; offset < oldObjects.length; offset += 1000) {
+          const batch = oldObjects.slice(offset, offset + 1000);
+          if (batch.length) await s3.send(new DeleteObjectsCommand({
+            Bucket: bucket, Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+          }));
+        }
+      } catch (cleanupError) {
+        console.error("Old username storage cleanup failed:", cleanupError);
+      }
+      return json(200, { success: true, username: newUsername });
     }
 
     if (action === "bucket_share_users") {
