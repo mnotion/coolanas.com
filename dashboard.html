@@ -358,6 +358,7 @@
       <button class="menu-item" id="change-pfp" type="button">Change profile picture</button>
       <button class="menu-item" id="remove-pfp" type="button" hidden>Remove profile picture</button>
       <button class="menu-item" id="change-account" type="button">Change account</button>
+      <button class="menu-item" id="profile-settings" type="button">Settings</button>
       <button class="menu-item" id="theme-toggle" type="button">Switch to dark mode</button>
       <button class="menu-item" id="profile-signout" type="button">Sign out</button>
     </nav>
@@ -1149,6 +1150,7 @@
       if(error)throw error;
       location.assign("/index.html");
     }
+    document.getElementById("profile-settings").addEventListener("click",()=>location.assign("/settings.html"));
     document.getElementById("profile-signout").addEventListener("click",async()=>{try{await leaveAccount();}catch(error){alert(error.message);}});
     document.getElementById("change-account").addEventListener("click",async()=>{try{await leaveAccount();}catch(error){alert(error.message);}});
     document.addEventListener("keydown",event=>{if(event.key==="Escape")closeProfileDrawer();});
