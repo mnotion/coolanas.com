@@ -36,8 +36,6 @@
     @media(hover:hover) and (pointer:fine){
       .active-subject-label:hover{transform:translateX(-50%) translateY(-2px);box-shadow:0 3px 9px rgba(0,0,0,.12);filter:brightness(.96)}
     }
-    body.timer-paused #study-subjects{top:calc(50% + 180px)}
-    body.timer-paused .active-subject-label{color:#555;text-shadow:none}
     @media(prefers-reduced-motion:reduce){.active-subject-label{transition:none}}
     .subject-selection-hint{position:fixed;z-index:32;top:18%;left:50%;transform:translateX(-50%);padding:12px 20px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:#202020;color:#fff;font-size:15px;font-weight:600;letter-spacing:.01em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
     .subject-selection-hint.visible{opacity:1}
@@ -46,9 +44,7 @@
     body.subject-pick-mode #study-subjects .study-subject{opacity:1;filter:none}
     body.subject-pick-mode .subject-selection-hint{opacity:1}
     .study-subject.selected{outline:2px solid #222;outline-offset:2px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-    body.timer-running .active-subject-label,body.timer-paused .active-subject-label{display:block}
-    body.timer-running .active-subject-label,body.timer-paused .active-subject-label{z-index:5;color:#f5f5f5;text-shadow:0 1px 8px rgba(0,0,0,.35);font-size:18px;font-weight:650}
-    body.timer-paused .active-subject-label{color:#252014;text-shadow:none}
+    body.timer-running .active-subject-label{display:flex;z-index:5}
     .study-subjects.loading::before{content:"Loading subjects…";font-size:13px;color:#777;white-space:nowrap}.study-subjects{position:fixed;top:calc(50% + 53px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:7px;width:min(460px,calc(100vw - 32px));margin:0}
     .study-subject{padding:7px 11px;border:1px solid #dedede;border-radius:999px;background:#f7f7f7;color:#555;font:inherit;font-size:12px}
 .study-subject{cursor:context-menu;user-select:none;transition:background .15s,border-color .15s,color .15s}
@@ -725,6 +721,9 @@
         selected=Number(chip.dataset.index);
         window.coolanasSubjectState.selected=subjects[selected]?.name||null;
         activeLabel.textContent=subjects[selected]?.name||"";
+        activeLabel.style.background=subjects[selected]?palette[subjects[selected].color]:"#f7f7f7";
+        activeLabel.style.borderColor=subjects[selected]?palette[subjects[selected].color]:"#dedede";
+        activeLabel.style.color="#555";
         document.body.classList.remove("subject-pick-mode");
         hint.textContent="";hint.classList.remove("visible");
         container.querySelectorAll(".study-subject").forEach((item,index)=>{
