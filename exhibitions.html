@@ -551,8 +551,8 @@ function toggleNavPanel(panel,toggle){
     toggle.setAttribute("aria-expanded","true");
   }
 }
-searchToggle.addEventListener("click",()=>toggleNavPanel(searchPanel,searchToggle));
-menuToggle.addEventListener("click",()=>toggleNavPanel(menuPanel,menuToggle));
+if(searchToggle?.tagName==="BUTTON")searchToggle.addEventListener("click",()=>toggleNavPanel(searchPanel,searchToggle));
+if(menuToggle)menuToggle.addEventListener("click",()=>toggleNavPanel(menuPanel,menuToggle));
 document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
 document.getElementById("menu-home").addEventListener("click",()=>location.assign("/dashboard.html"));
 document.getElementById("signout").addEventListener("click",async()=>{
