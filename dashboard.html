@@ -324,7 +324,7 @@
     /* Mobile dashboard: horizontal contribution graph, then a single-column workspace. */
     @media(max-width:620px){
       main{min-height:100svh;padding:0 14px calc(104px + env(safe-area-inset-bottom));}
-      .contribution-card{top:88px;left:14px;right:14px;bottom:auto;transform:none;width:auto;height:94px;padding:10px 11px;border-radius:14px}
+      .contribution-card,.contribution-tooltip{display:none!important}
       .contribution-scroll{width:100%;height:100%;overflow:hidden}
       .contribution-grid{display:grid;grid-auto-flow:column;grid-template-columns:repeat(53,minmax(0,1fr));grid-template-rows:repeat(7,minmax(0,1fr));gap:3px;width:100%;height:100%}
       .contribution-day{border-radius:3px}
@@ -337,7 +337,7 @@
       body.timer-paused #study-subjects,body.timer-running #study-subjects{top:300px}
       .active-subject-label{font-size:11px;padding:5px 9px}
       .study-stopwatch .active-subject-label,body.timer-paused .active-subject-label{top:calc(100% + 8px)}
-      .task-list-card{position:fixed;top:360px;right:14px;bottom:calc(82px + env(safe-area-inset-bottom));left:14px;transform:none;width:auto;min-width:0;max-height:none;overflow:auto;padding:15px;border-radius:16px}
+      .task-list-card{position:relative;top:auto;right:auto;bottom:auto;left:auto;transform:none;width:auto;min-width:0;max-height:none;overflow:visible;margin:380px 0 28px;padding:15px;border-radius:16px}
       .task-list-card h2{font-size:18px}
       .task-add-row{gap:8px}
       .task-add-input{height:42px;font-size:14px;padding:0 12px}
@@ -353,7 +353,7 @@
       .contribution-grid{gap:2px}
       .study-stopwatch{top:202px}
       .study-subjects,body.timer-paused #study-subjects,body.timer-running #study-subjects{top:280px}
-      .task-list-card{top:340px}
+      .task-list-card{margin-top:360px}
       .study-stopwatch-time{font-size:25px}
     }
     @media(max-width:620px){
