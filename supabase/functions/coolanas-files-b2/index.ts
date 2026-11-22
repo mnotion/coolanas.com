@@ -150,6 +150,77 @@ Deno.serve(async (req) => {
       return json(200, { success: true, exists: false });
     }
 
+    if (action === "username_update") {
+      const newUsername = body?.username;
+      if (!validUsername(newUsername)) {
+        return json(400, { error: "Usernames must be 4–100 characters, with no spaces or emojis." });
+      }
+      if (newUsername === username) return json(200, { success: true, username });
+
+      const newPrefix = "userdata/" + encodeURIComponent(newUsername) + "_" + userId;
+      let oldObjects: string[] = [];
+      let continuationToken: string | undefined;
+      do {
+        const page = await s3.send(new ListObjectsV2Command({
+          Bucket: bucket, Prefix: prefix + "/", ContinuationToken: continuationToken, MaxKeys: 1000,
+        }));
+        oldObjects.push(...(page.Contents ?? []).map((item) => item.Key).filter((key): key is string => Boolean(key)));
+        continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+      } while (continuationToken);
+
+      const destinationCheck = await s3.send(new ListObjectsV2Command({
+        Bucket: bucket, Prefix: newPrefix + "/", MaxKeys: 1,
+      }));
+      if ((destinationCheck.Contents ?? []).length) {
+        return json(409, { error: "That username already has storage associated with it. Choose another username." });
+      }
+
+      const copiedKeys: string[] = [];
+      try {
+        for (const oldKey of oldObjects) {
+          const newKey = newPrefix + oldKey.slice(prefix.length);
+          await s3.send(new CopyObjectCommand({
+            Bucket: bucket, CopySource: copySource(bucket, oldKey), Key: newKey,
+          }));
+          copiedKeys.push(newKey);
+        }
+
+        const { error: usernameError } = await supabase.from("profiles")
+          .update({ username: newUsername }).eq("id", userId);
+        if (usernameError) throw usernameError;
+
+        const { data: fileRows, error: filesError } = await supabase.from("coolanas_files")
+          .select("id,storage_path").eq("owner_id", userId);
+        if (filesError) throw filesError;
+        for (const row of fileRows ?? []) {
+          if (typeof row.storage_path === "string" && row.storage_path.startsWith(prefix + "/")) {
+            const updatedPath = newPrefix + row.storage_path.slice(prefix.length);
+            const { error: pathError } = await supabase.from("coolanas_files")
+              .update({ storage_path: updatedPath }).eq("id", row.id).eq("owner_id", userId);
+            if (pathError) throw pathError;
+          }
+        }
+
+        for (let offset = 0; offset < oldObjects.length; offset += 1000) {
+          const batch = oldObjects.slice(offset, offset + 1000);
+          if (batch.length) await s3.send(new DeleteObjectsCommand({
+            Bucket: bucket, Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+          }));
+        }
+        return json(200, { success: true, username: newUsername });
+      } catch (error) {
+        // Keep the original files available if a later step fails.
+        await supabase.from("profiles").update({ username }).eq("id", userId);
+        for (let offset = 0; offset < copiedKeys.length; offset += 1000) {
+          const batch = copiedKeys.slice(offset, offset + 1000);
+          if (batch.length) await s3.send(new DeleteObjectsCommand({
+            Bucket: bucket, Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+          }));
+        }
+        throw error;
+      }
+    }
+
     if (action === "bucket_share_users") {
       const { data: directory, error } = await supabase.rpc("coolanas_public_usernames");
       if (error || !Array.isArray(directory)) throw new Error("Could not load Coolanas users.");
