@@ -154,6 +154,20 @@
     .selection-color{width:17px;height:17px;padding:0;border:1.5px solid rgba(255,255,255,.9);border-radius:50%;background:var(--swatch);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.22);transition:transform .14s ease}
     .selection-color:hover{transform:scale(1.22)}
 
+    .file-card.bucket-card{background:transparent;box-shadow:none;min-height:176px}
+    .file-card.bucket-card:hover,.file-card.bucket-card.is-pointer-hover,.file-card.bucket-card.is-pointer-near{background:transparent;box-shadow:none}
+    .file-card.bucket-card .bucket-icon{transition:transform .16s ease,filter .16s ease}
+    .file-card.bucket-card:hover .bucket-icon,.file-card.bucket-card.is-pointer-hover .bucket-icon{transform:translateY(-2px);filter:drop-shadow(0 4px 5px rgba(0,0,0,.13))}
+    .file-card.bucket-card .bucket-details{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-width:0}
+    .file-card.bucket-card .bucket-meta{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;text-align:left}
+    .file-card.bucket-card .bucket-meta .file-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .file-card.bucket-card .bucket-actions{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;flex:none;padding:7px 6px;border:1px solid rgba(120,130,145,.2);border-radius:12px;background:rgba(255,255,255,.72);box-shadow:0 1px 4px rgba(0,0,0,.05)}
+    .file-card.bucket-card .bucket-actions .settings-dot,.file-card.bucket-card .bucket-actions .share-dot{position:static;width:13px;height:13px;box-shadow:0 0 0 2px #fff}
+    html.dark-mode .file-card.bucket-card .bucket-actions{background:rgba(40,40,40,.85);border-color:#555}
+    html.dark-mode .file-card.bucket-card .bucket-actions .settings-dot,html.dark-mode .file-card.bucket-card .bucket-actions .share-dot{box-shadow:0 0 0 2px #292929}
+    .file-card.bucket-card .bucket-actions button:hover{transform:scale(1.18)}
+    .file-card.bucket-card.is-selected{background:transparent!important;box-shadow:none}
+    .file-card.bucket-card.is-selected .bucket-icon{filter:drop-shadow(0 0 4px rgba(59,130,246,.5))}
     .file-card{position:relative}
     .settings-dot{position:absolute;top:9px;right:9px;width:13px;height:13px;padding:0;border:0;border-radius:50%;background:#9ca3af;box-shadow:0 0 0 2px #fff;cursor:pointer;z-index:5;opacity:.92;transition:background .12s ease,transform .12s ease}
     .settings-dot:hover{background:#6b7280;transform:scale(1.15)}
@@ -1173,7 +1187,8 @@ function renderItems(){
   });
   for(const item of ordered){
     const card=document.createElement("div");
-    card.className="file-card";
+    const isBucketCard=isExhibitionsHome&&item.item_type==="folder";
+    card.className="file-card"+(isBucketCard?" bucket-card":"");
     card.tabIndex=0;
     const isReadOnlyShared=Boolean(activeSharedBucket);
     card.draggable=!isReadOnlyShared;
@@ -1195,18 +1210,25 @@ function renderItems(){
     const name=document.createElement("span");
     name.className="file-name";
     name.textContent=item.name;
-    if(settings)card.append(settings);
-    if(isExhibitionsHome&&item.item_type==="folder"){
-      const share=document.createElement("button");
+    let share=null;
+    if(isBucketCard){
+      share=document.createElement("button");
       share.type="button";share.className="share-dot";share.title="Share bucket";
       share.setAttribute("aria-label","Share bucket "+item.name);
       share.addEventListener("click",event=>{event.preventDefault();event.stopPropagation();openBucketSharePanel(item);});
-      card.append(share);
-    }
-    card.append(name);
-    if(isExhibitionsHome){
+      const details=document.createElement("div");details.className="bucket-details";
+      const meta=document.createElement("div");meta.className="bucket-meta";meta.append(name);
       const exhibition=exhibitionRecords.find(entry=>entry.id===item.id);
-      const size=document.createElement("span");size.className="exhibition-size";size.textContent=formatStorage(exhibition?.sizeBytes||0);card.append(size);
+      const size=document.createElement("span");size.className="exhibition-size";size.textContent=formatStorage(exhibition?.sizeBytes||0);meta.append(size);
+      const actions=document.createElement("div");actions.className="bucket-actions";actions.setAttribute("aria-label","Bucket actions");
+      if(settings)actions.append(settings);
+      actions.append(share);details.append(meta,actions);card.append(details);
+    }else{
+      if(settings)card.append(settings);
+      if(isExhibitionsHome){
+        const exhibition=exhibitionRecords.find(entry=>entry.id===item.id);
+        const size=document.createElement("span");size.className="exhibition-size";size.textContent=formatStorage(exhibition?.sizeBytes||0);card.append(name,size);
+      }else card.append(name);
     }
     if(item.tag){
       const tag=document.createElement("span");
