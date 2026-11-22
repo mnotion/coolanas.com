@@ -316,7 +316,7 @@ Deno.serve(async (req) => {
           return json(400,{error:"One or more tasks are invalid."});
         }
         seen.add(task.id);
-        tasks.push({id:task.id,text:task.text.trim()});
+        tasks.push({id:task.id,text:task.text.trim(),completed:task.completed===true});
       }
       const key = prefix + "/stats/tasks.json";
       await s3.send(new PutObjectCommand({
