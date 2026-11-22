@@ -160,10 +160,10 @@
     .file-card.bucket-card:hover,.file-card.bucket-card.is-pointer-hover,.file-card.bucket-card.is-pointer-near{background:transparent;box-shadow:none}
     .file-card.bucket-card .bucket-icon{transition:transform .16s ease,filter .16s ease}
     .file-card.bucket-card:hover .bucket-icon,.file-card.bucket-card.is-pointer-hover .bucket-icon{transform:translateY(-2px);filter:drop-shadow(0 4px 5px rgba(0,0,0,.13))}
-    .file-card.bucket-card .bucket-details{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-width:0}
-    .file-card.bucket-card .bucket-meta{display:flex;flex:1;flex-direction:column;align-items:center;gap:4px;min-width:0;text-align:center}
+    .file-card.bucket-card .bucket-details{position:static;display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-width:0}
+    .file-card.bucket-card .bucket-meta{display:flex;flex:1;width:100%;flex-direction:column;align-items:center;gap:4px;min-width:0;text-align:center}
     .file-card.bucket-card .bucket-meta .file-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .file-card.bucket-card .bucket-actions{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;flex:none;padding:7px 6px;border:1px solid rgba(120,130,145,.2);border-radius:12px;background:rgba(255,255,255,.72);box-shadow:0 1px 4px rgba(0,0,0,.05)}
+    .file-card.bucket-card .bucket-actions{position:absolute;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;flex:none;padding:7px 6px;border:1px solid rgba(120,130,145,.2);border-radius:12px;background:rgba(255,255,255,.72);box-shadow:0 1px 4px rgba(0,0,0,.05)}
     .file-card.bucket-card .bucket-actions .settings-dot,.file-card.bucket-card .bucket-actions .share-dot{position:static;width:13px;height:13px;box-shadow:0 0 0 2px #fff}
     html.dark-mode .file-card.bucket-card .bucket-actions{background:rgba(40,40,40,.85);border-color:#555}
     html.dark-mode .file-card.bucket-card .bucket-actions .settings-dot,html.dark-mode .file-card.bucket-card .bucket-actions .share-dot{box-shadow:0 0 0 2px #292929}
