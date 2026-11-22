@@ -6,6 +6,7 @@ import {
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "npm:@aws-sdk/client-s3@3.1164.0";
@@ -249,6 +250,66 @@ Deno.serve(async (req) => {
         }
       }
       return json(200,{success:true,exhibitionsId:exhibitions.id,userFolder:prefix});
+    }
+
+    if (action === "exhibitions_list") {
+      const { data: root, error: rootError } = await supabase.from("coolanas_files")
+        .select("id").eq("owner_id", user.id).eq("item_type", "folder")
+        .eq("name", "exhibitions").is("parent_id", null).maybeSingle();
+      if (rootError) throw rootError;
+      if (!root) return json(200, { exhibitions: [], totalBytes: 0, count: 0 });
+      const { data: rows, error } = await supabase.from("coolanas_files")
+        .select("id, owner_id, parent_id, name, item_type, folder_color, created_at")
+        .eq("owner_id", user.id).eq("parent_id", root.id).eq("item_type", "folder")
+        .order("created_at");
+      if (error) throw error;
+      let totalBytes = 0;
+      const exhibitions = [];
+      for (const row of rows ?? []) {
+        const folderPrefix = prefix + "/exhibitions/" + row.name + "/";
+        let sizeBytes = 0, continuationToken: string | undefined;
+        do {
+          const page = await s3.send(new ListObjectsV2Command({
+            Bucket: bucket, Prefix: folderPrefix, ContinuationToken: continuationToken,
+          }));
+          for (const object of page.Contents ?? []) sizeBytes += Number(object.Size ?? 0);
+          continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+        } while (continuationToken);
+        totalBytes += sizeBytes;
+        exhibitions.push({ ...row, sizeBytes });
+      }
+      return json(200, { exhibitions, totalBytes, count: exhibitions.length, maxExhibitions: 2 });
+    }
+
+    if (action === "create_exhibition") {
+      const name = cleanName(body.name);
+      if (!name) return json(400, { error: "Exhibition name is invalid." });
+      const { data: root, error: rootError } = await supabase.from("coolanas_files")
+        .select("id").eq("owner_id", user.id).eq("item_type", "folder")
+        .eq("name", "exhibitions").is("parent_id", null).single();
+      if (rootError || !root) return json(409, { error: "Your exhibitions area is not ready. Refresh and try again." });
+      const { data: existing, error: countError } = await supabase.from("coolanas_files")
+        .select("id, name").eq("owner_id", user.id).eq("parent_id", root.id).eq("item_type", "folder");
+      if (countError) throw countError;
+      if ((existing ?? []).length >= 2) return json(409, { error: "You can create a maximum of 2 exhibitions." });
+      if ((existing ?? []).some((item: any) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+        return json(409, { error: "An exhibition with that name already exists." });
+      }
+      const id = crypto.randomUUID();
+      const key = prefix + "/exhibitions/" + name + "/";
+      const { data, error } = await supabase.from("coolanas_files").insert({
+        id, owner_id: user.id, parent_id: root.id, name, item_type: "folder", storage_path: key,
+      }).select("*").single();
+      if (error) throw error;
+      try {
+        await s3.send(new PutObjectCommand({
+          Bucket: bucket, Key: key, Body: new Uint8Array(0), ContentType: "application/x-directory",
+        }));
+      } catch (error) {
+        await supabase.from("coolanas_files").delete().eq("id", id).eq("owner_id", user.id);
+        throw error;
+      }
+      return json(200, { item: data });
     }
 
     if (action === "subjects_get") {
