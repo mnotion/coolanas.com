@@ -1293,7 +1293,11 @@ document.addEventListener("keydown",event=>{
 let migrated={migrated:0,userFolder:""};
 try{migrated=await filesAction("migrate_prefix");}
 catch(error){console.warn("Existing file prefix migration could not finish:",error.message);}
+let accountStructure=null;
+try{accountStructure=await filesAction("ensure_structure");}
+catch(error){alert("Your account folders could not be prepared: "+error.message);}
 await loadItems();
+if(accountStructure?.exhibitionsId){currentFolderId=accountStructure.exhibitionsId;renderItems();}
 flushPendingMutations();
 
   </script></body>
