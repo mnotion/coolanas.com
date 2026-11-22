@@ -590,8 +590,7 @@ mailClearButton.addEventListener("click",async()=>{
  if(!window.confirm("Clear all mail notifications? This cannot be undone."))return;
  mailClearButton.disabled=true;
  try{
-  const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_clear"}});
-  if(error)throw error;if(data?.error)throw new Error(data.error);
+  await filesAction("mail_clear");
   await refreshMail(false);
  }catch(error){
   const feedback=document.createElement("p");feedback.className="mail-empty";feedback.textContent=error.message||"Could not clear mail.";
