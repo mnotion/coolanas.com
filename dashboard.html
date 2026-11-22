@@ -78,8 +78,10 @@
     .task-row.dragging{opacity:.35}
     .task-row.task-drop-before{margin-top:13px}
     .task-row.task-drop-after{margin-bottom:13px}
-    .task-drop-indicator{height:0;margin:0;border-top:2px solid #777;border-radius:2px;opacity:0;transition:height .16s ease,margin .16s ease,opacity .16s ease}
-    .task-drop-indicator.visible{height:3px;margin:5px 4px;opacity:1}
+    .task-drop-indicator{height:0;flex:0 0 0;margin:0 4px;border-top:2px solid transparent;border-radius:2px;opacity:0;transition:flex-basis .18s ease,margin .18s ease,opacity .18s ease,border-color .18s ease;pointer-events:none}
+    .task-drop-indicator.visible{flex-basis:12px;margin:5px 4px;opacity:1;border-color:#888}
+    .task-row.task-settling{transition:transform .24s cubic-bezier(.2,.75,.25,1)!important}
+    @media(prefers-reduced-motion:reduce){.task-drop-indicator,.task-row{transition:none!important}}
     .task-drag-handle{color:#999;font-size:15px;user-select:none;cursor:grab;padding:3px 2px;touch-action:none}
     .task-drag-handle:active{cursor:grabbing}
     .task-row.editing{border-color:#888;background:#fafafa}
@@ -847,31 +849,6 @@
           event.dataTransfer.effectAllowed="move";event.dataTransfer.setData("text/plain",task.id);
           ensureDropIndicator();
         });
-        row.addEventListener("dragover",event=>{
-          if(!taskDragId||taskDragId===task.id)return;
-          event.preventDefault();event.dataTransfer.dropEffect="move";
-          const rect=row.getBoundingClientRect();
-          const before=event.clientY<rect.top+rect.height/2;
-          const indicator=ensureDropIndicator();
-          indicator.classList.add("visible");
-          if(before)taskItemsEl.insertBefore(indicator,row);else taskItemsEl.insertBefore(indicator,row.nextSibling);
-        });
-        row.addEventListener("drop",async event=>{
-          if(!taskDragId)return;
-          event.preventDefault();
-          const sourceId=taskDragId;
-          const indicator=ensureDropIndicator();
-          const insertBefore=indicator.parentNode===taskItemsEl?indicator.nextSibling:null;
-          const previous=tasks.slice();
-          const moved=tasks.find(item=>item.id===sourceId);
-          if(!moved||sourceId===task.id){cleanupTaskDrag();return;}
-          tasks=tasks.filter(item=>item.id!==sourceId);
-          let targetIndex=insertBefore?.dataset?.taskId?tasks.findIndex(item=>item.id===insertBefore.dataset.taskId):tasks.length;
-          if(targetIndex<0)targetIndex=tasks.length;
-          tasks.splice(targetIndex,0,moved);
-          cleanupTaskDrag();renderTasks();await persistTasks();
-          if(taskError.textContent){tasks=previous;renderTasks();}
-        });
         taskItemsEl.appendChild(row);
       });
     }
@@ -881,7 +858,56 @@
       if(dropIndicator){dropIndicator.classList.remove("visible");dropIndicator.remove();}
     }
     taskItemsEl.addEventListener("dragover",event=>{
-      if(taskDragId&&event.target===taskItemsEl){event.preventDefault();const indicator=ensureDropIndicator();indicator.classList.add("visible");taskItemsEl.appendChild(indicator);}
+      if(!taskDragId)return;
+      event.preventDefault();event.dataTransfer.dropEffect="move";
+      const row=event.target.closest?.(".task-row");
+      const indicator=ensureDropIndicator();
+      let anchor=null;
+      if(row&&row.dataset.taskId!==taskDragId){
+        const rect=row.getBoundingClientRect();
+        anchor=event.clientY<rect.top+rect.height/2?row:row.nextSibling;
+      }
+      if(anchor===row&&row?.dataset.taskId===taskDragId)anchor=row.nextSibling;
+      if(indicator.nextSibling!==anchor||indicator.parentNode!==taskItemsEl){
+        taskItemsEl.insertBefore(indicator,anchor);
+      }
+      indicator.classList.add("visible");
+    });
+    taskItemsEl.addEventListener("drop",async event=>{
+      if(!taskDragId)return;
+      event.preventDefault();
+      const sourceId=taskDragId;
+      const indicator=ensureDropIndicator();
+      const insertBefore=indicator.nextSibling;
+      const previous=tasks.slice();
+      const moved=tasks.find(item=>item.id===sourceId);
+      if(!moved){cleanupTaskDrag();return;}
+      const withoutSource=tasks.filter(item=>item.id!==sourceId);
+      let targetIndex=insertBefore?.dataset?.taskId?withoutSource.findIndex(item=>item.id===insertBefore.dataset.taskId):withoutSource.length;
+      if(targetIndex<0)targetIndex=withoutSource.length;
+      withoutSource.splice(targetIndex,0,moved);
+      const changed=withoutSource.some((item,index)=>item.id!==tasks[index]?.id);
+      tasks=withoutSource;
+      cleanupTaskDrag();
+      if(!changed)return;
+      const oldRects=new Map([...taskItemsEl.querySelectorAll(".task-row")].map(row=>[row.dataset.taskId,row.getBoundingClientRect()]));
+      renderTasks();
+      const newRows=[...taskItemsEl.querySelectorAll(".task-row")];
+      newRows.forEach(row=>{
+        const before=oldRects.get(row.dataset.taskId);
+        if(!before)return;
+        const after=row.getBoundingClientRect();
+        const delta=before.top-after.top;
+        if(Math.abs(delta)<1)return;
+        row.style.transition="none";
+        row.style.transform="translateY("+delta+"px)";
+        row.getBoundingClientRect();
+        row.classList.add("task-settling");
+        row.style.transform="";
+        row.addEventListener("transitionend",()=>{row.classList.remove("task-settling");row.style.transition="";},{once:true});
+      });
+      await persistTasks();
+      if(taskError.textContent){tasks=previous;renderTasks();}
     });
     taskItemsEl.addEventListener("dragend",cleanupTaskDrag);
     taskAddForm.addEventListener("submit",async event=>{
