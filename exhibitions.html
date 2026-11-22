@@ -303,6 +303,11 @@
     .profile-button img{width:100%;height:100%;object-fit:cover}
     .mail-popover{position:fixed;z-index:92;top:72px;right:72px;width:min(360px,calc(100vw - 32px));max-height:min(620px,calc(100vh - 92px));display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:rgba(255,255,255,.97);box-shadow:0 12px 36px rgba(0,0,0,.13);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
     .mail-popover[hidden]{display:none}.mail-popover h2{margin:0;font-size:16px;font-weight:650}
+    .mail-popover-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .mail-clear-button{padding:6px 10px;border:1px solid #e3b8b8;border-radius:8px;background:#fff;color:#b42318;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .mail-clear-button:hover{background:#fff4f4}
+    .mail-clear-button:disabled{opacity:.5;cursor:not-allowed}
+    html.dark-mode .mail-clear-button{background:#302525;border-color:#704747;color:#ffaaaa}
     .mail-notifications{display:grid;gap:9px;overflow:auto;min-height:32px;overscroll-behavior:contain;padding-right:2px}
     .mail-empty{margin:0;color:#777;font-size:13px}
     .mail-notification{padding:12px;border:1px solid #eee;border-radius:11px;background:rgba(255,255,255,.7)}
@@ -338,7 +343,7 @@
     <button id="mail-button" class="mail-button" type="button" aria-label="Open mail" aria-expanded="false" aria-controls="mail-popover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="m4 7 8 6 8-6"></path></svg><span id="mail-unread-indicator" class="mail-unread-indicator" aria-hidden="true"></span></button>
     <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback">?</span></button>
   </div>
-  <section class="mail-popover" id="mail-popover" aria-label="Mail" hidden><h2>Mail</h2><div class="mail-notifications" id="mail-notifications"><p class="mail-empty">Loading mail…</p></div></section>
+  <section class="mail-popover" id="mail-popover" aria-label="Mail" hidden><div class="mail-popover-head"><h2>Mail</h2><button id="mail-clear-button" class="mail-clear-button" type="button">Clear mail</button></div><div class="mail-notifications" id="mail-notifications"><p class="mail-empty">Loading mail…</p></div></section>
   <div class="profile-backdrop" id="profile-backdrop" hidden></div>
   <aside class="profile-drawer" id="profile-drawer" aria-label="Account menu" aria-hidden="true">
     <div class="profile-drawer-head"><div class="profile-identity"><img id="drawer-avatar" alt="" hidden><span id="drawer-avatar-fallback">?</span><div><strong id="profile-name">Account</strong><small id="profile-email"></small></div></div><button class="close-button" id="profile-close" type="button" aria-label="Close">×</button></div>
@@ -521,6 +526,7 @@ async function filesAction(action,payload={}){
 }
 
 const mailButton=document.getElementById("mail-button"),mailPopover=document.getElementById("mail-popover"),mailNotifications=document.getElementById("mail-notifications");
+const mailClearButton=document.getElementById("mail-clear-button");
 const mailUnreadIndicator=document.getElementById("mail-unread-indicator");
 function setMailUnreadIndicator(hasUnread){
  mailUnreadIndicator.classList.toggle("visible",hasUnread);
@@ -563,6 +569,18 @@ async function refreshMail(markVisibleAsRead=false){
   }
  }catch(error){mailNotifications.replaceChildren();const empty=document.createElement("p");empty.className="mail-empty";empty.textContent=error.message||"Could not load mail.";mailNotifications.append(empty);}
 }
+mailClearButton.addEventListener("click",async()=>{
+ if(!window.confirm("Clear all mail notifications? This cannot be undone."))return;
+ mailClearButton.disabled=true;
+ try{
+  const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_clear"}});
+  if(error)throw error;if(data?.error)throw new Error(data.error);
+  await refreshMail(false);
+ }catch(error){
+  const feedback=document.createElement("p");feedback.className="mail-empty";feedback.textContent=error.message||"Could not clear mail.";
+  mailNotifications.prepend(feedback);
+ }finally{mailClearButton.disabled=false;}
+});
 mailButton.addEventListener("click",()=>{const opening=mailPopover.hidden;mailPopover.hidden=!opening;mailButton.setAttribute("aria-expanded",String(opening));if(opening)refreshMail(true);});
 refreshMail();
 window.setInterval(()=>refreshMail(false),30000);
