@@ -833,27 +833,66 @@ Deno.serve(async (req) => {
       if (changes.length > 1000) {
         return json(413, { error: "This move contains too many nested items. Move a smaller group." });
       }
+      let recoveredObjectKeys: Set<string> | null = null;
+      const findRecoveredFileKey = async (item: { id: string; name: string }): Promise<string | null> => {
+        if (!recoveredObjectKeys) {
+          recoveredObjectKeys = new Set<string>();
+          for (const objectPrefix of [prefix + "/", legacyNamedPrefix + "/", legacyUserPrefix]) {
+            let continuationToken: string | undefined;
+            do {
+              const page = await s3.send(new ListObjectsV2Command({
+                Bucket: bucket, Prefix: objectPrefix, ContinuationToken: continuationToken,
+                MaxKeys: 1000,
+              }));
+              for (const object of page.Contents ?? []) if (object.Key) recoveredObjectKeys.add(object.Key);
+              continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+            } while (continuationToken);
+          }
+        }
+        const expectedName = item.id + "-" + item.name;
+        for (const key of recoveredObjectKeys) {
+          if (key.endsWith("/" + expectedName) && belongsToUserPath(key)) return key;
+        }
+        return null;
+      };
       for (const change of changes) {
         if (change.oldKey && !belongsToUserPath(change.oldKey)) {
           return json(403, { error: "A selected item has a storage path outside this account." });
         }
         if (change.oldKey && change.oldKey !== change.newKey) {
+          const movingItem = byId.get(change.id) as { id: string; name: string; item_type: string } | undefined;
+          let sourceKey = change.oldKey;
           try {
             await s3.send(new CopyObjectCommand({
-              Bucket: bucket, CopySource: copySource(bucket, change.oldKey), Key: change.newKey,
+              Bucket: bucket, CopySource: copySource(bucket, sourceKey), Key: change.newKey,
             }));
           } catch (error) {
-            const movingItem = byId.get(change.id) as { item_type: string } | undefined;
-            // Folder marker objects can be absent even when the folder and its
-            // descendants exist. Recreate the empty marker at the new location;
-            // missing file objects must still fail the move.
-            if (movingItem?.item_type !== "folder") throw error;
-            await s3.send(new PutObjectCommand({
-              Bucket: bucket, Key: change.newKey, Body: new Uint8Array(0),
-              ContentType: "application/x-directory",
-            }));
+            const errorName = (error as any)?.name ?? "";
+            const errorMessage = (error as any)?.message ?? String(error);
+            const missingSource = errorName === "NoSuchKey" ||
+              /specified key does not exist|no such key/i.test(errorMessage);
+            if (movingItem?.item_type === "folder" && missingSource) {
+              // Empty folder marker objects are optional; recreate them at the destination.
+              await s3.send(new PutObjectCommand({
+                Bucket: bucket, Key: change.newKey, Body: new Uint8Array(0),
+                ContentType: "application/x-directory",
+              }));
+            } else if (movingItem?.item_type === "file" && missingSource) {
+              // Older moves can leave a file's DB path stale. Recover only by its
+              // unique database id + filename, never by a loose filename match.
+              const recoveredKey = await findRecoveredFileKey(movingItem);
+              if (!recoveredKey) {
+                throw new Error('Cannot move "' + movingItem.name + '": its stored file object could not be found. No source files were deleted.');
+              }
+              sourceKey = recoveredKey;
+              await s3.send(new CopyObjectCommand({
+                Bucket: bucket, CopySource: copySource(bucket, sourceKey), Key: change.newKey,
+              }));
+            } else {
+              throw error;
+            }
           }
-          oldKeys.push(change.oldKey);
+          oldKeys.push(sourceKey);
         }
         newKeys.push(change.newKey);
       }
