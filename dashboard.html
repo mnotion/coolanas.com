@@ -29,7 +29,7 @@
     .subject-selection-hint.visible{opacity:1}
     .study-subject.selected{outline:2px solid #222;outline-offset:2px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
     body.timer-running .active-subject-label,body.timer-paused .active-subject-label{display:block}
-    .study-subjects{position:fixed;top:calc(50% + 53px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:7px;width:min(460px,calc(100vw - 32px));margin:0}
+    .study-subjects.loading::before{content:"Loading subjects…";font-size:13px;color:#777;white-space:nowrap}.study-subjects{position:fixed;top:calc(50% + 53px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:7px;width:min(460px,calc(100vw - 32px));margin:0}
     .study-subject{padding:7px 11px;border:1px solid #dedede;border-radius:999px;background:#f7f7f7;color:#555;font:inherit;font-size:12px}
 .study-subject{cursor:context-menu;user-select:none;transition:background .15s,border-color .15s,color .15s}
     @media(hover:hover) and (pointer:fine){
@@ -267,8 +267,7 @@
       <div class="active-subject-label" id="active-subject-label" aria-live="polite"></div>
     </section>
     <div class="subject-selection-hint" id="subject-selection-hint" role="status"></div>
-    <div class="study-subjects" id="study-subjects" aria-label="Subjects">
-      <span class="study-subject" data-color="0">Maths</span><span class="study-subject" data-color="0">English</span><span class="study-subject" data-color="0">Biology</span><span class="study-subject" data-color="0">Chemistry</span><span class="study-subject" data-color="0">Physics</span><span class="study-subject" data-color="0">History</span><span class="study-subject" data-color="0">Geography</span><span class="study-subject" data-color="0">Computer Science</span>
+    <div class="study-subjects loading" id="study-subjects" aria-label="Subjects">
       <button class="study-subject-add" id="study-subject-add" type="button" aria-label="Add subject">+</button>
       <input class="study-subject-input" id="study-subject-input" type="text" maxlength="32" placeholder="Subject name" aria-label="New subject" hidden>
     </div>
@@ -614,7 +613,7 @@
       const timerButton=document.getElementById("study-stopwatch-toggle");
       const hint=document.getElementById("subject-selection-hint");
       const palette=["#e7e7e7","#f6caca","#f6dfaa","#d9edbd","#c9e7ef","#d7d0f2","#f0cce8"];
-      const defaults=[...container.querySelectorAll(".study-subject")].map(el=>({name:el.textContent.trim(),color:Number(el.dataset.color)||0}));
+      const defaults=["Maths","English","Biology","Chemistry","Physics","History","Geography","Computer Science"].map(name=>({name,color:0}));
       const localKey="coolanas-study-subjects-v1";
       let subjects=defaults;
       let selected=null,activeIndex=-1,editingIndex=-1,saveQueue=Promise.resolve();
@@ -639,6 +638,7 @@
         });
       }
       function render(){
+        container.classList.remove("loading");
         container.querySelectorAll(".study-subject").forEach(el=>el.remove());
         subjects.forEach((subject,index)=>{
           const chip=document.createElement("button");chip.type="button";chip.className="study-subject";
@@ -700,7 +700,11 @@
         const chip=event.target.closest(".study-subject");if(!chip)return;
         selected=Number(chip.dataset.index);
         window.coolanasSubjectState.selected=subjects[selected]?.name||null;
-        hint.textContent="";hint.classList.remove("visible");render();
+        hint.textContent="";hint.classList.remove("visible");
+        container.querySelectorAll(".study-subject").forEach((item,index)=>{
+          item.classList.toggle("selected",index===selected);
+          item.setAttribute("aria-pressed",String(index===selected));
+        });
       });
       container.addEventListener("dblclick",event=>{
         const chip=event.target.closest(".study-subject");if(chip)openMenu(chip);
@@ -736,10 +740,12 @@
           console.error("Could not load subjects:",error);
           hint.textContent="Could not load your subjects. Refresh to retry.";
           hint.classList.add("visible");
+          container.classList.remove("loading");container.replaceChildren();
+          const failed=document.createElement("span");failed.className="subject-load-error";failed.textContent="Subjects unavailable";container.appendChild(failed);
           timerButton.disabled=true;timerButton.title="Subjects unavailable";
         }
       })();
-      render();
+      container.classList.add("loading");
     })();
 
     const taskItemsEl=document.getElementById("task-items");
