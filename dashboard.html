@@ -1207,8 +1207,6 @@
         panel.querySelector("input")?.focus();
       }
     }
-    navAnalytics.addEventListener("click",()=>toggleNavPanel(analyticsPanel,navAnalytics));
-    if(new URLSearchParams(location.search).get("open")==="analytics")toggleNavPanel(analyticsPanel,navAnalytics);
     document.querySelectorAll(".panel [data-close]").forEach(button=>button.addEventListener("click",closeNavPanels));
     document.addEventListener("keydown",event=>{if(event.key==="Escape")closeNavPanels();});
   </script></body>
