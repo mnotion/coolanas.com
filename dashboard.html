@@ -26,19 +26,19 @@
     .active-subject-label{
       position:absolute;top:calc(100% + 22px);left:50%;transform:translateX(-50%);
       display:inline-flex;align-items:center;justify-content:center;
-      min-width:120px;min-height:44px;padding:.9em 1.4em;box-sizing:border-box;
-      border:0;border-radius:.5em;color:#fff;font-size:16px;font-weight:600;
-      letter-spacing:.01em;white-space:nowrap;pointer-events:none;
-      background-size:280% auto;
-      background-image:linear-gradient(325deg,#1765e8 0%,#47c7ed 55%,#1765e8 90%);
-      box-shadow:0 0 20px rgba(71,184,255,.32),0 5px 5px -1px rgba(58,125,233,.2),
-        inset 4px 4px 8px rgba(175,230,255,.35),inset -4px -4px 8px rgba(19,95,216,.25);
-      animation:active-subject-gradient 8s ease-in-out infinite alternate;
+      box-sizing:border-box;padding:7px 11px;min-height:0;min-width:0;
+      border:1px solid #dedede;border-radius:999px;
+      background:#f7f7f7;color:#555;font:inherit;font-size:12px;font-weight:400;
+      line-height:1.3;letter-spacing:0;text-align:center;white-space:nowrap;
+      pointer-events:auto;cursor:default;
+      box-shadow:none;transition:transform .16s ease,box-shadow .16s ease,filter .16s ease;
     }
-    @keyframes active-subject-gradient{from{background-position:left center}to{background-position:right center}}
-    body.timer-paused .active-subject-label{color:#fff;box-shadow:0 0 16px rgba(71,184,255,.22)}
-    @media(prefers-reduced-motion:reduce){.active-subject-label{animation:none}}
-    body:not(.timer-running) .active-subject-label{display:none}
+    @media(hover:hover) and (pointer:fine){
+      .active-subject-label:hover{transform:translateX(-50%) translateY(-2px);box-shadow:0 3px 9px rgba(0,0,0,.12);filter:brightness(.96)}
+    }
+    body.timer-paused #study-subjects{top:calc(50% + 180px)}
+    body.timer-paused .active-subject-label{color:#555;text-shadow:none}
+    @media(prefers-reduced-motion:reduce){.active-subject-label{transition:none}}
     .subject-selection-hint{position:fixed;z-index:32;top:18%;left:50%;transform:translateX(-50%);padding:12px 20px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:#202020;color:#fff;font-size:15px;font-weight:600;letter-spacing:.01em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
     .subject-selection-hint.visible{opacity:1}
     body.subject-pick-mode main::before{content:"";position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.68);pointer-events:none}
@@ -673,6 +673,9 @@
         const chosen=selected===null?null:subjects[selected];
         window.coolanasSubjectState.selected=chosen?chosen.name:null;
         activeLabel.textContent=chosen?chosen.name:"";
+        activeLabel.style.background=chosen?palette[chosen.color]:"#f7f7f7";
+        activeLabel.style.borderColor=chosen?palette[chosen.color]:"#dedede";
+        activeLabel.style.color="#555";
       }
       function closeMenu(){menu.hidden=true;colourRow.hidden=true;}
       function beginInlineEdit(index,isNew=false){
