@@ -23,7 +23,21 @@
     html.dark-mode .study-stopwatch{background:#242424;border-color:#444}
     html.dark-mode .study-stopwatch-actions button{background:#333;color:#eee;border-color:#555}
     html.dark-mode .study-stopwatch-actions .primary{background:#eee;color:#111;border-color:#eee}
-    .active-subject-label{position:absolute;top:calc(100% + 18px);left:0;right:0;text-align:center;font-size:16px;font-weight:600;color:#f5f5f5;letter-spacing:.01em;pointer-events:none}
+    .active-subject-label{
+      position:absolute;top:calc(100% + 22px);left:50%;transform:translateX(-50%);
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:120px;min-height:44px;padding:.9em 1.4em;box-sizing:border-box;
+      border:0;border-radius:.5em;color:#fff;font-size:16px;font-weight:600;
+      letter-spacing:.01em;white-space:nowrap;pointer-events:none;
+      background-size:280% auto;
+      background-image:linear-gradient(325deg,#1765e8 0%,#47c7ed 55%,#1765e8 90%);
+      box-shadow:0 0 20px rgba(71,184,255,.32),0 5px 5px -1px rgba(58,125,233,.2),
+        inset 4px 4px 8px rgba(175,230,255,.35),inset -4px -4px 8px rgba(19,95,216,.25);
+      animation:active-subject-gradient 8s ease-in-out infinite alternate;
+    }
+    @keyframes active-subject-gradient{from{background-position:left center}to{background-position:right center}}
+    body.timer-paused .active-subject-label{color:#fff;box-shadow:0 0 16px rgba(71,184,255,.22)}
+    @media(prefers-reduced-motion:reduce){.active-subject-label{animation:none}}
     body:not(.timer-running) .active-subject-label{display:none}
     .subject-selection-hint{position:fixed;z-index:32;top:18%;left:50%;transform:translateX(-50%);padding:12px 20px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:#202020;color:#fff;font-size:15px;font-weight:600;letter-spacing:.01em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .2s}
     .subject-selection-hint.visible{opacity:1}
