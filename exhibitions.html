@@ -31,6 +31,18 @@
     .exhibition-limit{margin-top:2px!important;font-size:11px!important}
     .exhibition-error{color:#b42318!important;min-height:0}
     .exhibition-error:empty{display:none}
+    .shared-buckets{width:min(760px,100%);margin:26px auto 0;padding:0 0 24px}
+    .shared-buckets[hidden]{display:none}
+    .shared-buckets-divider{height:1px;width:100%;background:#e1e1e1;margin-bottom:22px}
+    .shared-buckets h2{margin:0 0 14px;font-size:19px;letter-spacing:-.025em}
+    .shared-buckets-actions{display:flex;gap:10px}
+    .shared-buckets-actions button{min-width:100px;height:40px;padding:0 18px;border:1px solid #222;border-radius:9px;background:#222;color:#fff;font:600 13px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .shared-buckets-actions button:hover{background:#444}
+    .shared-buckets-feedback{margin:10px 0 0;color:#777;font-size:12px}
+    .shared-buckets-feedback:empty{display:none}
+    html.dark-mode .shared-buckets-divider{background:#444}
+    html.dark-mode .shared-buckets h2{color:#eee}
+    html.dark-mode .shared-buckets-actions button{background:#eee;color:#222;border-color:#eee}
     .exhibition-size{font-size:11px;color:#888}
     html.dark-mode .exhibitions-header{background:#262626!important;border-color:#444!important}
     html.dark-mode .exhibitions-header h1,html.dark-mode .storage-summary{color:#eee!important}
@@ -229,6 +241,7 @@
     <section class="exhibitions-header" id="exhibitions-header"><div><h1>Bucket</h1></div><form id="exhibition-create-form"><input id="exhibition-name" type="text" maxlength="180" placeholder="e.g. Maths" aria-label="Exhibition name" required><button type="submit" id="exhibition-create-button">Add bucket</button></form><div class="storage-summary" id="storage-summary">Calculating storage…</div><p class="exhibition-error" id="exhibition-error" role="status"></p></section>
     <div class="files-toolbar" id="files-toolbar" hidden><button class="crumb-button" id="back-folder" type="button">← Back</button><span class="crumb-current" id="current-folder"></span></div>
     <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
+     <section class="shared-buckets" id="shared-buckets" hidden aria-labelledby="shared-buckets-title"><div class="shared-buckets-divider"></div><h2 id="shared-buckets-title">Shared buckets</h2><div class="shared-buckets-actions"><button type="button" id="share-bucket-button">Share</button><button type="button" id="request-bucket-button">Request</button></div><p class="shared-buckets-feedback" id="shared-buckets-feedback" role="status" aria-live="polite"></p></section>
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
   <div class="selection-marquee" id="selection-marquee" hidden></div>
@@ -905,6 +918,7 @@ function renderItems(){
   const folder=items.find(item=>item.id===currentFolderId);
   const isExhibitionsHome=!!exhibitionRootId&&currentFolderId===exhibitionRootId;
   document.getElementById("exhibitions-header").hidden=!isExhibitionsHome;
+  document.getElementById("shared-buckets").hidden=!isExhibitionsHome;
   toolbar.hidden=!currentFolderId||isExhibitionsHome;
   currentFolder.textContent=folder?.name||"";
   const ordered=visibleItems().sort((a,b)=>{
@@ -1029,6 +1043,8 @@ function formatStorage(bytes){
   while(value>=1024&&index<units.length-1){value/=1024;index++;}
   return value.toFixed(index===0?0:2)+" "+units[index];
 }
+document.getElementById("share-bucket-button").addEventListener("click",()=>{document.getElementById("shared-buckets-feedback").textContent="Bucket sharing is not available yet.";});
+document.getElementById("request-bucket-button").addEventListener("click",()=>{document.getElementById("shared-buckets-feedback").textContent="Bucket requests are not available yet.";});
 async function refreshExhibitions(){
   const data=await filesAction("exhibitions_list");
   exhibitionRecords=data.exhibitions||[];exhibitionTotalBytes=Number(data.totalBytes)||0;
