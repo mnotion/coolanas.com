@@ -175,12 +175,34 @@
       .study-stopwatch-actions button:hover{transform:scale(1.07);box-shadow:0 3px 9px rgba(0,0,0,.13)}
       .study-stopwatch-actions .primary:hover{transform:scale(1.09)}
     }
+    html,body{background:#dedede;transition:background-color .45s ease}
+    body.timer-running,body.timer-running:has(main){background:#080808!important;color:#f5f5f5}
+    body.timer-running::before{
+      content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;
+      background:radial-gradient(ellipse at 50% 48%,rgba(145,12,25,.26) 0%,rgba(92,8,18,.13) 34%,transparent 68%);
+      animation:timer-red-pulse 8s ease-in-out infinite alternate;
+    }
+    @keyframes timer-red-pulse{
+      0%{opacity:.38;transform:scale(.96);background-position:42% 48%}
+      50%{opacity:.72;transform:scale(1.06);background-position:58% 52%}
+      100%{opacity:.48;transform:scale(1.01);background-position:48% 44%}
+    }
+    body.timer-paused,body.timer-paused:has(main){background:#e9d99a!important;color:#17140a}
+    body.timer-idle,body.timer-idle:has(main){background:#dedede!important;color:#111}
+    body.timer-running .study-stopwatch,body.timer-paused .study-stopwatch{background:rgba(255,255,255,.94);color:#111}
+    body.timer-running .study-stopwatch{border-color:rgba(255,255,255,.2)}
+    body.timer-paused .study-stopwatch{border-color:#d3bd70;box-shadow:0 12px 36px rgba(92,70,10,.12)}
+    body.timer-running .study-stopwatch-actions button.primary{background:#171717;border-color:#555;color:#fff}
+    body.timer-paused .study-stopwatch-actions button.primary{background:#d6b84e;border-color:#c3a43a;color:#17140a}
+    body.timer-running::before{display:block}
+    body:not(.timer-running)::before{display:none}
+    @media(prefers-reduced-motion:reduce){body.timer-running::before{animation:none;opacity:.55}}
     body.timer-focus #contribution-card,
     body.timer-focus #study-subjects,
     body.timer-focus .task-list-card,
     body.timer-focus .bottom-nav,
     body.timer-focus #profile-button{
-      opacity:.08;filter:blur(1px);pointer-events:none;
+      opacity:.08;filter:none;pointer-events:none;
     }
     body.timer-focus .study-stopwatch{
       width:min(490px,calc(100vw - 64px));padding:18px 20px;
@@ -513,7 +535,11 @@
       function render(){
         timeEl.textContent=format(elapsedNow());
         const running=Boolean(state.startedAt);
-        document.body.classList.toggle("timer-focus",running);
+        const paused=!running&&state.elapsed>0;
+        document.body.classList.toggle("timer-running",running);
+        document.body.classList.toggle("timer-paused",paused);
+        document.body.classList.toggle("timer-idle",!running&&!paused);
+        document.body.classList.toggle("timer-focus",running||paused);
         const label=running?"Pause":(state.elapsed>0?"Resume":"Start");
         toggleButton.setAttribute("aria-label",label+" timer");
         toggleButton.title=label;
