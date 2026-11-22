@@ -13,7 +13,10 @@ h1{margin:0 0 22px;font-size:26px;letter-spacing:-.04em}
 .users-panel{padding:22px;border:1px solid #e6e6e6;border-radius:16px;background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.035)}
 .users-panel h2{margin:0 0 16px;font-size:19px;letter-spacing:-.025em}
 .user-list{display:grid;gap:0;margin:0;padding:0;list-style:none}
-.user-list li{padding:12px 0;border-top:1px solid #eee;font-size:14px}
+.user-list li{display:flex;align-items:center;gap:11px;padding:12px 0;border-top:1px solid #eee;font-size:14px}
+.user-avatar{width:36px;height:36px;flex:none;border-radius:50%;object-fit:cover;background:#eee;border:1px solid rgba(0,0,0,.08)}
+.user-name{min-width:0;overflow-wrap:anywhere}
+.user-avatar-only{display:flex;align-items:center;min-height:48px}
 .user-list li:first-child{border-top:0}
 .user-empty,.user-error{margin:0;color:#777;font-size:13px}
     .profile-button{position:fixed;z-index:12;top:20px;right:22px;width:42px;height:42px;padding:0;overflow:hidden;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#eee;color:#555;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
@@ -209,13 +212,35 @@ document.getElementById("profile-name").textContent=displayName;
 document.getElementById("profile-email").textContent=user.email||"";
 const userList=document.getElementById("user-list");
 try{
- const {data,error}=await supabase.rpc("coolanas_public_usernames");
+ const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"profile_picture_directory"}});
  if(error)throw error;
+ if(data?.error)throw new Error(data.error);
  userList.replaceChildren();
- const names=(data||[]).map(row=>row.username).filter(Boolean);
- if(!names.length){const li=document.createElement("li");li.className="user-empty";li.textContent="No usernames yet.";userList.append(li);}
- for(const name of names){const li=document.createElement("li");li.textContent=name;userList.append(li);}
-}catch(error){userList.replaceChildren();const li=document.createElement("li");li.className="user-empty";li.textContent="Could not load usernames.";userList.append(li);document.getElementById("user-error").textContent=error.message||"";}
+ const users=data?.users||[];
+ if(!users.length){const li=document.createElement("li");li.className="user-empty";li.textContent="No signed-up users yet.";userList.append(li);}
+ for(const userEntry of users){
+  const li=document.createElement("li");
+  if(!userEntry.username)li.classList.add("user-avatar-only");
+  const avatar=userEntry.pictureUrl||userEntry.googleAvatar||"";
+  if(avatar){
+   const img=document.createElement("img");
+   img.className="user-avatar";
+   img.alt="";
+   img.loading="lazy";
+   img.referrerPolicy="no-referrer";
+   img.src=avatar;
+   img.onerror=()=>{img.remove();};
+   li.append(img);
+  }
+  if(userEntry.username){
+   const name=document.createElement("span");
+   name.className="user-name";
+   name.textContent=userEntry.username;
+   li.append(name);
+  }
+  userList.append(li);
+ }
+}catch(error){userList.replaceChildren();const li=document.createElement("li");li.className="user-empty";li.textContent="Could not load users.";userList.append(li);document.getElementById("user-error").textContent=error.message||"";}
 const profileButton=document.getElementById("profile-button");
 const profileDrawer=document.getElementById("profile-drawer");
 const profileBackdrop=document.getElementById("profile-backdrop");
