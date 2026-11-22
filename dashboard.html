@@ -356,12 +356,13 @@
       .task-list-card{margin-top:360px}
       .study-stopwatch-time{font-size:25px}
     }
-    /* Final mobile layout override: the page scrolls, while navigation stays fixed. */
+    /* Mobile page scrolling: keep the task list in normal document flow. */
     @media(max-width:620px){
-      html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
-      main{min-height:calc(100svh + 560px);padding:0 14px calc(104px + env(safe-area-inset-bottom))}
+      html{height:auto;min-height:100%;overflow-x:hidden;overflow-y:scroll}
+      body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:visible;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+      main{display:block;position:relative;height:auto;min-height:180svh;padding:0 14px calc(120px + env(safe-area-inset-bottom));overflow:visible;touch-action:pan-y}
       .contribution-card,.contribution-tooltip{display:none!important}
-      .task-list-card{position:relative;top:auto;right:auto;bottom:auto;left:auto;transform:none;width:auto;min-width:0;max-height:none;overflow:visible;margin:380px 0 28px;padding:15px;border-radius:16px}
+      .task-list-card{position:relative;top:auto;right:auto;bottom:auto;left:auto;transform:none;width:auto;min-width:0;max-height:none;overflow:visible;touch-action:pan-y;margin:380px 0 28px;padding:15px;border-radius:16px}
     }
   </style>
 </head>
