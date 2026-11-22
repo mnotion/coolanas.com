@@ -47,6 +47,20 @@
     .shared-bucket-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600}
     .shared-bucket-owner{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#888}
     .shared-bucket-empty{margin:0;color:#888;font-size:13px}
+    .shared-buckets-subtitle{margin:18px 0 10px;font-size:13px;font-weight:650;color:#777}
+    .shared-bucket-card-owner{position:relative;display:flex;align-items:stretch;width:168px;min-height:176px;padding:8px;border:0;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+    .shared-bucket-card-open{display:flex;flex:1;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:22px 6px 8px;border:0;border-radius:9px;background:transparent;color:#222;cursor:pointer}
+    .shared-bucket-card-open:hover{background:#fafafa}
+    .shared-bucket-card-open .folder-icon{width:88px;height:88px}
+    .shared-bucket-owner-status{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#2563eb}
+    .shared-bucket-manage-wrap{position:absolute;top:8px;right:8px;z-index:3}
+    .shared-bucket-manage{min-width:62px;height:28px;padding:0 9px;border:1px solid #2563eb;border-radius:7px;background:#2563eb;color:#fff;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .shared-bucket-manage:hover{background:#1d4ed8}
+    .shared-bucket-menu{position:absolute;top:34px;right:0;z-index:8;width:158px;padding:5px;border:1px solid #e5e7eb;border-radius:9px;background:#fff;box-shadow:0 8px 22px rgba(0,0,0,.14)}
+    .shared-bucket-menu[hidden]{display:none}
+    .shared-bucket-menu button{display:block;width:100%;padding:9px 10px;border:0;border-radius:6px;background:transparent;color:#222;text-align:left;font:500 12px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .shared-bucket-menu button:hover{background:#f2f4f7}
+    .share-permission-select{max-width:138px;padding:6px 7px;border:1px solid #d8dce2;border-radius:7px;background:#fff;color:#333;font:11px Inter,ui-sans-serif,system-ui,sans-serif}
     .bucket-share-panel{position:fixed;z-index:70;top:50%;right:20px;transform:translateY(-50%);width:min(370px,calc(100vw - 32px));max-height:min(760px,calc(100vh - 32px));display:flex;flex-direction:column;gap:12px;padding:20px;border:1px solid rgba(0,0,0,.09);border-radius:17px;background:rgba(255,255,255,.97);box-shadow:0 15px 48px rgba(0,0,0,.18);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
     .bucket-share-panel[hidden]{display:none}
     .share-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -263,7 +277,13 @@
     html.dark-mode .nav-button{background:#303030!important;color:#eee!important;border-color:#555!important}
     html.dark-mode .add-button,html.dark-mode .add-menu,html.dark-mode .add-option,html.dark-mode .confirm-button,html.dark-mode .crumb-button,html.dark-mode .search-input,html.dark-mode .settings-section-content input{background:#303030!important;color:#eee!important;border-color:#555!important}
     html.dark-mode .file-tag{background:#3a3a3a!important;color:#ddd!important}
-    html.dark-mode .shared-bucket-card,html.dark-mode .bucket-share-panel{background:rgba(38,38,38,.98)!important;color:#eee!important;border-color:#444!important}
+    html.dark-mode .shared-bucket-card,html.dark-mode .shared-bucket-card-owner,html.dark-mode .bucket-share-panel{background:rgba(38,38,38,.98)!important;color:#eee!important;border-color:#444!important}
+    html.dark-mode .shared-bucket-card-open{color:#eee!important}
+    html.dark-mode .shared-bucket-card-open:hover{background:#303030!important}
+    html.dark-mode .shared-bucket-menu{background:#303030!important;border-color:#555!important}
+    html.dark-mode .shared-bucket-menu button{color:#eee!important}
+    html.dark-mode .shared-bucket-menu button:hover{background:#444!important}
+    html.dark-mode .share-permission-select{background:#303030!important;color:#eee!important;border-color:#555!important}
     html.dark-mode .shared-bucket-name,html.dark-mode .share-panel-head h2{color:#eee!important}
     html.dark-mode .share-user-list li,html.dark-mode .share-access-list li{border-color:#444!important}
     html.dark-mode .share-user-choice,html.dark-mode .share-revoke{background:#303030!important;color:#eee!important;border-color:#555!important}
@@ -331,7 +351,7 @@
     <section class="exhibitions-header" id="exhibitions-header"><div><h1>Bucket</h1></div><form id="exhibition-create-form"><input id="exhibition-name" type="text" maxlength="180" placeholder="e.g. Maths" aria-label="Exhibition name" required><button type="submit" id="exhibition-create-button">Add bucket</button></form><div class="storage-summary" id="storage-summary">Calculating storage…</div><p class="exhibition-error" id="exhibition-error" role="status"></p></section>
     <div class="files-toolbar" id="files-toolbar" hidden><button class="crumb-button" id="back-folder" type="button">← Back</button><span class="crumb-current" id="current-folder"></span></div>
     <div class="files-list" id="files-list" role="list" aria-label="Files and folders"></div>
-     <section class="shared-buckets" id="shared-buckets" hidden aria-labelledby="shared-buckets-title"><div class="shared-buckets-divider"></div><h2 id="shared-buckets-title">Shared buckets</h2><div class="shared-buckets-grid" id="shared-buckets-list"><p class="shared-bucket-empty">Loading shared buckets…</p></div><p class="shared-buckets-feedback" id="shared-buckets-feedback" role="status" aria-live="polite"></p></section>
+     <section class="shared-buckets" id="shared-buckets" hidden aria-labelledby="shared-buckets-title"><div class="shared-buckets-divider"></div><h2 id="shared-buckets-title">Shared buckets</h2><h3 class="shared-buckets-subtitle">Shared with you</h3><div class="shared-buckets-grid" id="shared-buckets-list"><p class="shared-bucket-empty">Loading shared buckets…</p></div><h3 class="shared-buckets-subtitle" id="shared-by-you-title" hidden>Shared by you</h3><div class="shared-buckets-grid" id="shared-by-you-list"></div><p class="shared-buckets-feedback" id="shared-buckets-feedback" role="status" aria-live="polite"></p></section>
   </main>
   <div class="drop-hint" id="drop-hint" hidden>Drop files or folders to add them</div>
   <div class="selection-marquee" id="selection-marquee" hidden></div>
@@ -380,7 +400,7 @@
   </div>
   <div class="confirm-overlay" id="confirm-overlay" hidden><section class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message"><h2 class="confirm-title" id="confirm-title">Delete item?</h2><p class="confirm-message" id="confirm-message"></p><div class="confirm-actions"><button class="confirm-button" id="confirm-cancel" type="button">Cancel</button><button class="confirm-button danger" id="confirm-delete" type="button">Delete</button></div></section></div>
   <aside class="bucket-share-panel" id="bucket-share-panel" aria-label="Share bucket" hidden>
-    <div class="share-panel-head"><h2>Share bucket</h2><button class="close-button" id="bucket-share-close" type="button" aria-label="Close">×</button></div>
+    <div class="share-panel-head"><h2 id="bucket-share-title">Share bucket</h2><button class="close-button" id="bucket-share-close" type="button" aria-label="Close">×</button></div>
     <p class="share-panel-bucket" id="bucket-share-name"></p>
     <input class="search-input" id="bucket-share-search" type="search" placeholder="Search Coolanas users…" autocomplete="off">
     <ul class="share-user-list" id="bucket-share-users"><li class="shared-bucket-empty">Loading users…</li></ul>
@@ -515,7 +535,7 @@ async function refreshMail(){
     const decline=document.createElement("button");decline.type="button";decline.className="secondary";decline.textContent="Decline";
     const respond=async(response)=>{accept.disabled=true;decline.disabled=true;try{
      const {data:result,error:responseError}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"bucket_invitation_respond",invitationId:notification.invitation_id,response}});
-     if(responseError)throw responseError;if(result?.error)throw new Error(result.error);await refreshMail();
+     if(responseError)throw responseError;if(result?.error)throw new Error(result.error);await refreshMail();if(typeof refreshSharedBuckets==="function")await refreshSharedBuckets();
     }catch(error){const feedback=document.createElement("span");feedback.className="mail-notification-status";feedback.textContent=error.message||"Could not update this invitation.";card.append(feedback);accept.disabled=false;decline.disabled=false;}};
     accept.addEventListener("click",()=>respond("accept"));decline.addEventListener("click",()=>respond("decline"));actions.append(accept,decline);card.append(actions);
    }else if(notification.type==="bucket_invitation"&&status){
@@ -1108,7 +1128,7 @@ function renderItems(){
   document.getElementById("shared-buckets").hidden=!isExhibitionsHome;
   toolbar.hidden=!currentFolderId||isExhibitionsHome;
   currentFolder.textContent=activeSharedBucket
-    ? ((folder?.name||activeSharedBucket.name)+" · Shared by "+activeSharedBucket.ownerUsername+" · Read-only")
+    ? ((folder?.name||activeSharedBucket.name)+" · Shared by "+activeSharedBucket.ownerUsername+" · Read-only · "+(activeSharedBucket.permission==="view"?"View only":"View and download"))
     : (folder?.name||"");
   const ordered=visibleItems().sort((a,b)=>{
     const type=(a.item_type==="folder"?0:1)-(b.item_type==="folder"?0:1);
@@ -1234,7 +1254,7 @@ function openFolder(id){
 async function openSharedBucket(bucket){
   try{
     const result=await filesAction("shared_bucket_open",{bucketId:bucket.id});
-    activeSharedBucket={id:bucket.id,name:bucket.name,ownerUsername:bucket.ownerUsername||"Coolanas user"};
+    activeSharedBucket={id:bucket.id,name:bucket.name,ownerUsername:bucket.ownerUsername||"Coolanas user",permission:result.permission||bucket.permission||"view_download"};
     items=result.items||[];currentFolderId=bucket.id;searchQuery="";
     clearSelection();renderItems();
   }catch(error){document.getElementById("shared-buckets-feedback").textContent=error.message||"Could not open shared bucket.";}
@@ -1259,10 +1279,15 @@ function formatStorage(bytes){
 }
 async function refreshSharedBuckets(){
   const grid=document.getElementById("shared-buckets-list");
+  const ownerGrid=document.getElementById("shared-by-you-list");
+  const ownerTitle=document.getElementById("shared-by-you-title");
   try{
     const result=await filesAction("shared_buckets_list");
     sharedBucketRecords=result.buckets||[];
+    const sharedByYou=result.sharedByYou||[];
     grid.replaceChildren();
+    ownerGrid.replaceChildren();
+
     if(!sharedBucketRecords.length){
       const empty=document.createElement("p");empty.className="shared-bucket-empty";empty.textContent="No buckets have been shared with you yet.";grid.append(empty);
     }
@@ -1273,8 +1298,34 @@ async function refreshSharedBuckets(){
       const owner=document.createElement("span");owner.className="shared-bucket-owner";owner.textContent="Shared by "+bucket.ownerUsername;
       card.append(svg,name,owner);card.addEventListener("click",()=>openSharedBucket(bucket));grid.append(card);
     }
+
+    ownerTitle.hidden=!sharedByYou.length;
+    for(const bucket of sharedByYou){
+      const card=document.createElement("div");card.className="shared-bucket-card-owner";
+      const open=document.createElement("button");open.type="button";open.className="shared-bucket-card-open";
+      const icon=document.createElement("span");icon.innerHTML=folderSvg;const svg=icon.firstElementChild;if(bucket.folder_color)svg.style.color=bucket.folder_color;
+      const name=document.createElement("span");name.className="shared-bucket-name";name.textContent=bucket.name;
+      const status=document.createElement("span");status.className="shared-bucket-owner-status";status.textContent="You shared this";
+      open.append(svg,name,status);
+      open.addEventListener("click",()=>openFolder(bucket.id));
+
+      const wrap=document.createElement("div");wrap.className="shared-bucket-manage-wrap";
+      const manage=document.createElement("button");manage.type="button";manage.className="shared-bucket-manage";manage.textContent="Manage";manage.setAttribute("aria-label","Manage sharing for "+bucket.name);
+      const menu=document.createElement("div");menu.className="shared-bucket-menu";menu.hidden=true;
+      manage.addEventListener("click",event=>{
+        event.stopPropagation();
+        document.querySelectorAll(".shared-bucket-menu").forEach(other=>{if(other!==menu)other.hidden=true;});
+        menu.hidden=!menu.hidden;
+      });
+      const revoke=document.createElement("button");revoke.type="button";revoke.textContent="Revoke access";
+      revoke.addEventListener("click",event=>{event.stopPropagation();menu.hidden=true;openBucketSharePanel(bucket,"revoke");});
+      const permission=document.createElement("button");permission.type="button";permission.textContent="Change permission";
+      permission.addEventListener("click",event=>{event.stopPropagation();menu.hidden=true;openBucketSharePanel(bucket,"permission");});
+      menu.append(revoke,permission);wrap.append(manage,menu);card.append(open,wrap);ownerGrid.append(card);
+    }
   }catch(error){
-    grid.replaceChildren();const empty=document.createElement("p");empty.className="shared-bucket-empty";empty.textContent="Could not load shared buckets.";grid.append(empty);
+    grid.replaceChildren();ownerGrid.replaceChildren();ownerTitle.hidden=true;
+    const empty=document.createElement("p");empty.className="shared-bucket-empty";empty.textContent="Could not load shared buckets.";grid.append(empty);
     document.getElementById("shared-buckets-feedback").textContent=error.message||"";
   }
 }
@@ -1282,8 +1333,8 @@ const sharePanel=document.getElementById("bucket-share-panel");
 const shareSearch=document.getElementById("bucket-share-search");
 const shareUsers=document.getElementById("bucket-share-users");
 const shareConfirmOverlay=document.getElementById("share-confirm-overlay");
-let shareUserRecords=[],shareConfirmTarget=null;
-function closeBucketSharePanel(){sharePanel.hidden=true;currentShareBucket=null;shareSearch.value="";shareUsers.replaceChildren();}
+let shareUserRecords=[],shareConfirmTarget=null,sharePanelMode="share";
+function closeBucketSharePanel(){sharePanel.hidden=true;currentShareBucket=null;shareSearch.value="";shareUsers.replaceChildren();shareSearch.hidden=false;shareUsers.hidden=false;sharePanelMode="share";document.getElementById("bucket-share-title").textContent="Share bucket";}
 function renderShareUsers(){
   const query=shareSearch.value.trim().toLocaleLowerCase();
   const matches=shareUserRecords.filter(entry=>String(entry.username||"").toLocaleLowerCase().includes(query));
@@ -1307,29 +1358,61 @@ async function refreshBucketShareAccess(){
     for(const entry of entries){
       const li=document.createElement("li");
       const text=document.createElement("span");text.className="share-access-name";text.textContent=entry.username;
-      const status=document.createElement("span");status.className="share-access-status";status.textContent=entry.status==="pending"?"Invitation pending":"Can view and download";
+      const status=document.createElement("span");status.className="share-access-status";
+      status.textContent=entry.status==="pending"?"Invitation pending":(entry.permission==="view"?"Can view only":"Can view and download");
       text.append(status);
-      const revoke=document.createElement("button");revoke.type="button";revoke.className="share-revoke";revoke.textContent=entry.status==="pending"?"Cancel":"Revoke";
-      revoke.addEventListener("click",async()=>{
-        if(!confirm((entry.status==="pending"?"Cancel the invitation to ":"Revoke access for ")+entry.username+"?"))return;
-        try{await filesAction("bucket_share_revoke",{bucketId:currentShareBucket.id,recipientId:entry.recipientId});await refreshBucketShareAccess();document.getElementById("bucket-share-feedback").textContent="Sharing access updated.";}
-        catch(error){document.getElementById("bucket-share-feedback").textContent=error.message||"Could not revoke access.";}
-      });
-      li.append(text,revoke);accessList.append(li);
+      if(entry.status==="accepted"&&sharePanelMode==="permission"){
+        const select=document.createElement("select");select.className="share-permission-select";select.setAttribute("aria-label","Permission for "+entry.username);
+        const view=document.createElement("option");view.value="view";view.textContent="View only";
+        const download=document.createElement("option");download.value="view_download";download.textContent="View and download";
+        select.append(view,download);select.value=entry.permission||"view_download";
+        select.addEventListener("change",async()=>{
+          select.disabled=true;
+          try{
+            await filesAction("bucket_share_permission_update",{bucketId:currentShareBucket.id,recipientId:entry.recipientId,permission:select.value});
+            document.getElementById("bucket-share-feedback").textContent="Permission updated.";
+            await refreshBucketShareAccess();await refreshSharedBuckets();
+          }catch(error){document.getElementById("bucket-share-feedback").textContent=error.message||"Could not change permission.";select.disabled=false;}
+        });
+        li.append(text,select);
+      }else if(sharePanelMode!=="permission"){
+        const revoke=document.createElement("button");revoke.type="button";revoke.className="share-revoke";revoke.textContent=entry.status==="pending"?"Cancel":"Revoke access";
+        revoke.addEventListener("click",async()=>{
+          if(!confirm((entry.status==="pending"?"Cancel the invitation to ":"Revoke access for ")+entry.username+"?"))return;
+          revoke.disabled=true;
+          try{
+            await filesAction("bucket_share_revoke",{bucketId:currentShareBucket.id,recipientId:entry.recipientId});
+            await refreshBucketShareAccess();await refreshSharedBuckets();
+            document.getElementById("bucket-share-feedback").textContent="Sharing access updated.";
+          }catch(error){document.getElementById("bucket-share-feedback").textContent=error.message||"Could not revoke access.";revoke.disabled=false;}
+        });
+        li.append(text,revoke);
+      }else{
+        li.append(text);
+      }
+      accessList.append(li);
     }
   }catch(error){accessList.replaceChildren();const empty=document.createElement("li");empty.className="shared-bucket-empty";empty.textContent=error.message||"Could not load sharing settings.";accessList.append(empty);}
 }
-async function openBucketSharePanel(bucket){
-  currentShareBucket=bucket;document.getElementById("bucket-share-name").textContent=bucket.name;
+async function openBucketSharePanel(bucket,mode="share"){
+  currentShareBucket=bucket;sharePanelMode=mode;
+  document.getElementById("bucket-share-name").textContent=bucket.name;
   document.getElementById("bucket-share-name").style.color=bucket.folder_color||"#555";
   document.getElementById("bucket-share-feedback").textContent="";
+  const titles={share:"Share bucket",revoke:"Revoke bucket access",permission:"Change bucket permission"};
+  document.getElementById("bucket-share-title").textContent=titles[mode]||titles.share;
+  shareSearch.hidden=mode!=="share";shareUsers.hidden=mode!=="share";
   sharePanel.hidden=false;
-  shareUsers.replaceChildren();const loading=document.createElement("li");loading.className="shared-bucket-empty";loading.textContent="Loading users…";shareUsers.append(loading);
   const accessList=document.getElementById("bucket-share-access-list");accessList.replaceChildren();
-  try{
-    const result=await filesAction("bucket_share_users");shareUserRecords=result.users||[];renderShareUsers();
-    await refreshBucketShareAccess();
-  }catch(error){shareUsers.replaceChildren();const empty=document.createElement("li");empty.className="shared-bucket-empty";empty.textContent=error.message||"Could not load users.";shareUsers.append(empty);}
+  if(mode==="share"){
+    shareUsers.replaceChildren();const loading=document.createElement("li");loading.className="shared-bucket-empty";loading.textContent="Loading users…";shareUsers.append(loading);
+    try{
+      const result=await filesAction("bucket_share_users");shareUserRecords=result.users||[];renderShareUsers();
+    }catch(error){shareUsers.replaceChildren();const empty=document.createElement("li");empty.className="shared-bucket-empty";empty.textContent=error.message||"Could not load users.";shareUsers.append(empty);}
+  }else{
+    shareUsers.replaceChildren();
+  }
+  await refreshBucketShareAccess();
 }
 function openShareConfirmation(entry){
   if(!currentShareBucket)return;
@@ -1642,14 +1725,15 @@ async function openFile(item){
   viewerTitle.textContent=item.name;
   viewerContent.textContent="Loading preview…";
   const viewerDownload=document.getElementById("viewer-download");viewerDownload.hidden=true;viewerDownload.removeAttribute("href");
+  const downloadAllowed=!activeSharedBucket||activeSharedBucket.permission!=="view";
   try{
-    const result=await filesAction("download",{id:item.id});
+    const result=await filesAction(downloadAllowed?"download":"file_preview",{id:item.id});
     const response=await fetch(result.downloadUrl);
     if(!response.ok)throw new Error("Backblaze download failed ("+response.status+").");
     const data=await response.blob();
     if(objectUrl)URL.revokeObjectURL(objectUrl);
     objectUrl=URL.createObjectURL(data);
-    viewerDownload.href=objectUrl;viewerDownload.download=item.name;viewerDownload.hidden=false;
+    if(downloadAllowed){viewerDownload.href=objectUrl;viewerDownload.download=item.name;viewerDownload.hidden=false;}
     viewerContent.replaceChildren();
     if(data.type.startsWith("image/")){
       const img=document.createElement("img");img.src=objectUrl;viewerContent.append(img);
@@ -1659,8 +1743,8 @@ async function openFile(item){
       viewerContent.textContent=await data.text();
     }else{
       const message=document.createElement("p");message.textContent="Preview is unavailable for this file type.";
-      const download=document.createElement("a");download.href=objectUrl;download.download=item.name;download.textContent="Download file";
-      viewerContent.replaceChildren(message,download);
+      if(downloadAllowed){const download=document.createElement("a");download.href=objectUrl;download.download=item.name;download.textContent="Download file";viewerContent.replaceChildren(message,download);}
+      else{viewerContent.replaceChildren(message);}
     }
   }catch(error){viewerContent.textContent=error.message;}
 }
