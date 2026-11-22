@@ -330,6 +330,13 @@ Deno.serve(async (req) => {
       return json(200, { notifications: data ?? [] });
     }
 
+    if (action === "mail_clear") {
+      const { error } = await supabase.from("mail_notifications")
+        .delete().eq("recipient_id", userId);
+      if (error) throw error;
+      return json(200, { success: true });
+    }
+
     if (action === "mail_mark_read") {
       const notificationId = cleanId(body.notificationId);
       if (!notificationId) return json(400, { error: "Invalid notification." });
