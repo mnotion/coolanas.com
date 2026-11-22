@@ -356,14 +356,33 @@
       .task-list-card{margin-top:360px}
       .study-stopwatch-time{font-size:25px}
     }
-    /* Mobile: create real document space before the task list so the page, not the card, scrolls. */
+    /* Mobile: put timer, subjects and tasks in the same normal-flow page. */
     @media(max-width:620px){
       html,body{width:100%;height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
       body{-webkit-overflow-scrolling:touch;touch-action:pan-y}
-      main{display:flow-root;position:relative;height:auto;min-height:0;padding:0 14px calc(120px + env(safe-area-inset-bottom));overflow:visible;touch-action:pan-y}
-      main::before{content:"";display:block;height:390px;width:100%;pointer-events:none}
+      main{display:flow-root;position:relative;height:auto;min-height:0;padding:24px 14px calc(120px + env(safe-area-inset-bottom));overflow:visible;touch-action:pan-y}
+      main::before{content:none!important;display:none!important}
       .contribution-card,.contribution-tooltip{display:none!important}
-      .task-list-card{position:relative;inset:auto;transform:none;display:block;width:100%;min-width:0;max-height:none;overflow:visible;touch-action:pan-y;margin:0 0 28px;padding:15px;border-radius:16px}
+      .study-stopwatch,
+      body.timer-paused .study-stopwatch,
+      body.timer-focus .study-stopwatch{
+        position:relative;top:auto;right:auto;bottom:auto;left:auto;
+        transform:none;width:100%;min-width:0;margin:110px 0 18px;
+        padding:8px 10px;border-radius:16px;
+      }
+      .study-stopwatch-time{font-size:clamp(25px,7.2vw,32px)}
+      .study-subjects,
+      body.timer-paused #study-subjects,
+      body.timer-running #study-subjects{
+        position:relative;top:auto;right:auto;bottom:auto;left:auto;
+        transform:none;width:100%;margin:0 auto 24px;justify-content:center;
+      }
+      .task-list-card{
+        position:relative;inset:auto;transform:none;display:block;
+        width:100%;min-width:0;max-height:none;overflow:visible;
+        touch-action:pan-y;margin:0 0 28px;padding:15px;border-radius:16px;
+      }
+      .task-items{max-height:none;overflow:visible}
     }
   </style>
 </head>
