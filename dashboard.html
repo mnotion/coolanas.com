@@ -86,7 +86,7 @@
     .task-drag-handle:active{cursor:grabbing}
     .task-row.completed{border-color:#36a852;background:transparent;box-shadow:none}
     .task-row.completed .task-text{text-decoration:line-through;color:#558362}
-    .task-complete{flex:0 0 24px;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:0;border-radius:6px;background:transparent;transition:transform .2s ease}
+    .task-complete{flex:0 0 18px;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:0;border-radius:5px;background:transparent;transition:transform .2s ease}
     .container{cursor:pointer}
     .container input{display:none}
     .container svg{overflow:visible}
@@ -831,7 +831,7 @@
         const label=document.createElement("span");label.className="task-text";label.textContent=task.text;
         const complete=document.createElement("label");complete.className="container task-complete";complete.title=task.completed?"Mark as incomplete":"Mark as completed";
         const completeInput=document.createElement("input");completeInput.type="checkbox";completeInput.checked=task.completed;completeInput.setAttribute("aria-label",complete.title);
-        const completeSvg=document.createElementNS("http://www.w3.org/2000/svg","svg");completeSvg.setAttribute("viewBox","0 0 64 64");completeSvg.setAttribute("height","1.5em");completeSvg.setAttribute("width","1.5em");
+        const completeSvg=document.createElementNS("http://www.w3.org/2000/svg","svg");completeSvg.setAttribute("viewBox","0 0 64 64");completeSvg.setAttribute("height","1.125em");completeSvg.setAttribute("width","1.125em");
         const completePath=document.createElementNS("http://www.w3.org/2000/svg","path");completePath.setAttribute("d","M 0 16 V 56 A 8 8 90 0 0 8 64 H 56 A 8 8 90 0 0 64 56 V 8 A 8 8 90 0 0 56 0 H 8 A 8 8 90 0 0 0 8 V 16 L 32 48 L 64 16 V 8 A 8 8 90 0 0 56 0 H 8 A 8 8 90 0 0 0 8 V 56 A 8 8 90 0 0 8 64 H 56 A 8 8 90 0 0 64 56 V 16");completePath.setAttribute("pathLength","575.0541381835938");completePath.setAttribute("class","path");
         completeSvg.appendChild(completePath);complete.append(completeInput,completeSvg);
         completeInput.addEventListener("change",async()=>{
