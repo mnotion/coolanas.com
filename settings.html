@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Settings · Coolanas</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#171717;background:#f7f7f7;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f7f7f7;color:#171717}
+button,input{font:inherit}button{cursor:pointer}
+.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 max(24px,calc((100vw - 1080px)/2));background:#fff;border-bottom:1px solid #e9e9e9}
+.brand{font-size:19px;font-weight:750;color:inherit;text-decoration:none;letter-spacing:-.5px}
+.back{border:0;background:transparent;color:#555;padding:9px 12px;border-radius:8px}.back:hover{background:#f1f1f1}
+.layout{width:min(1080px,calc(100% - 40px));margin:42px auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:26px;align-items:start}
+.sidebar,.content{background:#fff;border:1px solid #e8e8e8;border-radius:16px;box-shadow:0 3px 14px rgba(0,0,0,.035)}
+.sidebar{padding:14px;display:grid;gap:5px}.sidebar h1{font-size:19px;margin:8px 10px 12px}
+.topic{width:100%;text-align:left;border:0;background:transparent;color:#555;padding:12px 11px;border-radius:9px;font-size:14px;font-weight:550}
+.topic:hover{background:#f5f5f5}.topic.active{background:#edf3ff;color:#2167d5}
+.content{padding:30px;min-height:430px}.section{display:none}.section.active{display:block}
+.section h2{font-size:22px;margin:0 0 7px;letter-spacing:-.4px}.intro{margin:0 0 25px;color:#777;font-size:13px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:19px 0;border-top:1px solid #eee}
+.setting-copy{min-width:0}.setting-copy strong{display:block;font-size:14px;font-weight:650}.setting-copy p{margin:5px 0 0;color:#777;font-size:12px;line-height:1.5}
+.primary,.secondary{border-radius:9px;padding:10px 14px;font-size:13px;font-weight:650;white-space:nowrap}
+.primary{border:1px solid #222;background:#222;color:#fff}.primary:hover{background:#3a3a3a}
+.secondary{border:1px solid #ddd;background:#fff;color:#333}.secondary:hover{background:#f7f7f7}
+.danger{color:#b42318;border-color:#e7c5c5}
+.picture-wrap{display:flex;align-items:center;gap:16px}.picture{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#eee;border:1px solid #e5e5e5}.fallback{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:#eee;color:#666;font-size:22px}
+.username-form{max-width:460px}.username-form label{display:block;font-size:13px;font-weight:650;margin-bottom:8px}
+.username-form input{width:100%;height:44px;padding:0 12px;border:1px solid #d8d8d8;border-radius:9px;background:#fff;color:#171717;outline:none}
+.username-form input:focus{border-color:#3985ed;box-shadow:0 0 0 3px rgba(57,133,237,.12)}
+.help{font-size:12px;color:#777;line-height:1.5;margin:8px 0 16px}.status{font-size:12px;min-height:18px;margin:10px 0 0;color:#555}.status.error{color:#b42318}.status.success{color:#18794e}
+.theme-switch{display:flex;align-items:center;gap:12px}.switch{width:46px;height:26px;border:0;border-radius:99px;background:#bbb;padding:3px;transition:background .15s}.switch::after{content:"";display:block;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .15s}.switch[aria-checked=true]{background:#3985ed}.switch[aria-checked=true]::after{transform:translateX(20px)}
+[hidden]{display:none!important}
+html.dark-mode,html.dark-mode body{background:#171717;color:#eee}html.dark-mode .topbar,html.dark-mode .sidebar,html.dark-mode .content{background:#242424;border-color:#3c3c3c;color:#eee}html.dark-mode .back,html.dark-mode .topic{color:#ccc}html.dark-mode .back:hover,html.dark-mode .topic:hover{background:#333}html.dark-mode .topic.active{background:#26364d;color:#8dbaff}html.dark-mode .setting-row{border-color:#3b3b3b}html.dark-mode .setting-copy p,html.dark-mode .intro,html.dark-mode .help{color:#aaa}html.dark-mode .secondary{background:#303030;border-color:#555;color:#eee}html.dark-mode .username-form input{background:#303030;border-color:#555;color:#eee}html.dark-mode .fallback{background:#333;color:#ddd}
+@media(max-width:650px){.layout{grid-template-columns:1fr;margin:20px auto;gap:14px}.sidebar{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:10px}.sidebar h1{grid-column:1/-1;margin:4px 6px}.topic{text-align:center;padding:10px 4px;font-size:12px}.content{padding:22px 18px;min-height:380px}.setting-row{align-items:flex-start}.topbar{padding:0 18px}}
+</style>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="/dashboard.html">Coolanas</a><button class="back" type="button" onclick="history.length>1?history.back():location.assign('/dashboard.html')">← Back</button></header>
+<main class="layout">
+<aside class="sidebar" aria-label="Settings topics">
+<h1>Settings</h1>
+<button class="topic active" type="button" data-section="account" aria-pressed="true">Account</button>
+<button class="topic" type="button" data-section="public-profile" aria-pressed="false">Public profile</button>
+<button class="topic" type="button" data-section="personalisation" aria-pressed="false">Personalisation</button>
+</aside>
+<div class="content">
+<section class="section active" id="section-account">
+<h2>Account</h2><p class="intro">Manage your account and profile picture.</p>
+<div class="setting-row">
+<div class="setting-copy"><strong>Profile picture</strong><p>Choose or remove the picture shown on your Coolanas profile.</p></div>
+<div class="picture-wrap"><img class="picture" id="profile-picture" alt="Profile picture" hidden><span class="fallback" id="picture-fallback">?</span></div>
+</div>
+<div class="setting-row"><div class="setting-copy"><strong>Change profile picture</strong><p>Upload a new image. PNG, JPEG and other browser-supported image formats are accepted.</p></div><button class="primary" id="change-picture" type="button">Change picture</button></div>
+<div class="setting-row" id="remove-picture-row" hidden><div class="setting-copy"><strong>Remove profile picture</strong><p>Return to your Google account picture.</p></div><button class="secondary danger" id="remove-picture" type="button">Remove picture</button></div>
+<input id="picture-input" type="file" accept="image/*" hidden>
+<p class="status" id="account-status" role="status"></p>
+</section>
+<section class="section" id="section-public-profile">
+<h2>Public profile</h2><p class="intro">Manage the name other Coolanas users see.</p>
+<form class="username-form" id="username-form">
+<label for="username">Username</label><input id="username" name="username" type="text" minlength="4" maxlength="100" autocomplete="username" required>
+<p class="help">4–100 characters. No spaces or emojis. Usernames must be unique.</p>
+<button class="primary" id="save-username" type="submit">Save username</button>
+<p class="status" id="username-status" role="status"></p>
+</form>
+</section>
+<section class="section" id="section-personalisation">
+<h2>Personalisation</h2><p class="intro">Choose how Coolanas looks on this device.</p>
+<div class="setting-row"><div class="setting-copy"><strong>Dark mode</strong><p>Switch between the light and dark appearance across Coolanas pages.</p></div><div class="theme-switch"><span id="theme-label">Off</span><button class="switch" id="theme-switch" type="button" role="switch" aria-checked="false" aria-label="Toggle dark mode"></button></div></div>
+</section>
+</div>
+</main>
+<script type="module">
+const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
+const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,experimental:{passkey:true}}});
+const $=id=>document.getElementById(id);
+function setStatus(id,message,type=""){const el=$(id);el.textContent=message;el.className="status"+(type?" "+type:"");}
+function applyTheme(mode){document.documentElement.classList.toggle("dark-mode",mode==="dark");try{localStorage.setItem("coolanas-theme",mode);}catch{}$("theme-switch").setAttribute("aria-checked",String(mode==="dark"));$("theme-label").textContent=mode==="dark"?"On":"Off";}
+applyTheme(localStorage.getItem("coolanas-theme")==="dark"?"dark":"light");
+$("theme-switch").addEventListener("click",()=>applyTheme(document.documentElement.classList.contains("dark-mode")?"light":"dark"));
+window.addEventListener("storage",event=>{if(event.key==="coolanas-theme")applyTheme(event.newValue==="dark"?"dark":"light");});
+for(const button of document.querySelectorAll(".topic"))button.addEventListener("click",()=>{for(const b of document.querySelectorAll(".topic")){const active=b===button;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active));}for(const section of document.querySelectorAll(".section"))section.classList.toggle("active",section.id==="section-"+button.dataset.section);});
+async function profileAction(action,payload={}){const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action,...payload}});if(error)throw new Error(error.message||"Profile request failed.");if(data?.error)throw new Error(data.error);return data;}
+let user=null,googleAvatar="",hasCustomPicture=false;
+function showPicture(url){const img=$("profile-picture"),fallback=$("picture-fallback");if(url){img.src=url;img.hidden=false;fallback.hidden=true;img.onerror=()=>{img.hidden=true;fallback.hidden=false;};}else{img.removeAttribute("src");img.hidden=true;fallback.hidden=false;} $("remove-picture-row").hidden=!hasCustomPicture;}
+async function refreshPicture(){const result=await profileAction("profile_picture_get");hasCustomPicture=Boolean(result.exists&&result.url);showPicture(hasCustomPicture?result.url:googleAvatar);}
+async function convertPicture(file){if(file.size>20*1024*1024)throw new Error("Choose an image smaller than 20 MB.");if(!file.type.startsWith("image/"))throw new Error("Choose an image file.");let bitmap;try{bitmap=await createImageBitmap(file,{imageOrientation:"from-image"});}catch{throw new Error("This image format cannot be opened by this browser.");}try{const side=Math.min(bitmap.width,bitmap.height);if(!side)throw new Error("This image has invalid dimensions.");const canvas=document.createElement("canvas");canvas.width=512;canvas.height=512;const ctx=canvas.getContext("2d");ctx.drawImage(bitmap,(bitmap.width-side)/2,(bitmap.height-side)/2,side,side,0,0,512,512);const blob=await new Promise((resolve,reject)=>canvas.toBlob(v=>v?resolve(v):reject(new Error("Could not convert image.")),"image/png"));if(blob.size>5*1024*1024)throw new Error("The converted image is larger than 5 MB.");return blob;}finally{bitmap.close?.();}}
+$("change-picture").addEventListener("click",()=>$("picture-input").click());
+$("picture-input").addEventListener("change",async()=>{const file=$("picture-input").files?.[0];$("picture-input").value="";if(!file)return;const button=$("change-picture");button.disabled=true;try{const png=await convertPicture(file);const signed=await profileAction("profile_picture_upload",{contentType:"image/png"});const response=await fetch(signed.uploadUrl,{method:"PUT",headers:{"Content-Type":"image/png"},body:png});if(!response.ok)throw new Error("Image upload failed (HTTP "+response.status+").");await refreshPicture();setStatus("account-status","Profile picture updated.","success");}catch(error){setStatus("account-status",error.message||"Could not update profile picture.","error");}finally{button.disabled=false;}});
+$("remove-picture").addEventListener("click",async()=>{const button=$("remove-picture");button.disabled=true;try{await profileAction("profile_picture_delete");hasCustomPicture=false;showPicture(googleAvatar);setStatus("account-status","Profile picture removed.","success");}catch(error){setStatus("account-status",error.message||"Could not remove profile picture.","error");}finally{button.disabled=false;}});
+$("username-form").addEventListener("submit",async event=>{event.preventDefault();const value=$("username").value;const length=Array.from(value).length;if(length<4||length>100||/\s/u.test(value)||/[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}\u20E3]/u.test(value)){setStatus("username-status","Use 4–100 characters, with no spaces or emojis.","error");return;}const button=$("save-username");button.disabled=true;setStatus("username-status","Saving username…");try{const result=await profileAction("username_update",{username:value});$("username").value=result.username;setStatus("username-status","Username updated.","success");}catch(error){const message=error.message||"Could not update username.";setStatus("username-status",/duplicate|unique/i.test(message)?"That username is already taken.":message,"error");}finally{button.disabled=false;}});
+const {data:{session},error:sessionError}=await supabase.auth.getSession();if(sessionError||!session?.user){location.replace("/index.html");throw new Error("Sign in required.");}
+user=session.user;googleAvatar=user.user_metadata?.avatar_url||user.user_metadata?.picture||"";
+const {data:profile,error:profileError}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();if(profileError){setStatus("username-status","Could not load your profile.","error");}else $("username").value=profile?.username||"";
+try{await refreshPicture();}catch(error){setStatus("account-status",error.message||"Could not load profile picture.","error");}
+</script>
+</body>
+</html>
