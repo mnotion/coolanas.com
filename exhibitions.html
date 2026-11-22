@@ -678,7 +678,8 @@ document.getElementById("files-search-input").addEventListener("input",event=>{
 });
 document.getElementById("files-toggle").addEventListener("click",()=>{
   closeNavPanels();
-  if(currentFolderId)openFolder(null);
+  if(activeSharedBucket){activeSharedBucket=null;items=ownedItems;currentFolderId=exhibitionRootId;clearSelection();renderItems();}
+  else if(currentFolderId)openFolder(null);
 });
 function setUploadProgress(done,total,detail){
   const percent=total?Math.round(done/total*100):0;
