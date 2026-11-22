@@ -692,6 +692,7 @@
           state={elapsed:Math.max(0,saved.elapsed),startedAt:Number.isFinite(saved.startedAt)?saved.startedAt:null};
         }
       }catch(error){console.warn("Could not restore stopwatch:",error);}
+      let cloudCheckpointAt=state.startedAt;
       const monthlyKey="coolanas-study-monthly-time-v1";
       function readMonthly(){try{const value=JSON.parse(localStorage.getItem(monthlyKey)||"{}");return value&&typeof value==="object"&&!Array.isArray(value)?value:{};}catch{return {};}}
       function monthKey(timestamp){const date=new Date(timestamp);return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0");}
@@ -741,23 +742,26 @@
         }
         if(state.startedAt){
           const stoppedAt=Date.now();
-          addIntervalToMonthly(state.startedAt,stoppedAt);
+          addIntervalToMonthly(cloudCheckpointAt||state.startedAt,stoppedAt);
+          cloudCheckpointAt=null;
           state.elapsed=elapsedNow();
           state.startedAt=null;
         }else{
           state.startedAt=Date.now();
+          cloudCheckpointAt=state.startedAt;
         }
         save();render();
       });
       resetButton.addEventListener("click",()=>{
-        if(state.startedAt)addIntervalToMonthly(state.startedAt,Date.now());
+        if(state.startedAt)addIntervalToMonthly(cloudCheckpointAt||state.startedAt,Date.now());
+        cloudCheckpointAt=null;
         state.elapsed=0;
         state.startedAt=null;
         save();render();
       });
       render();
       void bootstrapCloudAnalytics();
-      setInterval(()=>{void flushPendingAnalytics();},30000);
+      setInterval(()=>{if(state.startedAt&&cloudCheckpointAt){const checkpoint=Date.now();addIntervalToMonthly(cloudCheckpointAt,checkpoint);cloudCheckpointAt=checkpoint;}void flushPendingAnalytics();},30000);
       setInterval(render,250);
     })();
 
