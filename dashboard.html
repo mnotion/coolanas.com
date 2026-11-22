@@ -168,6 +168,35 @@
     html.dark-mode .task-add-input,html.dark-mode .task-row{background:#292929!important;color:#eee!important;border-color:#555!important}
     html.dark-mode .task-add-button{background:#eee!important;color:#111!important;border-color:#eee!important}
     html.dark-mode .task-row.drag-over{background:#3a3a3a!important}
+    .study-stopwatch{transition:width .35s ease,padding .35s ease,background .2s ease,border-color .2s ease,box-shadow .2s ease,transform .35s ease}
+    .study-stopwatch-actions button{transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease}
+    @media(hover:hover) and (pointer:fine){
+      .study-stopwatch:hover{box-shadow:0 8px 28px rgba(0,0,0,.10)}
+      .study-stopwatch-actions button:hover{transform:scale(1.07);box-shadow:0 3px 9px rgba(0,0,0,.13)}
+      .study-stopwatch-actions .primary:hover{transform:scale(1.09)}
+    }
+    body.timer-focus #contribution-card,
+    body.timer-focus #study-subjects,
+    body.timer-focus .task-list-card,
+    body.timer-focus .bottom-nav,
+    body.timer-focus #profile-button{
+      opacity:.08;filter:blur(1px);pointer-events:none;
+    }
+    body.timer-focus .study-stopwatch{
+      width:min(490px,calc(100vw - 64px));padding:18px 20px;
+      transform:translate(-50%,-50%) scale(1.04);
+      box-shadow:0 16px 48px rgba(0,0,0,.13);
+    }
+    body.timer-focus .study-stopwatch-time{font-size:44px}
+    body.timer-focus .study-stopwatch-actions{min-height:54px}
+    body.timer-focus .study-stopwatch-actions .primary{width:54px;height:54px}
+    body.timer-focus .study-stopwatch-actions button:not(.primary){width:42px;height:42px}
+    #contribution-card,#study-subjects,.task-list-card,.bottom-nav,#profile-button{
+      transition:opacity .35s ease,filter .35s ease;
+    }
+    @media(prefers-reduced-motion:reduce){
+      .study-stopwatch,.study-stopwatch-actions button,#contribution-card,#study-subjects,.task-list-card,.bottom-nav,#profile-button{transition:none!important}
+    }
     html.dark-mode .subject-context-menu>button:hover,html.dark-mode .menu-item:hover{background:#3a3a3a!important}
   </style>
 </head>
@@ -484,6 +513,7 @@
       function render(){
         timeEl.textContent=format(elapsedNow());
         const running=Boolean(state.startedAt);
+        document.body.classList.toggle("timer-focus",running);
         const label=running?"Pause":(state.elapsed>0?"Resume":"Start");
         toggleButton.setAttribute("aria-label",label+" timer");
         toggleButton.title=label;
