@@ -26,6 +26,12 @@
     .study-subjects{position:fixed;top:calc(50% + 53px);left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:7px;width:min(460px,calc(100vw - 32px));margin:0}
     .study-subject{padding:7px 11px;border:1px solid #dedede;border-radius:999px;background:#f7f7f7;color:#555;font:inherit;font-size:12px}
 .study-subject{cursor:context-menu;user-select:none;transition:background .15s,border-color .15s,color .15s}
+    @media(hover:hover) and (pointer:fine){
+      .study-subject:hover{transform:translateY(-2px);box-shadow:0 3px 9px rgba(0,0,0,.12);filter:brightness(.96)}
+      .study-subject-add:hover{transform:translateY(-2px);box-shadow:0 3px 9px rgba(0,0,0,.1)}
+    }
+    .study-subject,.study-subject-add{transition:transform .16s ease,box-shadow .16s ease,filter .16s ease}
+    .study-subject:focus-visible,.study-subject-add:focus-visible{outline:2px solid #777;outline-offset:3px}
     .study-subject-add{width:30px;height:30px;padding:0;border:1px dashed #bbb;border-radius:50%;background:#fff;color:#555;font:500 20px/1 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
     .study-subject-add:hover{border-color:#555;background:#f4f4f4}
     .study-subject-input{width:118px;min-width:0;padding:7px 10px;border:1px solid #aaa;border-radius:999px;background:#fff;color:#222;font:inherit;font-size:12px;outline:none}
