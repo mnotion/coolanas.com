@@ -232,6 +232,7 @@ function applyTheme(mode) {
   themeToggle.textContent = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
 }
 applyTheme(window.CoolanasTheme?.get() || "light");
+window.addEventListener("coolanas:themechange", event => applyTheme(event.detail?.mode || "light"));
 themeToggle.addEventListener("click", () => {
   const next = document.documentElement.classList.contains("dark-mode") ? "light" : "dark";
   window.CoolanasTheme?.set(next);
