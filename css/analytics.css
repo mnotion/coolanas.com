@@ -1723,3 +1723,20 @@ html.dark-mode .calendar-details:not(.future-date) {
   background:transparent;
   border-color:transparent;
 }
+
+/* Remove the outer selected-day container entirely; child cards stand alone. */
+#calendar-details:not(.future-date) {
+  display:block !important;
+  margin:18px 0 0 !important;
+  padding:0 0 34px !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  outline:0 !important;
+}
+html.dark-mode #calendar-details:not(.future-date) {
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+}
