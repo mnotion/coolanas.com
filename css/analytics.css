@@ -1893,3 +1893,30 @@ html.dark-mode .monthly-overview-stat strong {color:#f1f3f6}
   .monthly-overview-stat {padding:12px;min-height:88px;gap:7px}
   .monthly-overview-stat strong {font-size:clamp(16px,5vw,21px)}
 }
+
+
+/* Ensure the analytics page uses document scrolling, not a clipped inner shell. */
+html, body {
+  height:auto !important;
+  min-height:100% !important;
+  overflow-x:hidden !important;
+  overflow-y:auto !important;
+}
+body {
+  display:block !important;
+  padding-bottom:100px !important;
+}
+body > .layout {
+  height:auto !important;
+  max-height:none !important;
+  min-height:calc(100vh - 150px) !important;
+  overflow:visible !important;
+  contain:none !important;
+}
+body > .layout > .content {
+  min-height:0 !important;
+  overflow:visible !important;
+}
+body > .layout .section.active {
+  overflow:visible !important;
+}
