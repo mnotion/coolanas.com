@@ -896,3 +896,36 @@ html.dark-mode .calendar-hourly-chart {
 @media(max-width:520px) {
   .calendar-hourly-chart { padding:16px 12px; }
 }
+
+
+/* Calendar task rows: keep removal control aligned at the far right. */
+.calendar-task-row {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
+}
+.calendar-task-label {
+  flex:1;
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+.calendar-task-remove {
+  flex:0 0 auto;
+  width:30px;
+  height:30px;
+  margin-left:auto;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:#858b96;
+  font-size:21px;
+  line-height:1;
+  cursor:pointer;
+}
+.calendar-task-remove:hover {
+  background:#fce8e8;
+  color:#c33;
+}
+html.dark-mode .calendar-task-remove { color:#aaa; }
+html.dark-mode .calendar-task-remove:hover { background:#4a2929; color:#ff9999; }
