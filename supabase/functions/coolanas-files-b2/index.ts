@@ -143,13 +143,29 @@ Deno.serve(async (req) => {
         const status = (error as any)?.$metadata?.httpStatusCode;
         const name = (error as any)?.name ?? "";
         if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
-        const now = new Date().toISOString();
-        const settings = { version: 1, createdAt: now, updatedAt: now };
-        await s3.send(new PutObjectCommand({
-          Bucket: bucket, Key: key, Body: JSON.stringify(settings),
-          ContentType: "application/json; charset=utf-8",
-        }));
-        return json(200, { success: true, settings, created: true });
+        return await withAnalyticsWriteLock(async () => {
+          // Re-check after acquiring the account lock so parallel first logins
+          // cannot overwrite another device's first settings write.
+          try {
+            const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+            const raw = await object.Body?.transformToString();
+            const saved = raw ? JSON.parse(raw) : {};
+            const settings = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+            return json(200, { success: true, settings, created: false });
+          } catch (recheckError) {
+            const recheckStatus = (recheckError as any)?.$metadata?.httpStatusCode;
+            const recheckName = (recheckError as any)?.name ?? "";
+            if (recheckStatus !== 404 && recheckName !== "NoSuchKey" && recheckName !== "NotFound")
+              throw recheckError;
+          }
+          const now = new Date().toISOString();
+          const settings = { version: 1, createdAt: now, updatedAt: now };
+          await s3.send(new PutObjectCommand({
+            Bucket: bucket, Key: key, Body: JSON.stringify(settings),
+            ContentType: "application/json; charset=utf-8",
+          }));
+          return json(200, { success: true, settings, created: true });
+        });
       }
     }
 
@@ -159,6 +175,7 @@ Deno.serve(async (req) => {
           JSON.stringify(incoming).length > 20000) {
         return json(400, { error: "Invalid settings payload." });
       }
+      return await withAnalyticsWriteLock(async () => {
       const key = prefix + "/stats/settings.json";
       let saved: Record<string, unknown> = {};
       try {
@@ -187,6 +204,7 @@ Deno.serve(async (req) => {
         ContentType: "application/json; charset=utf-8",
       }));
       return json(200, { success: true, settings: saved });
+      });
     }
 
     if (action === "analytics_get") {
