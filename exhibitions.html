@@ -1270,14 +1270,19 @@ async function createPdfThumbnail(item){
   if(pdfPreviewRequests.has(item.id))return pdfPreviewRequests.get(item.id);
   const request=(async()=>{
     const signed=await filesAction("file_preview",{id:item.id});
-    // Fetch through the same signed-URL path as the full viewer, then give PDF.js
-    // local bytes. This avoids browser/CDN range-request CORS differences.
-    const response=await fetch(signed.downloadUrl);
-    if(!response.ok)throw new Error("PDF download failed ("+response.status+").");
-    const pdfBytes=new Uint8Array(await response.arrayBuffer());
-    if(!pdfBytes.length)throw new Error("The PDF file is empty.");
+    // Give PDF.js the signed URL and let it request only the byte ranges
+    // needed for page 1. Streaming and automatic background fetching are
+    // disabled so opening a thumbnail does not download the entire PDF.
     const pdfjs=await loadPdfJs();
-    const loading=pdfjs.getDocument({data:pdfBytes, isEvalSupported:false, useWorkerFetch:false});
+    const loading=pdfjs.getDocument({
+      url:signed.downloadUrl,
+      rangeChunkSize:32768,
+      disableRange:false,
+      disableStream:true,
+      disableAutoFetch:true,
+      isEvalSupported:false,
+      useWorkerFetch:false
+    });
     const pdf=await loading.promise;
     try{
       const page=await pdf.getPage(1);
