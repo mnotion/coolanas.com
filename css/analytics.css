@@ -825,3 +825,42 @@ html.dark-mode .calendar-subject-card { color:#252525; }
  .calendar-details-heading,.calendar-details-content,.calendar-hourly-chart { grid-column:1; }
  .calendar-hourly-chart { grid-row:auto; padding:18px 0 0; border-left:0; border-top:1px solid #dedede; }
 }
+
+
+/* Selected-day layout: subjects and tasks share the top row; graph sits below both. */
+.calendar-details {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  row-gap:0;
+}
+.calendar-details-heading { grid-column:1; }
+.calendar-details-content {
+  display:grid;
+  grid-column:1;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:30px;
+  min-width:0;
+}
+.calendar-hourly-chart {
+  grid-column:1;
+  grid-row:auto;
+  justify-self:center;
+  width:100%;
+  max-width:560px;
+  min-width:0;
+  margin-top:22px;
+  padding:20px 0 0;
+  border-left:0;
+  border-top:1px solid #dedede;
+}
+@media(max-width:520px) {
+  .calendar-details-content { grid-template-columns:minmax(0,1fr); gap:20px; }
+  .calendar-subjects-section {
+    padding-right:0;
+    padding-bottom:18px;
+    border-right:0;
+    border-bottom:1px solid #dedede;
+  }
+  .calendar-hourly-chart { margin-top:18px; }
+}
+html.dark-mode .calendar-hourly-chart { border-color:#484848; }
