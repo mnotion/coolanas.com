@@ -108,7 +108,7 @@
     const db=await openDb();
     await new Promise(resolve=>{
       const tx=db.transaction(STORE,"readwrite"),store=tx.objectStore(STORE);
-      for(const task of owned)store.put({...task,status:"cancelled",file:null,accessToken:null,uploadUrl:null,error:"Terminated by you"});
+      for(const task of owned)store.put({...task,status:"cancelled",file:null,uploadUrl:null,error:"Terminated by you"});
       tx.oncomplete=tx.onerror=tx.onabort=resolve;
     });
     const message={type:"TERMINATE_COOLANAS_UPLOADS",ownerId:userId,taskIds:owned.map(t=>t.id)};
