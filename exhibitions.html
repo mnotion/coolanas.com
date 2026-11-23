@@ -530,20 +530,40 @@ let activeTouchMarqueeId=null;
 let marqueeStart=null;
 
 async function filesAction(action,payload={}){
-  const {data,error}=await supabase.functions.invoke(filesFunction,{body:{action,...payload}});
-  if(error){
-    let detail="";
+  const retryableStatuses=new Set([408,425,429,500,502,503,504]);
+  const maxAttempts=5;
+  for(let attempt=1;attempt<=maxAttempts;attempt++){
     try{
-      if(error.context&&typeof error.context.clone==="function"){
-        const response=await error.context.clone();
-        const body=await response.json();
-        detail=body.error||body.message||"";
+      const {data,error}=await supabase.functions.invoke(filesFunction,{body:{action,...payload}});
+      if(error){
+        let detail="";
+        let status=Number(error.context?.status)||0;
+        try{
+          if(error.context&&typeof error.context.clone==="function"){
+            const response=await error.context.clone();
+            status=status||response.status;
+            const body=await response.json();
+            detail=body.error||body.message||"";
+          }
+        }catch{}
+        const message=detail||error.message||"Files request failed.";
+        if(attempt<maxAttempts&&(retryableStatuses.has(status)||(!status&&/network|fetch failed|temporar|unavailable/i.test(message)))){
+          await new Promise(resolve=>setTimeout(resolve,Math.min(900*2**(attempt-1),12000)));
+          continue;
+        }
+        throw new Error(message);
       }
-    }catch{}
-    throw new Error(detail||error.message||"Files request failed.");
+      if(data?.error)throw new Error(data.error);
+      return data;
+    }catch(error){
+      if(attempt<maxAttempts&&error instanceof TypeError){
+        await new Promise(resolve=>setTimeout(resolve,Math.min(900*2**(attempt-1),12000)));
+        continue;
+      }
+      throw error;
+    }
   }
-  if(data?.error)throw new Error(data.error);
-  return data;
+  throw new Error("Files service is temporarily unavailable. Please retry.");
 }
 
 const mailButton=document.getElementById("mail-button"),mailPopover=document.getElementById("mail-popover"),mailNotifications=document.getElementById("mail-notifications");
