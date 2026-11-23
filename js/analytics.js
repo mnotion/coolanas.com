@@ -345,6 +345,61 @@ function formatSubjectTime(ms) {
 }
 let calendarTasks = [];
 let calendarTasksLoaded = false;
+let calendarTaskSyncTimer = null;
+let calendarTaskSyncInFlight = false;
+const calendarTasksCacheKey = accountKey("coolanas-calendar-tasks-v1");
+const calendarTasksPendingKey = accountKey("coolanas-calendar-tasks-pending-v1");
+function saveCalendarTasksLocally() {
+  localStorage.setItem(calendarTasksCacheKey, JSON.stringify(calendarTasks));
+  localStorage.setItem(calendarTasksPendingKey, "1");
+}
+function queueCalendarTasksSync() {
+  saveCalendarTasksLocally();
+  if (calendarTaskSyncTimer) clearTimeout(calendarTaskSyncTimer);
+  calendarTaskSyncTimer = setTimeout(() => {
+    calendarTaskSyncTimer = null;
+    void flushCalendarTasks();
+  }, 5000);
+}
+async function flushCalendarTasks({keepalive = false} = {}) {
+  if (calendarTaskSyncTimer) {
+    clearTimeout(calendarTaskSyncTimer);
+    calendarTaskSyncTimer = null;
+  }
+  if (localStorage.getItem(calendarTasksPendingKey) !== "1" || calendarTaskSyncInFlight) return;
+  calendarTaskSyncInFlight = true;
+  const payload = JSON.stringify({action:"tasks_save", tasks:calendarTasks});
+  try {
+    if (keepalive) {
+      const response = await fetch(SUPABASE_URL + "/functions/v1/coolanas-files-b2", {
+        method:"POST", keepalive:true,
+        headers:{
+          "Content-Type":"application/json",
+          apikey:SUPABASE_PUBLISHABLE_KEY,
+          Authorization:"Bearer " + session.access_token
+        },
+        body:payload
+      });
+      if (!response.ok) throw new Error("Task sync failed.");
+      const result = await response.json();
+      if (result?.error) throw new Error(result.error);
+    } else {
+      const {data,error} = await supabase.functions.invoke("coolanas-files-b2", {
+        body:{action:"tasks_save",tasks:calendarTasks}
+      });
+      if (error || data?.error) throw new Error(data?.error || error.message);
+    }
+    localStorage.removeItem(calendarTasksPendingKey);
+  } catch (error) {
+    console.warn("Could not sync calendar tasks:", error);
+  } finally {
+    calendarTaskSyncInFlight = false;
+  }
+}
+window.addEventListener("pagehide", () => { void flushCalendarTasks({keepalive:true}); });
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) void flushCalendarTasks({keepalive:true});
+});
 let calendarSubjectColours = {};
 const subjectPalette = ["#e7e7e7", "#f6caca", "#f6dfaa", "#d9edbd", "#c9e7ef", "#d7d0f2", "#f0cce8"];
 async function loadCalendarSubjectColours() {
@@ -355,11 +410,22 @@ async function loadCalendarSubjectColours() {
   } catch (error) { console.warn("Could not load subject colours:", error); }
 }
 async function loadCalendarTasks() {
+  if (localStorage.getItem(calendarTasksPendingKey) === "1") {
+    try {
+      const cached = JSON.parse(localStorage.getItem(calendarTasksCacheKey) || "[]");
+      if (Array.isArray(cached)) {
+        calendarTasks = cached;
+        calendarTasksLoaded = true;
+        return;
+      }
+    } catch {}
+  }
   try {
     const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {body:{action:"tasks_get"}});
     if (error || data?.error) throw new Error(data?.error || error.message);
     calendarTasks = Array.isArray(data?.tasks) ? data.tasks : [];
     calendarTasksLoaded = true;
+    localStorage.setItem(calendarTasksCacheKey, JSON.stringify(calendarTasks));
   } catch (error) {
     console.warn("Could not load calendar tasks:", error);
     calendarTasksLoaded = false;
@@ -496,35 +562,44 @@ function renderCalendarDetails() {
     add.type = "submit";
     add.textContent = "Add";
     form.append(input, add);
-    form.addEventListener("submit", async event => {
+    form.addEventListener("submit", event => {
       event.preventDefault();
       const value = input.value.trim();
       if (!value) return;
-      try {
-        await loadCalendarTasks();
-        if (calendarTasks.length >= 100) throw new Error("You can have up to 100 tasks.");
-        calendarTasks.push({id:crypto.randomUUID(),text:value,completed:false,dueDate:key});
-        await saveCalendarTasks();
-        renderCalendarDetails();
-      } catch (error) {
-        input.setCustomValidity(error.message || "Could not save this task.");
+      if (calendarTasks.length >= 100) {
+        input.setCustomValidity("You can have up to 100 tasks.");
         input.reportValidity();
+        return;
       }
+      calendarTasks.push({id:crypto.randomUUID(),text:value,completed:false,dueDate:key});
+      input.value = "";
+      input.setCustomValidity("");
+      queueCalendarTasksSync();
+      renderCalendarDetails();
     });
     tasksSection.append(form);
   }
   if (dayTasks.length) {
     for (const task of dayTasks) {
-      const row = document.createElement("label");
+      const row = document.createElement("div");
       row.className = "calendar-task-row" + (task.completed ? " completed" : "");
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = task.completed === true;
       checkbox.disabled = key > todayKey;
+      checkbox.setAttribute("aria-label", "Mark " + task.text + " as completed");
       checkbox.addEventListener("change", () => updateCalendarTask(task, checkbox.checked));
       const label = document.createElement("span");
+      label.className = "calendar-task-label";
       label.textContent = task.text;
-      row.append(checkbox, label);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "calendar-task-remove";
+      remove.textContent = "×";
+      remove.title = "Remove task";
+      remove.setAttribute("aria-label", "Remove task: " + task.text);
+      remove.addEventListener("click", () => removeCalendarTask(task));
+      row.append(checkbox, label, remove);
       tasksSection.append(row);
     }
   } else {
@@ -538,25 +613,17 @@ function renderCalendarDetails() {
   if (key <= todayKey) renderCalendarHourlyGraph(panel, key);
   panel.hidden = false;
 }
-async function saveCalendarTasks() {
-  const {error,data} = await supabase.functions.invoke("coolanas-files-b2", {
-    body:{action:"tasks_save",tasks:calendarTasks}
-  });
-  if (error || data?.error) throw new Error(data?.error || error.message);
+function removeCalendarTask(task) {
+  calendarTasks = calendarTasks.filter(item => item.id !== task.id);
+  queueCalendarTasksSync();
+  renderCalendarDetails();
 }
-async function updateCalendarTask(task, completed) {
-  const previous = {...task};
+function updateCalendarTask(task, completed) {
   task.completed = completed;
   if (completed) task.completedAt = calendarDateKey(new Date());
   else delete task.completedAt;
-  try {
-    await saveCalendarTasks();
-    renderCalendarDetails();
-  } catch (error) {
-    Object.assign(task, previous);
-    renderCalendarDetails();
-    console.error("Could not update task:", error);
-  }
+  queueCalendarTasksSync();
+  renderCalendarDetails();
 }
 let calendarSlideDirection = 0;
 function renderCalendar() {
