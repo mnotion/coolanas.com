@@ -109,12 +109,18 @@ Deno.serve(async (req) => {
         const raw = await object.Body?.transformToString();
         const saved = raw ? JSON.parse(raw) : {};
         const settings = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
-        return json(200, { success: true, settings });
+        return json(200, { success: true, settings, created: false });
       } catch (error) {
         const status = (error as any)?.$metadata?.httpStatusCode;
         const name = (error as any)?.name ?? "";
         if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
-        return json(200, { success: true, settings: {} });
+        const now = new Date().toISOString();
+        const settings = { version: 1, createdAt: now, updatedAt: now };
+        await s3.send(new PutObjectCommand({
+          Bucket: bucket, Key: key, Body: JSON.stringify(settings),
+          ContentType: "application/json; charset=utf-8",
+        }));
+        return json(200, { success: true, settings, created: true });
       }
     }
 
@@ -223,11 +229,138 @@ Deno.serve(async (req) => {
       }
       const totalMs = Object.values(saved.daily).reduce((sum: number, value: unknown) =>
         sum + (Number.isFinite(value) ? Math.max(0, Number(value)) : 0), 0);
-      const payload = JSON.stringify({ version: 3, daily: saved.daily, dailySubjects: saved.dailySubjects, dailyHours: saved.dailyHours, events: saved.events, updatedAt: new Date().toISOString() });
+      const payload = JSON.stringify({ version: 4, daily: saved.daily, dailySubjects: saved.dailySubjects, dailyHours: saved.dailyHours, events: saved.events, updatedAt: new Date().toISOString() });
       await s3.send(new PutObjectCommand({
         Bucket: bucket, Key: key, Body: payload, ContentType: "application/json; charset=utf-8",
       }));
       return json(200, { success: true, daily: saved.daily, dailySubjects: saved.dailySubjects, totalMs });
+    }
+
+    if (action === "analytics_sync") {
+      const records = body.records == null ? [] : body.records;
+      const snapshot = body.snapshot == null ? null : body.snapshot;
+      if (!Array.isArray(records) || records.length > 100 ||
+          (snapshot !== null && (!snapshot || typeof snapshot !== "object" ||
+            Array.isArray(snapshot) || JSON.stringify(snapshot).length > 1500000))) {
+        return json(400, { error: "Invalid analytics sync payload." });
+      }
+      const validDate = (value: unknown): value is string => {
+        if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(value + "T00:00:00.000Z");
+        return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+      };
+      const key = prefix + "/stats/analytics.json";
+      let saved: any = { version: 4, daily: {}, dailySubjects: {}, dailyHours: {}, events: {} };
+      try {
+        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        const raw = await object.Body?.transformToString();
+        if (raw) saved = JSON.parse(raw);
+      } catch (error) {
+        const status = (error as any)?.$metadata?.httpStatusCode;
+        const name = (error as any)?.name ?? "";
+        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
+      }
+      if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
+      if (!saved.daily || typeof saved.daily !== "object" || Array.isArray(saved.daily)) saved.daily = {};
+      if (!saved.dailySubjects || typeof saved.dailySubjects !== "object" || Array.isArray(saved.dailySubjects)) saved.dailySubjects = {};
+      if (!saved.dailyHours || typeof saved.dailyHours !== "object" || Array.isArray(saved.dailyHours)) saved.dailyHours = {};
+      if (!saved.events || typeof saved.events !== "object" || Array.isArray(saved.events)) saved.events = {};
+
+      let accepted = 0, duplicates = 0;
+      const seen = new Set<string>();
+      for (const record of records) {
+        if (!record || !validDate(record.date) ||
+            !Number.isSafeInteger(record.durationMs) || record.durationMs <= 0 ||
+            record.durationMs > 604800000 ||
+            typeof record.eventId !== "string" ||
+            !/^[A-Za-z0-9_-]{8,120}$/.test(record.eventId) ||
+            seen.has(record.eventId)) {
+          return json(400, { error: "One or more analytics records are invalid." });
+        }
+        seen.add(record.eventId);
+        if (saved.events[record.eventId] === true) {
+          duplicates++;
+          continue;
+        }
+        const subject = typeof record.subject === "string" && record.subject.trim()
+          ? record.subject.trim().slice(0, 80) : "Unassigned";
+        saved.daily[record.date] = Math.max(0, Number(saved.daily[record.date]) || 0) + record.durationMs;
+        if (!saved.dailySubjects[record.date] ||
+            typeof saved.dailySubjects[record.date] !== "object" ||
+            Array.isArray(saved.dailySubjects[record.date])) saved.dailySubjects[record.date] = {};
+        saved.dailySubjects[record.date][subject] =
+          Math.max(0, Number(saved.dailySubjects[record.date][subject]) || 0) + record.durationMs;
+        if (record.hourlyMs && typeof record.hourlyMs === "object" &&
+            !Array.isArray(record.hourlyMs)) {
+          if (!saved.dailyHours[record.date] || typeof saved.dailyHours[record.date] !== "object" ||
+              Array.isArray(saved.dailyHours[record.date])) saved.dailyHours[record.date] = {};
+          for (const [hour, value] of Object.entries(record.hourlyMs)) {
+            if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) &&
+                typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
+              saved.dailyHours[record.date][hour] =
+                Math.max(0, Number(saved.dailyHours[record.date][hour]) || 0) + value;
+            }
+          }
+        }
+        saved.events[record.eventId] = true;
+        accepted++;
+      }
+
+      // Reconcile pre-cloud browser caches once per account/device. Max-merging makes
+      // this idempotent and prevents already-uploaded sessions being counted twice.
+      if (snapshot) {
+        const daily = snapshot.daily;
+        const dailySubjects = snapshot.dailySubjects;
+        const dailyHours = snapshot.dailyHours;
+        if (daily != null && (typeof daily !== "object" || Array.isArray(daily)) ||
+            dailySubjects != null && (typeof dailySubjects !== "object" || Array.isArray(dailySubjects)) ||
+            dailyHours != null && (typeof dailyHours !== "object" || Array.isArray(dailyHours))) {
+          return json(400, { error: "Invalid legacy analytics snapshot." });
+        }
+        for (const [date, value] of Object.entries(daily || {})) {
+          if (!validDate(date) || typeof value !== "number" || !Number.isFinite(value) || value < 0) continue;
+          saved.daily[date] = Math.max(0, Number(saved.daily[date]) || 0, value);
+        }
+        for (const [date, subjects] of Object.entries(dailySubjects || {})) {
+          if (!validDate(date) || !subjects || typeof subjects !== "object" || Array.isArray(subjects)) continue;
+          if (!saved.dailySubjects[date] || typeof saved.dailySubjects[date] !== "object" ||
+              Array.isArray(saved.dailySubjects[date])) saved.dailySubjects[date] = {};
+          for (const [subject, value] of Object.entries(subjects)) {
+            if (!subject || subject.length > 80 || typeof value !== "number" ||
+                !Number.isFinite(value) || value < 0) continue;
+            saved.dailySubjects[date][subject] =
+              Math.max(0, Number(saved.dailySubjects[date][subject]) || 0, value);
+          }
+        }
+        for (const [date, hours] of Object.entries(dailyHours || {})) {
+          if (!validDate(date) || !hours || typeof hours !== "object" || Array.isArray(hours)) continue;
+          if (!saved.dailyHours[date] || typeof saved.dailyHours[date] !== "object" ||
+              Array.isArray(saved.dailyHours[date])) saved.dailyHours[date] = {};
+          for (const [hour, value] of Object.entries(hours)) {
+            if (!/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) ||
+                typeof value !== "number" || !Number.isFinite(value) || value < 0) continue;
+            saved.dailyHours[date][hour] =
+              Math.max(0, Number(saved.dailyHours[date][hour]) || 0, value);
+          }
+        }
+      }
+
+      const updatedAt = new Date().toISOString();
+      const totalMs = Object.values(saved.daily).reduce((sum: number, value: unknown) =>
+        sum + (Number.isFinite(value) ? Math.max(0, Number(value)) : 0), 0);
+      const payload = JSON.stringify({
+        version: 4, daily: saved.daily, dailySubjects: saved.dailySubjects,
+        dailyHours: saved.dailyHours, events: saved.events, updatedAt
+      });
+      await s3.send(new PutObjectCommand({
+        Bucket: bucket, Key: key, Body: payload,
+        ContentType: "application/json; charset=utf-8",
+      }));
+      return json(200, {
+        success: true, accepted, duplicates, daily: saved.daily,
+        dailySubjects: saved.dailySubjects, dailyHours: saved.dailyHours,
+        totalMs, updatedAt
+      });
     }
 
     if (action === "profile_picture_get") {
