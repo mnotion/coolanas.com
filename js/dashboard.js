@@ -1102,6 +1102,9 @@ async function loadTasks() {
     taskError.textContent = error.message || "Try refreshing the page.";
   }
 }
+document.addEventListener("visibilitychange", () => { if (!document.hidden && tasksReady) void loadTasks(); });
+window.addEventListener("focus", () => { if (tasksReady) void loadTasks(); });
+setInterval(() => { if (tasksReady) renderTasks(); }, 60000);
 // Profile loading, picture updates, and sign-out.
 async function initialiseProfile(session) {
   const meta = session.user.user_metadata || {};
