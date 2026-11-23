@@ -741,7 +741,11 @@ Deno.serve(async (req) => {
           return json(400,{error:"One or more tasks are invalid."});
         }
         seen.add(task.id);
-        tasks.push({id:task.id,text:task.text.trim(),completed:task.completed===true});
+        tasks.push({
+          id:task.id,text:task.text.trim(),completed:task.completed===true,
+          ...(typeof task.dueDate==="string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(task.dueDate) ? {dueDate:task.dueDate} : {}),
+          ...(typeof task.completedAt==="string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(task.completedAt) ? {completedAt:task.completedAt} : {}),
+        });
       }
       const key = prefix + "/stats/tasks.json";
       await s3.send(new PutObjectCommand({
