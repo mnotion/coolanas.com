@@ -76,6 +76,7 @@ let exhibitionRootId = null, exhibitionRecords = [], exhibitionTotalBytes = 0;
 const workspaceCacheKey = "coolanas-bucket-cache:" + user.id;
 const workspaceCacheMaxAge = 10 * 60 * 1000;
 let workspaceCacheTimestamp = 0;
+let metadataCacheTimestamp = 0;
 function readWorkspaceCache() {
   try {
     const cached = JSON.parse(localStorage.getItem(workspaceCacheKey) || "null");
@@ -90,6 +91,7 @@ function writeWorkspaceCache() {
     localStorage.setItem(workspaceCacheKey, JSON.stringify({
       userId: user.id,
       savedAt: workspaceCacheTimestamp || Date.now(),
+      metadataSavedAt: metadataCacheTimestamp || Date.now(),
       rootId: exhibitionRootId,
       items: ownedItems,
       exhibitions: exhibitionRecords,
@@ -1669,7 +1671,7 @@ async function refreshSharedBuckets({force = false} = {}) {
   try {
     const cached = readWorkspaceCache();
     const cacheIsFresh = !force && cached && cached.rootId === exhibitionRootId &&
-        Date.now() - Number(cached.savedAt || 0) < workspaceCacheMaxAge &&
+        Date.now() - Number(cached.metadataSavedAt || 0) < workspaceCacheMaxAge &&
         Array.isArray(cached.sharedBuckets) && Array.isArray(cached.sharedByYou);
     const result = cacheIsFresh ?
         {buckets: cached.sharedBuckets, sharedByYou: cached.sharedByYou} :
@@ -2015,13 +2017,14 @@ document.addEventListener("click", event => {
 async function refreshExhibitions({force = false} = {}) {
   const cached = readWorkspaceCache();
   const cacheIsFresh = !force && cached && cached.rootId === exhibitionRootId &&
-      Date.now() - Number(cached.savedAt || 0) < workspaceCacheMaxAge &&
+      Date.now() - Number(cached.metadataSavedAt || 0) < workspaceCacheMaxAge &&
       Array.isArray(cached.exhibitions);
   if (cacheIsFresh) {
     exhibitionRecords = cached.exhibitions;
     exhibitionTotalBytes = Number(cached.totalBytes) || 0;
     sharedBucketRecords = Array.isArray(cached.sharedBuckets) ? cached.sharedBuckets : [];
     sharedByYouRecords = Array.isArray(cached.sharedByYou) ? cached.sharedByYou : [];
+    metadataCacheTimestamp = Number(cached.metadataSavedAt) || Date.now();
     await refreshSharedBuckets();
   } else {
     const data = await filesAction("exhibitions_list");
@@ -2029,6 +2032,7 @@ async function refreshExhibitions({force = false} = {}) {
     exhibitionTotalBytes = Number(data.totalBytes) || 0;
     await refreshSharedBuckets({force: true});
     workspaceCacheTimestamp = Date.now();
+    metadataCacheTimestamp = workspaceCacheTimestamp;
   }
   writeWorkspaceCache();
   document.getElementById("bucket-title").textContent =
