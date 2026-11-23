@@ -1224,6 +1224,16 @@ async function loadBuckets(){
       "coolanas-files-b2",{body:{action:"list"}});
     if(error||data?.error)throw new Error(data?.error||error.message);
     analyticsBucketItems=Array.isArray(data?.items)?data.items:[];
+    const pendingBucketChanges=await bucketQueueRead().catch(()=>[]);
+    for(const pending of pendingBucketChanges.filter(entry=>entry.userId===session.user.id).sort((a,b)=>a.createdAt-b.createdAt)){
+      if(pending.type==="delete"){
+        const removed=bucketDescendantIds(pending.itemId);
+        analyticsBucketItems=analyticsBucketItems.filter(item=>!removed.has(item.id));
+      }else{
+        const item=analyticsBucketItems.find(value=>value.id===pending.itemId);
+        if(item)Object.assign(item,pending.changes||{});
+      }
+    }
     const buckets=analyticsBucketItems.filter(item=>item.item_type==="folder"&&item.parent_id===analyticsBucketRootId);
     const allBucketDescendants=new Set();
     for(const bucket of buckets)
