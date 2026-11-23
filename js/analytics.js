@@ -358,8 +358,63 @@ async function loadCalendarTasks() {
     calendarTasksLoaded = false;
   }
 }
+function renderCalendarHourlyGraph(panel, dateKey) {
+  const chart = document.createElement("section");
+  chart.className = "calendar-hourly-chart";
+  const title = document.createElement("h3");
+  title.textContent = "Study throughout the day";
+  const description = document.createElement("p");
+  description.className = "calendar-hourly-description";
+  description.textContent = "Hours studied in each hour of the day";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 720 270");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Hourly study time from midnight to midnight");
+  let allHours = {};
+  try { allHours = JSON.parse(localStorage.getItem("coolanas-study-daily-hours-v1") || "{}") || {}; } catch {}
+  const dayHours = allHours[dateKey] || {};
+  const values = [];
+  for (let hour = 0; hour < 24; hour++) values.push(Math.max(0, Number(dayHours[hour]) || 0) / 3600000);
+  const max = Math.max(1, Math.ceil(Math.max.apply(null, values)));
+  const left = 48, right = 700, top = 18, bottom = 218;
+  function add(tag, attrs) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    Object.keys(attrs).forEach(name => node.setAttribute(name, String(attrs[name])));
+    svg.append(node);
+    return node;
+  }
+  for (let tick = 0; tick <= max; tick++) {
+    const y = bottom - tick / max * (bottom - top);
+    add("line", {x1:left,y1:y,x2:right,y2:y,stroke:"#e5e7eb","stroke-width":1});
+    const label = add("text", {x:left-10,y:y+4,"text-anchor":"end",fill:"#858b96","font-size":11});
+    label.textContent = tick + "h";
+  }
+  const coords = [];
+  for (let hour = 0; hour < 24; hour++) {
+    coords.push([left + hour / 23 * (right-left), bottom - values[hour] / max * (bottom-top)]);
+  }
+  add("polyline", {points:coords.map(point => point.join(",")).join(" "),fill:"none",stroke:"#397fe0","stroke-width":3,"stroke-linecap":"round","stroke-linejoin":"round"});
+  coords.forEach((point, hour) => {
+    add("circle", {cx:point[0],cy:point[1],r:values[hour] > 0 ? 5 : 2.5,fill:values[hour] > 0 ? "#397fe0" : "#aab4c2",stroke:"#fff","stroke-width":1.5});
+    if (hour % 2 === 0) {
+      const label = add("text", {x:point[0],y:bottom+22,"text-anchor":"middle",fill:"#858b96","font-size":10});
+      label.textContent = String(hour);
+    }
+  });
+  const xLabel = add("text", {x:374,y:260,"text-anchor":"middle",fill:"#858b96","font-size":11});
+  xLabel.textContent = "Time of day (24-hour clock)";
+  chart.append(title, description, svg);
+  if (!Object.prototype.hasOwnProperty.call(allHours, dateKey)) {
+    const note = document.createElement("p");
+    note.className = "calendar-hourly-note";
+    note.textContent = "Hourly breakdown is available for study sessions recorded after this update.";
+    chart.append(note);
+  }
+  panel.append(chart);
+}
 function renderCalendarDetails() {
   const panel = $("calendar-details");
+  panel.querySelector(".calendar-hourly-chart")?.remove();
   if (!selectedCalendarDate) {
     panel.hidden = true;
     return;
@@ -458,6 +513,7 @@ function renderCalendarDetails() {
     tasksSection.append(empty);
   }
   content.append(subjectsSection, tasksSection);
+  renderCalendarHourlyGraph(panel, key);
   panel.hidden = false;
 }
 async function saveCalendarTasks() {
