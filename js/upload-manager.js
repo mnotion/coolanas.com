@@ -100,7 +100,7 @@
   async function registerWorker(){
     if(!("serviceWorker" in navigator))return null;
     try{
-      registration=await navigator.serviceWorker.register("/upload-sw.js",{scope:"/"});
+      registration=await navigator.serviceWorker.register("/upload-sw.js?v=3",{scope:"/",updateViaCache:"none"});
       await navigator.serviceWorker.ready;
       navigator.serviceWorker.addEventListener("message",event=>{if(event.data?.type==="COOLANAS_UPLOADS_UPDATED")refresh();});
       return registration;
