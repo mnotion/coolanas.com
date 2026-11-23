@@ -1491,14 +1491,13 @@ html.dark-mode .shared-bucket-owner-heading {
 /* Monthly subject distribution beside the study heatmap. */
 .study-insights-row {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.9fr);gap:28px;align-items:start;margin-top:22px}
 .study-insights-row .study-heatmap {min-width:0;margin-top:0}
-.subject-distribution {min-width:0;padding:0}
+.subject-distribution {min-width:0;padding:22px 0 0;margin-top:28px}
 .subject-distribution-heading {display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:12px}
 .subject-distribution-heading strong {font-size:15px;font-weight:700}
 .subject-distribution-heading span {font-size:11px;color:#888}
 .subject-distribution-content {display:grid;grid-template-columns:minmax(150px,220px) minmax(110px,1fr);gap:12px;align-items:center}
 #subject-distribution-chart {width:100%;max-width:220px;height:auto;overflow:visible}
-.subject-donut-total {font-size:15px;font-weight:700;fill:currentColor}
-.subject-donut-caption,.subject-donut-empty {font-size:10px;fill:#888}
+.subject-donut-empty {font-size:10px;fill:#888}
 .subject-distribution-legend {display:flex;flex-direction:column;gap:8px;min-width:0;max-height:220px;overflow-y:auto}
 .subject-distribution-item {display:grid;grid-template-columns:9px minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11px;min-width:0}
 .subject-distribution-swatch {width:9px;height:9px;border-radius:2px}
@@ -1506,7 +1505,7 @@ html.dark-mode .shared-bucket-owner-heading {
 .subject-distribution-item strong {font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
 .subject-distribution-item small {grid-column:2 / 4;color:#888;font-size:10px}
 .subject-distribution-empty {margin:0;color:#888;font-size:12px;line-height:1.5}
-html.dark-mode .subject-distribution-heading span,html.dark-mode .subject-donut-caption,html.dark-mode .subject-donut-empty,html.dark-mode .subject-distribution-item small {color:#aaa}
+html.dark-mode .subject-distribution-heading span,html.dark-mode .subject-donut-empty,html.dark-mode .subject-distribution-item small {color:#aaa}
 html.dark-mode {--subject-donut-track:#303936}
 @media(max-width:850px){.study-insights-row{grid-template-columns:minmax(0,1fr);gap:22px}.subject-distribution-content{grid-template-columns:minmax(150px,220px) minmax(110px,1fr)}}
 @media(max-width:460px){.subject-distribution-content{grid-template-columns:minmax(120px,170px) minmax(90px,1fr);gap:8px}.subject-distribution-item{font-size:10px}}
