@@ -75,6 +75,7 @@ let items = [], ownedItems = [], currentFolderId = null, searchQuery = "", lastI
 let exhibitionRootId = null, exhibitionRecords = [], exhibitionTotalBytes = 0;
 const workspaceCacheKey = "coolanas-bucket-cache:" + user.id;
 const workspaceCacheMaxAge = 10 * 60 * 1000;
+let workspaceCacheTimestamp = 0;
 function readWorkspaceCache() {
   try {
     const cached = JSON.parse(localStorage.getItem(workspaceCacheKey) || "null");
@@ -88,7 +89,7 @@ function writeWorkspaceCache() {
   try {
     localStorage.setItem(workspaceCacheKey, JSON.stringify({
       userId: user.id,
-      savedAt: Date.now(),
+      savedAt: workspaceCacheTimestamp || Date.now(),
       rootId: exhibitionRootId,
       items: ownedItems,
       exhibitions: exhibitionRecords,
@@ -831,12 +832,14 @@ async function loadItems({force = false} = {}) {
     exhibitionRecords = Array.isArray(cached.exhibitions) ? cached.exhibitions : [];
     exhibitionTotalBytes = Number(cached.totalBytes) || 0;
     sharedBucketRecords = Array.isArray(cached.sharedBuckets) ? cached.sharedBuckets : [];
-    lastItemsLoad = Number(cached.savedAt) || Date.now();
+    workspaceCacheTimestamp = Number(cached.savedAt) || Date.now();
+    lastItemsLoad = workspaceCacheTimestamp;
   } else {
     const data = await filesAction("list");
     items = data.items || [];
     ownedItems = items;
-    lastItemsLoad = Date.now();
+    workspaceCacheTimestamp = Date.now();
+    lastItemsLoad = workspaceCacheTimestamp;
   }
   await applyPendingToCache();
   ownedItems = items;
@@ -851,7 +854,7 @@ async function loadItems({force = false} = {}) {
     }
   } else
     items = ownedItems;
-  lastItemsLoad = Date.now();
+  lastItemsLoad = workspaceCacheTimestamp || Date.now();
   writeWorkspaceCache();
   const valid = new Set(items.map(item => item.id));
   for (const id of [...selectedIds])
