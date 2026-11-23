@@ -974,3 +974,139 @@ html.dark-mode .calendar-task-remove:hover { background:#4a2929; color:#ff9999; 
 .calendar-details:not(.future-date) {
   padding-bottom:34px;
 }
+
+
+/* Bucket structure tree, based on the supplied Uiverse tree styling. */
+.bucket-structure-picker {
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  margin:0 0 14px;
+}
+.bucket-structure-choice {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  min-height:38px;
+  padding:7px 12px;
+  border:1px solid #e4e4e7;
+  border-radius:9px;
+  background:#fff;
+  color:#27272a;
+  font:inherit;
+  font-size:13px;
+  cursor:pointer;
+  transition:border-color .2s,background-color .2s;
+}
+.bucket-structure-choice:hover { background:#f4f4f5; }
+.bucket-structure-choice.selected {
+  border-color:#3985ed;
+  background:#edf3ff;
+  color:#2167d5;
+}
+.bucket-structure-swatch {
+  width:13px;
+  height:13px;
+  flex:0 0 13px;
+  border-radius:50%;
+  border:1px solid rgba(0,0,0,.12);
+}
+.tree-container {
+  width:min(100%,720px);
+  min-height:150px;
+  border:1px solid #e4e4e7;
+  border-radius:8px;
+  padding:24px;
+  background:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,.05);
+}
+.tree-container ul {
+  list-style:none;
+  padding:0;
+  margin:0;
+}
+.tree-container ul ul {
+  margin-left:11px;
+  padding-left:11px;
+  border-left:1px solid #e4e4e7;
+}
+.tree-container .tree-item {
+  position:relative;
+  margin-top:4px;
+}
+.tree-container ul ul > .tree-item::before {
+  content:"";
+  position:absolute;
+  left:-11px;
+  top:14px;
+  width:11px;
+  height:1px;
+  background:#e4e4e7;
+}
+.tree-container .tree-label,
+.tree-container .file-item {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:28px;
+  padding:4px 8px;
+  border-radius:4px;
+  color:#09090b;
+  font-size:14px;
+  text-decoration:none;
+  user-select:none;
+}
+.tree-container .tree-toggle + .tree-label { cursor:pointer; }
+.tree-container .tree-label:hover,
+.tree-container .file-item:hover { background:#f4f4f5; }
+.tree-container .icon {
+  width:16px;
+  height:16px;
+  flex:0 0 16px;
+  color:#71717a;
+}
+.tree-container .folder-open-icon { display:none; }
+.tree-container .folder-closed-icon { display:block; }
+.tree-container .tree-toggle:checked ~ .tree-label .folder-open-icon {
+  display:block;
+  color:#09090b;
+}
+.tree-container .tree-toggle:checked ~ .tree-label .folder-closed-icon { display:none; }
+.tree-container .tree-toggle {
+  position:absolute;
+  width:1px;
+  height:1px;
+  opacity:0;
+  pointer-events:none;
+}
+.tree-container .tree-children-wrapper {
+  display:grid;
+  grid-template-rows:0fr;
+  transition:grid-template-rows .3s ease-in-out;
+}
+.tree-container .tree-children { overflow:hidden; }
+.tree-container .tree-toggle:checked ~ .tree-children-wrapper { grid-template-rows:1fr; }
+html.dark-mode .bucket-structure-choice {
+  background:#303030;
+  border-color:#4a4a4a;
+  color:#eee;
+}
+html.dark-mode .bucket-structure-choice.selected {
+  background:#26364d;
+  border-color:#3985ed;
+  color:#8dbaff;
+}
+html.dark-mode .tree-container {
+  background:#242424;
+  border-color:#444;
+}
+html.dark-mode .tree-container ul ul { border-color:#484848; }
+html.dark-mode .tree-container ul ul > .tree-item::before { background:#484848; }
+html.dark-mode .tree-container .tree-label,
+html.dark-mode .tree-container .file-item { color:#eee; }
+html.dark-mode .tree-container .tree-label:hover,
+html.dark-mode .tree-container .file-item:hover { background:#333; }
+html.dark-mode .tree-container .tree-toggle:checked ~ .tree-label .folder-open-icon { color:#eee; }
+@media(max-width:520px) {
+  .tree-container { padding:16px; }
+}
