@@ -338,6 +338,19 @@ function formatSubjectTime(ms) {
   const hours = Math.floor(minutes / 60), remainder = minutes % 60;
   return hours ? hours + "h " + remainder + "m" : minutes + "m";
 }
+let calendarTasks = [];
+let calendarTasksLoaded = false;
+async function loadCalendarTasks() {
+  try {
+    const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {body:{action:"tasks_get"}});
+    if (error || data?.error) throw new Error(data?.error || error.message);
+    calendarTasks = Array.isArray(data?.tasks) ? data.tasks : [];
+    calendarTasksLoaded = true;
+  } catch (error) {
+    console.warn("Could not load calendar tasks:", error);
+    calendarTasksLoaded = false;
+  }
+}
 function renderCalendarDetails() {
   const panel = $("calendar-details");
   if (!selectedCalendarDate) {
@@ -349,8 +362,16 @@ function renderCalendarDetails() {
         subjects = Object.entries(dailySubjects[key] || {})
             .filter(([, duration]) => Number(duration) > 0)
             .sort((a, b) => Number(b[1]) - Number(a[1]));
-  $("calendar-details-date").textContent = "Hours studied that day";
-  $("calendar-details-total").textContent = formatCalendarTime(total);
+  const today = new Date(), todayKey = calendarDateKey(today),
+        yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1),
+        yesterdayKey = calendarDateKey(yesterday),
+        heading = $("calendar-details-date");
+  if (key > todayKey) heading.textContent = "I can't predict the future...";
+  else if (key === todayKey) heading.textContent = "Today's work: " + formatCalendarTime(total);
+  else if (key === yesterdayKey) heading.textContent = "Yesterday you worked for " + formatCalendarTime(total);
+  else heading.textContent = "On that day, you worked " + formatCalendarTime(total);
+  $("calendar-details-total").textContent = "";
+  const close = $("calendar-details-close");
   const content = $("calendar-details-content");
   content.replaceChildren();
   const subjectsSection = document.createElement("section");
@@ -377,13 +398,80 @@ function renderCalendarDetails() {
   const tasksSection = document.createElement("section");
   tasksSection.className = "calendar-detail-section";
   const tasksTitle = document.createElement("h3");
-  tasksTitle.textContent = "Tasks completed";
-  const tasksEmpty = document.createElement("p");
-  tasksEmpty.className = "calendar-details-empty";
-  tasksEmpty.textContent = "Task completion isn't currently recorded by date.";
-  tasksSection.append(tasksTitle, tasksEmpty);
+  tasksTitle.textContent = "Tasks";
+  tasksSection.append(tasksTitle);
+  const dayTasks = calendarTasks.filter(task =>
+    task.dueDate === key || task.completedAt === key);
+  if (dayTasks.length) {
+    for (const task of dayTasks) {
+      const row = document.createElement("label");
+      row.className = "calendar-task-row" + (task.completed ? " completed" : "");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = task.completed === true;
+      checkbox.disabled = key > todayKey;
+      checkbox.addEventListener("change", () => updateCalendarTask(task, checkbox.checked));
+      const label = document.createElement("span");
+      label.textContent = task.text;
+      row.append(checkbox, label);
+      tasksSection.append(row);
+    }
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "calendar-details-empty";
+    empty.textContent = calendarTasksLoaded ? "No tasks for this day yet." : "Tasks could not be loaded.";
+    tasksSection.append(empty);
+  }
+  if (key >= todayKey) {
+    const form = document.createElement("form");
+    form.className = "calendar-task-add";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 180;
+    input.placeholder = "Add a task for this day…";
+    input.setAttribute("aria-label", "New task for this day");
+    const add = document.createElement("button");
+    add.type = "submit";
+    add.textContent = "Add";
+    form.append(input, add);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const value = input.value.trim();
+      if (!value) return;
+      if (calendarTasks.length >= 100) {
+        input.setCustomValidity("You can have up to 100 tasks.");
+        input.reportValidity();
+        return;
+      }
+      const task = {id:crypto.randomUUID(),text:value,completed:false,dueDate:key};
+      calendarTasks.push(task);
+      await saveCalendarTasks();
+      renderCalendarDetails();
+    });
+    tasksSection.append(form);
+  }
   content.append(subjectsSection, tasksSection);
   panel.hidden = false;
+}
+async function saveCalendarTasks() {
+  const {error,data} = await supabase.functions.invoke("coolanas-files-b2", {
+    body:{action:"tasks_save",tasks:calendarTasks}
+  });
+  if (error || data?.error) throw new Error(data?.error || error.message);
+}
+async function updateCalendarTask(task, completed) {
+  const previous = {...task};
+  task.completed = completed;
+  if (completed) task.completedAt = calendarDateKey(new Date());
+  else delete task.completedAt;
+  try {
+    await saveCalendarTasks();
+    renderCalendarDetails();
+  } catch (error) {
+    Object.assign(task, previous);
+    renderCalendarDetails();
+    console.error("Could not update task:", error);
+  }
 }
 function renderCalendar() {
   const year = calendarDate.getFullYear(), month = calendarDate.getMonth(),
@@ -413,7 +501,10 @@ function renderCalendar() {
           time = document.createElement("span");
     cell.type = "button";
     cell.className = "calendar-day";
-    if (studied > 0) cell.classList.add("has-study");
+    if (studied > 0) {
+      cell.classList.add("has-study");
+      cell.style.setProperty("--study-level", String(Math.min(4, Math.max(1, Math.ceil(studied / 1800000)))));
+    }
     if (selectedCalendarDate && key === calendarDateKey(selectedCalendarDate))
       cell.classList.add("selected");
     if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() &&
@@ -421,7 +512,7 @@ function renderCalendar() {
     number.className = "calendar-day-number";
     number.textContent = String(day);
     time.className = "calendar-day-time";
-    time.textContent = formatCalendarTime(studied);
+    time.textContent = studied > 0 ? formatCalendarTime(studied) : "";
     cell.append(number, time);
     cell.dataset.date = key;
     cell.setAttribute("aria-label", date.toLocaleDateString(undefined, {dateStyle:"full"}) +
@@ -523,6 +614,7 @@ renderTimer();
 renderMonthlyChart();
 void loadCloudAnalytics();
 renderCalendar();
+void loadCalendarTasks().then(renderCalendarDetails);
 loadBuckets();
 setInterval(() => {
   renderTimer();
