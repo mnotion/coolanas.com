@@ -272,7 +272,7 @@ async function profileAction(action, payload = {}) {
   const {data, error} =
       await withRequestTimeout(
           supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}}),
-          action.startsWith("subjects_") ? "Subject request" : "Task request");
+          action.startsWith("subjects_") ? "Subject request" : action.startsWith("tasks_") ? "Task request" : "Profile request");
   if (error) throw new Error(error.message || "Profile picture request failed.");
   if (data?.error) throw new Error(data.error);
   return data;
