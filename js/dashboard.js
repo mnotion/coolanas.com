@@ -353,7 +353,9 @@ let taskDragId = null;
 let dropIndicator = null;
 async function taskAction(action, payload = {}) {
   const {data, error} =
-      await supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}});
+      await withRequestTimeout(
+        supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}}),
+        action.startsWith("subjects_") ? "Subject request" : "Task request");
   if (error) throw new Error(error.message || "Could not save tasks.");
   if (data?.error) throw new Error(data.error);
   return data;
@@ -753,6 +755,15 @@ document.getElementById("change-account").addEventListener("click", async () => 
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") closeProfileDrawer();
 });
+function withRequestTimeout(promise, label, timeoutMs = 12000) {
+  let timeoutId;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(label + " timed out. Please retry.")), timeoutMs);
+    })
+  ]).finally(() => clearTimeout(timeoutId));
+}
 let activeAccountId = null;
 try {
   let session;
@@ -778,15 +789,6 @@ try {
     }
   }
   activeAccountId = session?.user?.id || null;
-function withRequestTimeout(promise, label, timeoutMs = 12000) {
-  let timeoutId;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error(label + " timed out. Please retry.")), timeoutMs);
-    })
-  ]).finally(() => clearTimeout(timeoutId));
-}
 } catch (authError) {
   accountStatus.textContent = "Google sign-in could not be completed.";
   accountStatus.textContent =
@@ -815,7 +817,9 @@ function withRequestTimeout(promise, label, timeoutMs = 12000) {
   window.coolanasSubjectState = {ready: false, selected: null};
   async function subjectAction(action, payload = {}) {
     const {data, error} =
-        await supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}});
+        await withRequestTimeout(
+        supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}}),
+        action.startsWith("subjects_") ? "Subject request" : "Task request");
     if (error) throw new Error(error.message || "Could not sync subjects.");
     if (data?.error) throw new Error(data.error);
     return data;
