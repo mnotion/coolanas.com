@@ -688,82 +688,70 @@ Deno.serve(async (req) => {
     }
 
     if (action === "subjects_get") {
-      const key = prefix + "/stats/subjects.json";
-      try {
-        const object = await s3.send(new GetObjectCommand({Bucket:bucket,Key:key}));
-        const raw = await object.Body?.transformToString();
-        const parsed = JSON.parse(raw || "[]");
-        const subjects = Array.isArray(parsed) ? parsed.filter((subject:any) =>
-          subject && typeof subject.name === "string" && subject.name.trim() &&
-          Number.isInteger(subject.color) && subject.color >= 0 && subject.color <= 6
-        ).slice(0,40) : [];
-        return json(200,{subjects});
-      } catch (error) {
-        if ((error as any)?.$metadata?.httpStatusCode !== 404 && (error as any)?.name !== "NoSuchKey") throw error;
-        return json(200,{subjects:null});
-      }
+      const { data, error } = await supabase.from("coolanas_dashboard_data")
+        .select("subjects").eq("user_id", userId).maybeSingle();
+      if (error) throw error;
+      return json(200, { subjects: data?.subjects ?? null });
     }
 
     if (action === "subjects_save") {
-      if (!Array.isArray(body.subjects) || body.subjects.length > 40) return json(400,{error:"Subjects must be a list of at most 40 items."});
+      if (!Array.isArray(body.subjects) || body.subjects.length > 40) {
+        return json(400, { error: "Subjects must be a list of at most 40 items." });
+      }
       const names = new Set<string>();
       const subjects = [];
       for (const subject of body.subjects) {
         if (!subject || typeof subject.name !== "string" || !subject.name.trim() ||
-            subject.name.length > 32 || !Number.isInteger(subject.color) || subject.color < 0 || subject.color > 6 ||
+            subject.name.length > 32 || !Number.isInteger(subject.color) ||
+            subject.color < 0 || subject.color > 6 ||
             names.has(subject.name.trim().toLowerCase())) {
-          return json(400,{error:"One or more subjects are invalid."});
+          return json(400, { error: "One or more subjects are invalid." });
         }
         names.add(subject.name.trim().toLowerCase());
-        subjects.push({name:subject.name.trim(),color:subject.color});
+        subjects.push({ name: subject.name.trim(), color: subject.color });
       }
-      const key = prefix + "/stats/subjects.json";
-      await s3.send(new PutObjectCommand({
-        Bucket:bucket,Key:key,Body:JSON.stringify(subjects,null,2),
-        ContentType:"application/json; charset=utf-8",
-      }));
-      return json(200,{success:true,count:subjects.length});
+      const { error } = await supabase.from("coolanas_dashboard_data").upsert(
+        { user_id: userId, subjects, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+      if (error) throw error;
+      return json(200, { success: true, count: subjects.length });
     }
 
     if (action === "tasks_get") {
-      const key = prefix + "/stats/tasks.json";
-      try {
-        const object = await s3.send(new GetObjectCommand({Bucket:bucket,Key:key}));
-        const raw = await object.Body?.transformToString();
-        const parsed = JSON.parse(raw || "[]");
-        const tasks = Array.isArray(parsed) ? parsed.filter((task:any) =>
-          task && typeof task.id === "string" && typeof task.text === "string"
-        ).slice(0,100) : [];
-        return json(200,{tasks});
-      } catch (error) {
-        if ((error as any)?.$metadata?.httpStatusCode !== 404 && (error as any)?.name !== "NoSuchKey") throw error;
-        await s3.send(new PutObjectCommand({Bucket:bucket,Key:key,Body:"[]",ContentType:"application/json; charset=utf-8"}));
-        return json(200,{tasks:[]});
-      }
+      const { data, error } = await supabase.from("coolanas_dashboard_data")
+        .select("tasks").eq("user_id", userId).maybeSingle();
+      if (error) throw error;
+      return json(200, { tasks: Array.isArray(data?.tasks) ? data.tasks : [] });
     }
 
     if (action === "tasks_save") {
-      if (!Array.isArray(body.tasks) || body.tasks.length > 100) return json(400,{error:"Tasks must be a list of at most 100 items."});
+      if (!Array.isArray(body.tasks) || body.tasks.length > 100) {
+        return json(400, { error: "Tasks must be a list of at most 100 items." });
+      }
       const seen = new Set<string>();
       const tasks = [];
       for (const task of body.tasks) {
         if (!task || typeof task.id !== "string" || !/^[0-9a-f-]{36}$/i.test(task.id) ||
-            typeof task.text !== "string" || !task.text.trim() || task.text.length > 180 || seen.has(task.id)) {
-          return json(400,{error:"One or more tasks are invalid."});
+            typeof task.text !== "string" || !task.text.trim() ||
+            task.text.length > 180 || seen.has(task.id)) {
+          return json(400, { error: "One or more tasks are invalid." });
         }
         seen.add(task.id);
         tasks.push({
-          id:task.id,text:task.text.trim(),completed:task.completed===true,
-          ...(typeof task.dueDate==="string" && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ? {dueDate:task.dueDate} : {}),
-          ...(typeof task.completedAt==="string" && /^\d{4}-\d{2}-\d{2}$/.test(task.completedAt) ? {completedAt:task.completedAt} : {}),
+          id: task.id, text: task.text.trim(), completed: task.completed === true,
+          ...(typeof task.dueDate === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(task.dueDate) ?
+            { dueDate: task.dueDate } : {}),
+          ...(typeof task.completedAt === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(task.completedAt) ?
+            { completedAt: task.completedAt } : {}),
         });
       }
-      const key = prefix + "/stats/tasks.json";
-      await s3.send(new PutObjectCommand({
-        Bucket:bucket,Key:key,Body:JSON.stringify(tasks,null,2),
-        ContentType:"application/json; charset=utf-8",
-      }));
-      return json(200,{success:true,count:tasks.length});
+      const { error } = await supabase.from("coolanas_dashboard_data").upsert(
+        { user_id: userId, tasks, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+      if (error) throw error;
+      return json(200, { success: true, count: tasks.length });
     }
 
     if (action === "list") {
