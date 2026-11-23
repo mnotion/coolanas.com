@@ -73,7 +73,7 @@ const dropHint = document.getElementById("drop-hint");
 const marquee = document.getElementById("selection-marquee");
 let items = [], ownedItems = [], currentFolderId = null, searchQuery = "", lastItemsLoad = 0;
 let exhibitionRootId = null, exhibitionRecords = [], exhibitionTotalBytes = 0;
-const workspaceCacheKey = "coolanas-bucket-cache:" + user.id;
+const workspaceCacheKey = "coolanas-bucket-cache:v2:" + user.id;
 const workspaceCacheMaxAge = 10 * 60 * 1000;
 let workspaceCacheTimestamp = 0;
 let metadataCacheTimestamp = 0;
