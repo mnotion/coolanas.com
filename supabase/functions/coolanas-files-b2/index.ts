@@ -811,8 +811,9 @@ Deno.serve(async (req) => {
 
     if (action === "tasks_day_save") {
       const date = typeof body.date === "string" ? body.date : "";
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-          new Date(date + "T00:00:00.000Z").toISOString().slice(0, 10) !== date ||
+      const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(date + "T00:00:00.000Z") : null;
+      if (!parsedDate || Number.isNaN(parsedDate.getTime()) ||
+          parsedDate.toISOString().slice(0, 10) !== date ||
           !Array.isArray(body.tasks) || body.tasks.length > 100) {
         return json(400, { error: "A valid date and a list of at most 100 tasks are required." });
       }
