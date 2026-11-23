@@ -495,7 +495,7 @@ function renderCalendarHourlyGraph(panel, dateKey) {
     }
   });
   const xLabel = add("text", {x:374,y:260,"text-anchor":"middle",fill:"#858b96","font-size":11});
-  xLabel.textContent = "Time of day (24-hour clock)";
+  xLabel.textContent = "Time of day";
   chart.append(title, svg);
   panel.insertAdjacentElement("afterend", chart);
 }
