@@ -340,239 +340,6 @@ function loadContributionGraph() {
     grid.appendChild(cell);
   }
 }
-// Subjects are account-synced in stats/subjects.json.
-(function setupSubjects() {
-  const container = document.getElementById("study-subjects");
-  const add = document.getElementById("study-subject-add");
-  const input = document.getElementById("study-subject-input");
-  const menu = document.getElementById("subject-context-menu");
-  const colourRow = document.getElementById("subject-menu-colours");
-  const activeLabel = document.getElementById("active-subject-label");
-  const timerButton = document.getElementById("study-stopwatch-toggle");
-  const hint = document.getElementById("subject-selection-hint");
-  const palette = ["#e7e7e7", "#f6caca", "#f6dfaa", "#d9edbd", "#c9e7ef", "#d7d0f2", "#f0cce8"];
-  const defaults = [
-    "Maths", "English", "Biology", "Chemistry", "Physics", "History", "Geography",
-    "Computer Science"
-  ].map(name => ({name, color: 0}));
-
-  const localKey = "coolanas-study-subjects-v1";
-  let subjects = defaults;
-  let selected = null, activeIndex = -1, editingIndex = -1, saveQueue = Promise.resolve();
-  window.coolanasSubjectState = {ready: false, selected: null};
-  async function subjectAction(action, payload = {}) {
-    const {data, error} =
-        await supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}});
-    if (error) throw new Error(error.message || "Could not sync subjects.");
-    if (data?.error) throw new Error(data.error);
-    return data;
-  }
-  function normalize(list) {
-    if (!Array.isArray(list)) return null;
-    return list.filter(s => s && typeof s.name === "string" && s.name.trim())
-        .slice(0, 40)
-        .map(s => ({
-               name: s.name.trim().slice(0, 32),
-               color: Math.max(0, Math.min(6, Number(s.color) || 0))
-             }));
-  }
-  function persist() {
-    const snapshot = subjects.map(s => ({...s}));
-    saveQueue =
-        saveQueue.then(() => subjectAction("subjects_save", {subjects: snapshot})).catch(error => {
-          console.error("Could not sync subjects:", error);
-          hint.textContent = "Subjects could not sync. Changes will retry when you edit again.";
-          hint.classList.add("visible");
-        });
-  }
-  function render() {
-    container.classList.remove("loading");
-    container.querySelectorAll(".study-subject").forEach(el => el.remove());
-    subjects.forEach((subject, index) => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "study-subject";
-      chip.textContent = subject.name;
-      chip.dataset.index = String(index);
-      chip.style.background = palette[subject.color];
-      chip.style.borderColor = palette[subject.color];
-      chip.style.color = "#444";
-      chip.classList.toggle("selected", selected === index);
-      chip.setAttribute("aria-pressed", String(selected === index));
-      chip.title = "Click to select; double-click for options";
-      container.insertBefore(chip, add);
-    });
-    const chosen = selected === null ? null : subjects[selected];
-    window.coolanasSubjectState.selected = chosen ? chosen.name : null;
-    if (chosen) {
-      document.body.style.setProperty("--subject-colour", palette[chosen.color]);
-      document.body.classList.add("subject-colour-preview");
-    } else {
-      document.body.classList.remove("subject-colour-preview");
-      document.body.style.removeProperty("--subject-colour");
-    }
-    activeLabel.textContent = chosen ? chosen.name : "";
-    activeLabel.style.background = chosen ? palette[chosen.color] : "#f7f7f7";
-    activeLabel.style.borderColor = chosen ? palette[chosen.color] : "#dedede";
-    activeLabel.style.color = "#555";
-  }
-  function closeMenu() {
-    menu.hidden = true;
-    colourRow.hidden = true;
-  }
-  function beginInlineEdit(index, isNew = false) {
-    closeMenu();
-    editingIndex = isNew ? -1 : index;
-    const chip =
-        isNew ? null : container.querySelector(".study-subject[data-index=\"" + index + "\"]");
-    if (chip) chip.hidden = true;
-    add.hidden = true;
-    input.hidden = false;
-    input.value = isNew ? "" : subjects[index].name;
-    if (chip)
-      chip.parentNode.insertBefore(input, chip);
-    else
-      container.insertBefore(input, add);
-    input.focus();
-    input.select();
-  }
-  function finishInlineEdit(save) {
-    const value = input.value.trim();
-    if (save && value) {
-      const duplicate = subjects.some(
-          (s, i) => i !== editingIndex && s.name.toLowerCase() === value.toLowerCase());
-      if (!duplicate) {
-        if (editingIndex < 0) {
-          if (subjects.length < 40) subjects.push({name: value.slice(0, 32), color: 0});
-        } else
-          subjects[editingIndex].name = value.slice(0, 32);
-        persist();
-      }
-    }
-    input.hidden = true;
-    add.hidden = false;
-    render();
-  }
-  function openMenu(chip) {
-    activeIndex = Number(chip.dataset.index);
-    closeMenu();
-    menu.hidden = false;
-    const rect = chip.getBoundingClientRect();
-    menu.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 150)) + "px";
-    menu.style.top = Math.max(6, Math.min(rect.bottom + 5, window.innerHeight - 80)) + "px";
-    colourRow.replaceChildren();
-    palette.forEach((color, i) => {
-      const swatch = document.createElement("button");
-      swatch.type = "button";
-      swatch.className = "subject-colour";
-      swatch.style.background = color;
-      swatch.setAttribute("aria-label", "Colour " + (i + 1));
-      swatch.setAttribute("aria-pressed", String(subjects[activeIndex].color === i));
-      swatch.addEventListener("click", () => {
-        subjects[activeIndex].color = i;
-        if (selected === activeIndex) document.body.style.setProperty("--subject-colour", color);
-        persist();
-        render();
-        closeMenu();
-      });
-      colourRow.appendChild(swatch);
-    });
-  }
-  add.addEventListener("click", () => beginInlineEdit(-1, true));
-  input.addEventListener("keydown", event => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      finishInlineEdit(true);
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      finishInlineEdit(false);
-    }
-  });
-  input.addEventListener("blur", () => finishInlineEdit(true));
-  container.addEventListener("click", event => {
-    const chip = event.target.closest(".study-subject");
-    if (!chip) return;
-    selected = Number(chip.dataset.index);
-    window.coolanasSubjectState.selected = subjects[selected]?.name || null;
-    const selectedColour = palette[subjects[selected]?.color ?? 0];
-    document.body.style.setProperty("--subject-colour", selectedColour);
-    document.body.classList.add("subject-colour-preview");
-    activeLabel.textContent = subjects[selected]?.name || "";
-    activeLabel.style.background =
-        subjects[selected] ? palette[subjects[selected].color] : "#f7f7f7";
-    activeLabel.style.borderColor =
-        subjects[selected] ? palette[subjects[selected].color] : "#dedede";
-    activeLabel.style.color = "#555";
-    document.body.classList.remove("subject-pick-mode");
-    hint.textContent = "";
-    hint.classList.remove("visible");
-    container.querySelectorAll(".study-subject").forEach((item, index) => {
-      item.classList.toggle("selected", index === selected);
-      item.setAttribute("aria-pressed", String(index === selected));
-    });
-  });
-  container.addEventListener("dblclick", event => {
-    const chip = event.target.closest(".study-subject");
-    if (chip) openMenu(chip);
-  });
-  menu.addEventListener("click", event => {
-    const action = event.target.closest("button")?.dataset.action;
-    if (action === "rename") beginInlineEdit(activeIndex);
-    if (action === "colour") colourRow.hidden = !colourRow.hidden;
-    if (action === "delete") {
-      subjects.splice(activeIndex, 1);
-      if (selected === activeIndex)
-        selected = null;
-      else if (selected !== null && selected > activeIndex)
-        selected--;
-      persist();
-      render();
-      closeMenu();
-    }
-  });
-  document.addEventListener("pointerdown", event => {
-    if (!menu.hidden && !menu.contains(event.target)) closeMenu();
-  });
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape") closeMenu();
-  });
-  (async () => {
-    try {
-      const result = await subjectAction("subjects_get");
-      const cloud = normalize(result.subjects);
-      if (cloud) {
-        subjects = cloud;
-      } else {
-        try {
-          const local = normalize(JSON.parse(localStorage.getItem(localKey) || "null"));
-          if (local) subjects = local;
-        } catch {
-        }
-        await subjectAction("subjects_save", {subjects});
-      }
-      localStorage.removeItem(localKey);
-      selected = null;
-      render();
-      window.coolanasSubjectState.ready = true;
-      timerButton.disabled = false;
-      timerButton.title = "Start";
-    } catch (error) {
-      console.error("Could not load subjects:", error);
-      hint.textContent = "Could not load your subjects. Refresh to retry.";
-      hint.classList.add("visible");
-      container.classList.remove("loading");
-      container.replaceChildren();
-      const failed = document.createElement("span");
-      failed.className = "subject-load-error";
-      failed.textContent = "Subjects unavailable";
-      container.appendChild(failed);
-      timerButton.disabled = true;
-      timerButton.title = "Subjects unavailable";
-    }
-  })();
-  container.classList.add("loading");
-})();
 // Personal task list and drag-to-reorder behavior.
 const taskItemsEl = document.getElementById("task-items");
 const taskAddForm = document.getElementById("task-add-form");
@@ -1015,6 +782,240 @@ try {
       authError?.message || "Authentication failed. Return to sign-in and try again.";
   console.error("Coolanas OAuth callback failed:", authError);
 }
+// Subjects are account-synced in stats/subjects.json.
+(function setupSubjects() {
+  const container = document.getElementById("study-subjects");
+  const add = document.getElementById("study-subject-add");
+  const input = document.getElementById("study-subject-input");
+  const menu = document.getElementById("subject-context-menu");
+  const colourRow = document.getElementById("subject-menu-colours");
+  const activeLabel = document.getElementById("active-subject-label");
+  const timerButton = document.getElementById("study-stopwatch-toggle");
+  const hint = document.getElementById("subject-selection-hint");
+  const palette = ["#e7e7e7", "#f6caca", "#f6dfaa", "#d9edbd", "#c9e7ef", "#d7d0f2", "#f0cce8"];
+  const defaults = [
+    "Maths", "English", "Biology", "Chemistry", "Physics", "History", "Geography",
+    "Computer Science"
+  ].map(name => ({name, color: 0}));
+
+  const localKey = "coolanas-study-subjects-v1";
+  let subjects = defaults;
+  let selected = null, activeIndex = -1, editingIndex = -1, saveQueue = Promise.resolve();
+  window.coolanasSubjectState = {ready: false, selected: null};
+  async function subjectAction(action, payload = {}) {
+    const {data, error} =
+        await supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}});
+    if (error) throw new Error(error.message || "Could not sync subjects.");
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+  function normalize(list) {
+    if (!Array.isArray(list)) return null;
+    return list.filter(s => s && typeof s.name === "string" && s.name.trim())
+        .slice(0, 40)
+        .map(s => ({
+               name: s.name.trim().slice(0, 32),
+               color: Math.max(0, Math.min(6, Number(s.color) || 0))
+             }));
+  }
+  function persist() {
+    const snapshot = subjects.map(s => ({...s}));
+    saveQueue =
+        saveQueue.then(() => subjectAction("subjects_save", {subjects: snapshot})).catch(error => {
+          console.error("Could not sync subjects:", error);
+          hint.textContent = "Subjects could not sync. Changes will retry when you edit again.";
+          hint.classList.add("visible");
+        });
+  }
+  function render() {
+    container.classList.remove("loading");
+    container.querySelectorAll(".study-subject").forEach(el => el.remove());
+    subjects.forEach((subject, index) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "study-subject";
+      chip.textContent = subject.name;
+      chip.dataset.index = String(index);
+      chip.style.background = palette[subject.color];
+      chip.style.borderColor = palette[subject.color];
+      chip.style.color = "#444";
+      chip.classList.toggle("selected", selected === index);
+      chip.setAttribute("aria-pressed", String(selected === index));
+      chip.title = "Click to select; double-click for options";
+      container.insertBefore(chip, add);
+    });
+    const chosen = selected === null ? null : subjects[selected];
+    window.coolanasSubjectState.selected = chosen ? chosen.name : null;
+    if (chosen) {
+      document.body.style.setProperty("--subject-colour", palette[chosen.color]);
+      document.body.classList.add("subject-colour-preview");
+    } else {
+      document.body.classList.remove("subject-colour-preview");
+      document.body.style.removeProperty("--subject-colour");
+    }
+    activeLabel.textContent = chosen ? chosen.name : "";
+    activeLabel.style.background = chosen ? palette[chosen.color] : "#f7f7f7";
+    activeLabel.style.borderColor = chosen ? palette[chosen.color] : "#dedede";
+    activeLabel.style.color = "#555";
+  }
+  function closeMenu() {
+    menu.hidden = true;
+    colourRow.hidden = true;
+  }
+  function beginInlineEdit(index, isNew = false) {
+    closeMenu();
+    editingIndex = isNew ? -1 : index;
+    const chip =
+        isNew ? null : container.querySelector(".study-subject[data-index=\"" + index + "\"]");
+    if (chip) chip.hidden = true;
+    add.hidden = true;
+    input.hidden = false;
+    input.value = isNew ? "" : subjects[index].name;
+    if (chip)
+      chip.parentNode.insertBefore(input, chip);
+    else
+      container.insertBefore(input, add);
+    input.focus();
+    input.select();
+  }
+  function finishInlineEdit(save) {
+    const value = input.value.trim();
+    if (save && value) {
+      const duplicate = subjects.some(
+          (s, i) => i !== editingIndex && s.name.toLowerCase() === value.toLowerCase());
+      if (!duplicate) {
+        if (editingIndex < 0) {
+          if (subjects.length < 40) subjects.push({name: value.slice(0, 32), color: 0});
+        } else
+          subjects[editingIndex].name = value.slice(0, 32);
+        persist();
+      }
+    }
+    input.hidden = true;
+    add.hidden = false;
+    render();
+  }
+  function openMenu(chip) {
+    activeIndex = Number(chip.dataset.index);
+    closeMenu();
+    menu.hidden = false;
+    const rect = chip.getBoundingClientRect();
+    menu.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 150)) + "px";
+    menu.style.top = Math.max(6, Math.min(rect.bottom + 5, window.innerHeight - 80)) + "px";
+    colourRow.replaceChildren();
+    palette.forEach((color, i) => {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.className = "subject-colour";
+      swatch.style.background = color;
+      swatch.setAttribute("aria-label", "Colour " + (i + 1));
+      swatch.setAttribute("aria-pressed", String(subjects[activeIndex].color === i));
+      swatch.addEventListener("click", () => {
+        subjects[activeIndex].color = i;
+        if (selected === activeIndex) document.body.style.setProperty("--subject-colour", color);
+        persist();
+        render();
+        closeMenu();
+      });
+      colourRow.appendChild(swatch);
+    });
+  }
+  add.addEventListener("click", () => beginInlineEdit(-1, true));
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      finishInlineEdit(true);
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      finishInlineEdit(false);
+    }
+  });
+  input.addEventListener("blur", () => finishInlineEdit(true));
+  container.addEventListener("click", event => {
+    const chip = event.target.closest(".study-subject");
+    if (!chip) return;
+    selected = Number(chip.dataset.index);
+    window.coolanasSubjectState.selected = subjects[selected]?.name || null;
+    const selectedColour = palette[subjects[selected]?.color ?? 0];
+    document.body.style.setProperty("--subject-colour", selectedColour);
+    document.body.classList.add("subject-colour-preview");
+    activeLabel.textContent = subjects[selected]?.name || "";
+    activeLabel.style.background =
+        subjects[selected] ? palette[subjects[selected].color] : "#f7f7f7";
+    activeLabel.style.borderColor =
+        subjects[selected] ? palette[subjects[selected].color] : "#dedede";
+    activeLabel.style.color = "#555";
+    document.body.classList.remove("subject-pick-mode");
+    hint.textContent = "";
+    hint.classList.remove("visible");
+    container.querySelectorAll(".study-subject").forEach((item, index) => {
+      item.classList.toggle("selected", index === selected);
+      item.setAttribute("aria-pressed", String(index === selected));
+    });
+  });
+  container.addEventListener("dblclick", event => {
+    const chip = event.target.closest(".study-subject");
+    if (chip) openMenu(chip);
+  });
+  menu.addEventListener("click", event => {
+    const action = event.target.closest("button")?.dataset.action;
+    if (action === "rename") beginInlineEdit(activeIndex);
+    if (action === "colour") colourRow.hidden = !colourRow.hidden;
+    if (action === "delete") {
+      subjects.splice(activeIndex, 1);
+      if (selected === activeIndex)
+        selected = null;
+      else if (selected !== null && selected > activeIndex)
+        selected--;
+      persist();
+      render();
+      closeMenu();
+    }
+  });
+  document.addEventListener("pointerdown", event => {
+    if (!menu.hidden && !menu.contains(event.target)) closeMenu();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeMenu();
+  });
+  (async () => {
+    try {
+      const result = await subjectAction("subjects_get");
+      const cloud = normalize(result.subjects);
+      if (cloud) {
+        subjects = cloud;
+      } else {
+        try {
+          const local = normalize(JSON.parse(localStorage.getItem(localKey) || "null"));
+          if (local) subjects = local;
+        } catch {
+        }
+        await subjectAction("subjects_save", {subjects});
+      }
+      localStorage.removeItem(localKey);
+      selected = null;
+      render();
+      window.coolanasSubjectState.ready = true;
+      timerButton.disabled = false;
+      timerButton.title = "Start";
+    } catch (error) {
+      console.error("Could not load subjects:", error);
+      hint.textContent = "Could not load your subjects. Refresh to retry.";
+      hint.classList.add("visible");
+      container.classList.remove("loading");
+      container.replaceChildren();
+      const failed = document.createElement("span");
+      failed.className = "subject-load-error";
+      failed.textContent = "Subjects unavailable";
+      container.appendChild(failed);
+      timerButton.disabled = true;
+      timerButton.title = "Subjects unavailable";
+    }
+  })();
+  container.classList.add("loading");
+})();
+
 // Lightweight YPT-style stopwatch. Elapsed time is persisted locally and
 // recalculated from timestamps, so it remains accurate when the tab sleeps.
 (function setupStudyStopwatch() {
