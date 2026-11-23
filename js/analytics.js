@@ -796,7 +796,7 @@ function renderCalendarDetails() {
       remove.setAttribute("aria-label", "Remove task: " + task.text);
       remove.addEventListener("click", () => removeCalendarTask(task));
       row.append(checkbox, label, remove);
-      tasksMain.append(row);
+      tasksEmpty.append(row);
     }
   } else {
     const empty = document.createElement("p");
