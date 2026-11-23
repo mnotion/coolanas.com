@@ -1,18 +1,24 @@
 # Coolanas
 
-Coolanas is a static web application with Supabase authentication and a Backblaze B2-backed file workspace.
+Coolanas is a static web application with Supabase authentication and a Backblaze B2-backed file workspace. It is hosted as plain files and does not need a build step.
 
 ## Current repository layout
 
-- `index.html`, `dashboard.html`, `files.html`, and `auth-callback.html` are the current root-level application pages.
-- `js/` contains shared browser scripts.
-- `css/` contains page styles.
+- `index.html` is the sign-in page.
+- `dashboard.html` is the account home and study dashboard.
+- `exhibitions.html` is the file workspace. `files.html` redirects older links to it.
+- `analytics.html`, `settings.html`, and `coming-soon.html` are the other workspace pages.
+- `auth-callback.html` completes email verification.
+- `css/<page>.css` contains the styles for that page.
+- `js/<page>.js` contains that page's browser behavior.
+- `js/upload-manager.js` is shared upload and background-sync behavior; `js/auth-callback.js` handles email verification.
 - `assets/` contains branding and icons.
-- `supabase/functions/coolanas-files-b2/` contains the source for the authenticated B2 file API.
+- `supabase/functions/coolanas-files-b2/` contains the authenticated file and account API.
+- `supabase/migrations/` contains the database changes in the order they were introduced.
 
 ## File workspace synchronisation
 
-The files page keeps metadata changes in a user-scoped IndexedDB queue and attempts to synchronise them every five seconds. It also attempts a flush when the page is backgrounded or closed. Browser shutdown events are best-effort only; the persisted queue is retained and retried when the user returns.
+The workspace page (`exhibitions.html`) keeps metadata changes in a user-scoped IndexedDB queue and attempts to synchronise them every five seconds. It also attempts a flush when the page is backgrounded or closed. Browser shutdown events are best-effort only; the persisted queue is retained and retried when the user returns.
 
 File bytes continue to upload directly to Backblaze using short-lived signed URLs. They are not held in the metadata queue.
 
