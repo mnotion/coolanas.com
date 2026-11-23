@@ -62,6 +62,7 @@
     }catch(error){console.warn("Background uploads are unavailable:",error);return null;}
   }
   async function enqueue(tasks,auth){
+    try{await navigator.storage?.persist?.();}catch{}
     const db=await openDb();if(!db)throw new Error("This browser cannot store background uploads.");
     const batchId=crypto.randomUUID();
     await new Promise((resolve,reject)=>{
@@ -71,7 +72,9 @@
         parentId:task.parentId??null,contentType:task.file.type||"application/octet-stream",
         accessToken:auth.accessToken,status:"pending",createdAt:Date.now(),error:null
       });
-      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
+      tx.oncomplete=resolve;
+      tx.onerror=()=>reject(tx.error||new Error("Browser storage quota was exceeded."));
+      tx.onabort=()=>reject(tx.error||new Error("Browser storage quota was exceeded."));
     });
     panel.classList.add("visible");
     await refresh();
@@ -92,7 +95,12 @@
       tx.oncomplete=resolve;tx.onerror=tx.onabort=resolve;
     });
   }
-  navigator.serviceWorker?.addEventListener("message",event=>{if(event.data?.type==="COOLANAS_UPLOADS_UPDATED")refresh();});
+  navigator.serviceWorker?.addEventListener("message",event=>{
+    if(event.data?.type==="COOLANAS_UPLOADS_UPDATED"){
+      refresh();
+      window.dispatchEvent(new CustomEvent("coolanas-upload-updated",{detail:event.data.tasks||[]}));
+    }
+  });
   window.addEventListener("storage",refresh);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refresh();});
   window.CoolanasUploads={
