@@ -69,6 +69,7 @@
     panel.querySelector(".cu-fill").style.width=(total?Math.round(done/total*100):0)+"%";
     panel.querySelector(".cu-detail").textContent=failed[0]?.error||active[0]?.fileName||"Finishing uploads…";
     panel.querySelector(".cu-count").textContent=done+"/"+total+" · "+uploading+" active";
+    window.dispatchEvent(new CustomEvent("coolanas-upload-updated",{detail:tasks}));
   }
   async function registerWorker(){
     if(!("serviceWorker" in navigator))return null;
