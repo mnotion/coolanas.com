@@ -27,7 +27,7 @@ if (sessionError || !session?.user) {
 }
 const accountKey = key => key + ":" + session.user.id;
 // Legacy unscoped pending records have no verifiable owner; never sync them.
-localStorage.removeItem(accountKey("coolanas-study-pending-analytics-v1"));
+localStorage.removeItem("coolanas-study-pending-analytics-v1");
 
 for (const button of document.querySelectorAll(".topic"))
   button.addEventListener("click", () => {
