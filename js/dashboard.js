@@ -798,7 +798,7 @@ try {
     "Computer Science"
   ].map(name => ({name, color: 0}));
 
-  const localKey = "coolanas-study-subjects-v1";
+  const localKey = "coolanas-study-subjects-v1:" + activeAccountId;
   let subjects = defaults;
   let selected = null, activeIndex = -1, editingIndex = -1, saveQueue = Promise.resolve();
   window.coolanasSubjectState = {ready: false, selected: null};
