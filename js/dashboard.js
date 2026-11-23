@@ -1243,7 +1243,9 @@ try {
     history.replaceState(null, document.title, location.pathname);
     await requireUsername(session);
     activeAccountId = session.user.id;
-    await initialiseProfile(session);
+    setupSubjects();
+    setupStudyStopwatch();
+    void initialiseProfile(session);
   } else {
     const {data: {session: storedSession}, error} = await supabase.auth.getSession();
     if (error) throw error;
@@ -1254,7 +1256,9 @@ try {
     } else {
       await requireUsername(session);
       activeAccountId = session.user.id;
-      await initialiseProfile(session);
+      setupSubjects();
+      setupStudyStopwatch();
+      void initialiseProfile(session);
     }
   }
 } catch (authError) {
@@ -1263,11 +1267,7 @@ try {
       authError?.message || "Authentication failed. Return to sign-in and try again.";
   console.error("Coolanas OAuth callback failed:", authError);
 }
-if (activeAccountId) {
-  localStorage.removeItem("coolanas-study-pending-analytics-v1");
-  setupSubjects();
-  setupStudyStopwatch();
-}
+if (activeAccountId) localStorage.removeItem("coolanas-study-pending-analytics-v1");
 supabase.auth.onAuthStateChange((_event, nextSession) => {
   if ((nextSession?.user?.id || null) !== activeAccountId) location.reload();
 });
