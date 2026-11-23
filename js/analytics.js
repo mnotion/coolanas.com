@@ -876,7 +876,6 @@ async function loadBuckets(){
     const {data,error}=await supabase.functions.invoke(
       "coolanas-files-b2",{body:{action:"list"}});
     if(error||data?.error)throw new Error(data?.error||error.message);
-    analyticsBucketRootId=structure?.exhibitionsId||null;
     analyticsBucketItems=Array.isArray(data?.items)?data.items:[];
     const buckets=analyticsBucketItems.filter(item=>item.item_type==="folder"&&item.parent_id===analyticsBucketRootId);
     const allBucketDescendants=new Set();
