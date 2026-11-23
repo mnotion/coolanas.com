@@ -8,7 +8,7 @@ function openDb(){
   return new Promise((resolve,reject)=>{
     const request=indexedDB.open(DB_NAME,DB_VERSION);
     request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains(STORE)){const store=db.createObjectStore(STORE,{keyPath:"id"});store.createIndex("status","status");store.createIndex("batchId","batchId");}};
-    request.onsuccess=()=>resolve(request.result);
+    request.onsuccess=()=>{const db=request.result;db.onversionchange=()=>db.close();resolve(db);};
     request.onerror=()=>reject(request.error);
   });
 }
