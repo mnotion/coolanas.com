@@ -226,6 +226,11 @@ function renderStudyHeatmap(totals, now) {
   });
   if (!scroller.dataset.initialized) { scroller.scrollLeft = 0; scroller.dataset.initialized = "true"; }
 }
+function formatDistributionDuration(ms) {
+  const minutes=Math.ceil(Math.max(0,Number(ms)||0)/60000);
+  const hours=Math.floor(minutes/60), remainder=minutes%60;
+  return hours ? hours+"h "+remainder+"min" : minutes+"min";
+}
 function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month) {
   const svg=$("subject-distribution-chart"), legend=$("subject-distribution-legend"), monthLabel=$("subject-distribution-month");
   if(!svg||!legend||!monthLabel)return;
@@ -251,11 +256,10 @@ function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month) {
     const swatch=document.createElement("span");swatch.className="subject-distribution-swatch";swatch.style.backgroundColor=colour;
     const name=document.createElement("span");name.className="subject-distribution-name";name.textContent=subject;
     const percent=document.createElement("strong");percent.textContent=(fraction*100).toFixed(1)+"%";
-    const time=document.createElement("small");time.textContent=formatDuration(duration);
+    const time=document.createElement("small");time.textContent=formatDistributionDuration(duration);
     row.append(swatch,name,percent,time);legend.append(row);
   });
-  const centre=make("text",{x:110,y:104,"text-anchor":"middle","class":"subject-donut-total"});centre.textContent=formatDuration(total);
-  const caption=make("text",{x:110,y:126,"text-anchor":"middle","class":"subject-donut-caption"});caption.textContent="total studied";svg.append(centre,caption);
+
 }
 function renderMonthlyChart() {
   const dailyKey = accountKey("coolanas-study-daily-time-v1");
