@@ -17,7 +17,7 @@ html.dark-mode body {
   background:var(--theme-page)!important;
   color:var(--theme-text)!important;
 }
-html.dark-mode :where(.topbar,.sidebar,.content,.setting-row,.calendar-card,
+html.dark-mode :where(.topbar,.sidebar,.content,.calendar-card,
   .calendar-tasks-main,.calendar-task-list-box,.calendar-hourly-chart,
   .calendar-daily-distribution,.file-card,.panel,.confirm-panel,.viewer-panel,
   .card-settings-panel,.upload-card,.task-list-card,.contribution-card,
@@ -89,4 +89,16 @@ html.dark-mode .file-card.bucket-card.is-pointer-near {
   background:transparent!important;
   border-color:transparent!important;
   box-shadow:none!important;
+}
+
+
+/* Paused timer controls stay neutral in dark mode. */
+html.dark-mode body.timer-paused .study-stopwatch {
+  border-color:var(--theme-border)!important;
+  box-shadow:var(--theme-shadow)!important;
+}
+html.dark-mode body.timer-paused .study-stopwatch-actions .primary {
+  background:#e8edf5!important;
+  border-color:#e8edf5!important;
+  color:#17191d!important;
 }
