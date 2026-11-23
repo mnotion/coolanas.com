@@ -181,8 +181,8 @@ function renderStudyHeatmap(totals, now) {
   months.replaceChildren();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()),
         end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
-        start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 364);
-  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+        start = new Date(today.getFullYear(), 0, 1),
+        firstWeekdayOffset = (start.getDay() + 6) % 7;
   const dates = [];
   for (let cursor = new Date(start); cursor < end; cursor.setDate(cursor.getDate() + 1)) dates.push(new Date(cursor));
   const maxDay = Math.max(1, ...dates.map(date => {
@@ -190,12 +190,12 @@ function renderStudyHeatmap(totals, now) {
         "-" + String(date.getDate()).padStart(2, "0");
     return Math.max(0, Number(totals[key]) || 0);
   }));
-  const weekCount = Math.ceil(dates.length / 7);
+  const weekCount = Math.ceil((dates.length + firstWeekdayOffset) / 7);
   grid.style.gridTemplateColumns = "repeat(" + weekCount + ", 14px)";
   months.style.gridTemplateColumns = "repeat(" + weekCount + ", 14px)";
   const monthSeen = new Set();
   dates.forEach((date, index) => {
-    const week = Math.floor(index / 7), weekday = (date.getDay() + 6) % 7,
+    const week = Math.floor((index + firstWeekdayOffset) / 7), weekday = (date.getDay() + 6) % 7,
           key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") +
         "-" + String(date.getDate()).padStart(2, "0");
     const monthKey = date.getFullYear() + "-" + date.getMonth();
@@ -224,7 +224,7 @@ function renderStudyHeatmap(totals, now) {
     cell.style.gridRow = String(weekday + 1);
     grid.append(cell);
   });
-  if (!scroller.dataset.initialized) { scroller.scrollLeft = scroller.scrollWidth; scroller.dataset.initialized = "true"; }
+  if (!scroller.dataset.initialized) { scroller.scrollLeft = 0; scroller.dataset.initialized = "true"; }
 }
 function renderMonthlyChart() {
   const dailyKey = accountKey("coolanas-study-daily-time-v1");
@@ -910,6 +910,92 @@ function renderBucketStructure(){
   }
   tree.append(grid);
 }
+async function loadSharedBucketStructures(){
+  const target=$("shared-bucket-tree");
+  if(!target)return;
+  target.replaceChildren();
+  try{
+    const result=await bucketAction("shared_buckets_list");
+    const shares=Array.isArray(result?.buckets)?result.buckets:[];
+    if(!shares.length){
+      const empty=document.createElement("p");
+      empty.className="empty";
+      empty.textContent="No buckets have been shared with you yet.";
+      target.append(empty);
+      return;
+    }
+    const grid=document.createElement("div");
+    grid.className="bucket-tree-grid shared-bucket-tree-grid";
+    const opened=await Promise.all(shares.map(async bucket=>{
+      try{
+        const data=await bucketAction("shared_bucket_open",{bucketId:bucket.id});
+        return {bucket,items:Array.isArray(data?.items)?data.items:[]};
+      }catch(error){
+        return {bucket,error};
+      }
+    }));
+    for(const entry of opened){
+      const owner=document.createElement("h4");
+      owner.className="shared-bucket-owner-heading";
+      owner.textContent=(entry.bucket.ownerUsername||"Coolanas user")+"’s bucket";
+      const wrapper=document.createElement("section");
+      wrapper.className="shared-bucket-structure";
+      wrapper.append(owner);
+      if(entry.error){
+        const error=document.createElement("p");
+        error.className="empty";
+        error.textContent="Could not load this shared bucket: "+entry.error.message;
+        wrapper.append(error);
+        grid.append(wrapper);
+        continue;
+      }
+      const root=entry.items.find(item=>item.id===entry.bucket.id&&item.item_type==="folder");
+      if(!root){
+        const error=document.createElement("p");
+        error.className="empty";
+        error.textContent="This shared bucket is currently unavailable.";
+        wrapper.append(error);
+        grid.append(wrapper);
+        continue;
+      }
+      const descendants=new Set([root.id]);
+      let changed=true;
+      while(changed){
+        changed=false;
+        for(const item of entry.items){
+          if(item.parent_id&&descendants.has(item.parent_id)&&!descendants.has(item.id)){
+            descendants.add(item.id);
+            changed=true;
+          }
+        }
+      }
+      const childrenByParent=new Map();
+      for(const item of entry.items){
+        if(!descendants.has(item.id)||item.parent_id==null)continue;
+        if(!childrenByParent.has(item.parent_id))childrenByParent.set(item.parent_id,[]);
+        childrenByParent.get(item.parent_id).push(item);
+      }
+      for(const children of childrenByParent.values()){
+        children.sort((left,right)=>(left.item_type==="folder"?0:1)-(right.item_type==="folder"?0:1)||
+          Number(left.sort_order||0)-Number(right.sort_order||0)||left.name.localeCompare(right.name));
+      }
+      const card=document.createElement("div");
+      card.className="bucket-tree-card shared-bucket-tree-card";
+      card.style.setProperty("--bucket-colour",entry.bucket.folder_color||root.folder_color||"#e5e7eb");
+      const rootList=document.createElement("ul");
+      rootList.append(renderBucketTreeNode(root,childrenByParent));
+      card.append(rootList);
+      wrapper.append(card);
+      grid.append(wrapper);
+    }
+    target.append(grid);
+  }catch(error){
+    const message=document.createElement("p");
+    message.className="empty";
+    message.textContent=error.message||"Could not load shared buckets.";
+    target.append(message);
+  }
+}
 // Bucket item actions, queued metadata changes, and folder uploads.
 async function bucketAction(action,payload={}){
   const retryable=new Set([408,425,429,500,502,503,504]);
@@ -1293,6 +1379,7 @@ async function loadBuckets(){
     $("file-count").textContent=String(files.length);
     list.replaceChildren();
     renderBucketStructure();
+    void loadSharedBucketStructures();
   }catch(error){
     $("bucket-count").textContent="—";
     $("file-count").textContent="—";
