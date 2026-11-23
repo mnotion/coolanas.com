@@ -1,5 +1,5 @@
 const DB_NAME="coolanas-background-uploads";
-const DB_VERSION=2;
+const DB_VERSION=3;
 const STORE="tasks";
 const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
 const SUPABASE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
@@ -7,8 +7,17 @@ const activeControllers=new Map();
 function openDb(){
   return new Promise((resolve,reject)=>{
     const request=indexedDB.open(DB_NAME,DB_VERSION);
-    request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains(STORE)){const store=db.createObjectStore(STORE,{keyPath:"id"});store.createIndex("status","status");store.createIndex("batchId","batchId");}};
-    request.onsuccess=()=>{const db=request.result;db.onversionchange=()=>db.close();resolve(db);};
+    request.onupgradeneeded=()=>{
+      const db=request.result;
+      const store=db.objectStoreNames.contains(STORE)?request.transaction.objectStore(STORE):db.createObjectStore(STORE,{keyPath:"id"});
+      if(!store.indexNames.contains("status"))store.createIndex("status","status");
+      if(!store.indexNames.contains("batchId"))store.createIndex("batchId","batchId");
+    };
+    request.onsuccess=()=>{
+      const db=request.result;db.onversionchange=()=>db.close();
+      if(!db.objectStoreNames.contains(STORE)){db.close();reject(new Error("Upload tasks store is missing after upgrade."));return;}
+      resolve(db);
+    };
     request.onerror=()=>reject(request.error);
   });
 }
