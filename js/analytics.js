@@ -994,7 +994,7 @@ function renderCalendarDetails() {
     tasksMain.append(tasksTitle);
     const tasksEmpty = document.createElement("div");
     tasksEmpty.className = "calendar-tasks-empty-slot calendar-task-list-box";
-    const dayTasks = calendarTasks.filter(task => task.dueDate === key || task.completedAt === key || (!task.dueDate && key === todayKey));
+    const dayTasks = calendarTasks.filter(task => !task.dueDate || task.dueDate <= todayKey);
     if (key === todayKey) {
       const form = document.createElement("form");
       form.className = "calendar-task-add";
@@ -1007,8 +1007,11 @@ function renderCalendarDetails() {
       add.type = "submit";
       add.textContent = "Add";
       form.append(input, add);
+      input.disabled = daySnapshot?.locked === true;
+      add.disabled = daySnapshot?.locked === true;
       form.addEventListener("submit", event => {
         event.preventDefault();
+        if (daySnapshot?.locked) return;
         const value = input.value.trim();
         if (!value) return;
         if (calendarTasks.length >= 100) {
@@ -1020,6 +1023,9 @@ function renderCalendarDetails() {
         input.value = "";
         input.setCustomValidity("");
         queueCalendarTasksSync();
+        void saveCalendarDaySnapshot(todayKey,calendarTasks.filter(item => !item.dueDate || item.dueDate <= todayKey).map(item => ({
+          id:item.id,text:item.text,completed:item.completedAt === todayKey
+        })),false);
         renderCalendarDetails();
       });
       tasksMain.append(form);
