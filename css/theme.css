@@ -80,3 +80,13 @@ html.dark-mode :where(.profile-backdrop,.modal-backdrop,.overlay-backdrop) {
 html.dark-mode :where(.status.success) { color:#75d6a2!important; }
 html.dark-mode :where(.status.error,.danger) { color:#ff9292!important; }
 html.dark-mode ::selection { background:#365b8b;color:#fff; }
+
+/* Personal bucket tiles are intentionally unboxed in both themes. */
+html.dark-mode .file-card.bucket-card,
+html.dark-mode .file-card.bucket-card:hover,
+html.dark-mode .file-card.bucket-card.is-pointer-hover,
+html.dark-mode .file-card.bucket-card.is-pointer-near {
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+}
