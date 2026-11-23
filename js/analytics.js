@@ -1067,16 +1067,14 @@ document.addEventListener("click",async event=>{
   const action=actionButton.dataset.action;
   if(action==="colour"||actionButton.dataset.color)return;
   hideBucketMenu();
-  if(action==="add-file"||action==="drag-drop"){
+  if(action==="drag-drop"){
     openBucketUpload(item);
+  }else if(action==="add-file"){
+    bucketUploadTarget=item;
+    bucketFilePicker.click();
   }else if(action==="add-folder"){
-    const name=prompt("New folder name");
-    if(!name?.trim())return;
-    try{
-      const result=await bucketAction("create_folder",{parentId:item.id,name:name.trim()});
-      analyticsBucketItems.push(result.item);
-      renderBucketStructure();updateBucketCounts();
-    }catch(error){alert("Could not create folder: "+error.message);}
+    bucketUploadTarget=item;
+    bucketFolderPicker.click();
   }else if(action==="rename"){
     const name=prompt("Rename item",item.name);
     if(!name?.trim()||name.trim()===item.name)return;
@@ -1102,7 +1100,7 @@ document.addEventListener("keydown",event=>{if(event.key==="Escape"){hideBucketM
 const bucketUploadOverlay=document.createElement("div");
 bucketUploadOverlay.className="bucket-upload-overlay";
 bucketUploadOverlay.hidden=true;
-bucketUploadOverlay.innerHTML='<section class="bucket-upload-panel" role="dialog" aria-modal="true" aria-labelledby="bucket-upload-title"><header><div><h2 id="bucket-upload-title">Upload to folder</h2><p id="bucket-upload-target"></p></div><button type="button" class="bucket-upload-close" aria-label="Close">×</button></header><div class="bucket-drop-zone" tabindex="0"><div class="bucket-drop-icon">↑</div><strong>Drag files or folders here</strong><span>or choose something from your device</span><div class="bucket-upload-buttons"><button type="button" data-pick="files">Choose files</button><button type="button" data-pick="folder">Choose folder</button></div><p class="bucket-upload-status" aria-live="polite">Files will be uploaded into this folder.</p></div></section>';
+bucketUploadOverlay.innerHTML='<section class="bucket-upload-panel" role="dialog" aria-modal="true" aria-labelledby="bucket-upload-title"><header><div><h2 id="bucket-upload-title">Upload to folder</h2><p id="bucket-upload-target"></p></div></header><div class="bucket-drop-zone" tabindex="0"><div class="bucket-drop-icon">↑</div><strong>Drag files or folders here</strong><p class="bucket-upload-status" aria-live="polite"> </p></div></section>';
 document.body.append(bucketUploadOverlay);
 const bucketFilePicker=document.createElement("input");
 bucketFilePicker.type="file";bucketFilePicker.multiple=true;bucketFilePicker.hidden=true;
@@ -1122,13 +1120,9 @@ function openBucketUpload(folder){
   bucketUploadTarget=folder;
   $("bucket-upload-target").textContent="Destination: "+folder.name;
   bucketUploadOverlay.hidden=false;
-  bucketUploadOverlay.querySelector(".bucket-upload-status").textContent="Drop files or folders here, or choose from your device.";
+  bucketUploadOverlay.querySelector(".bucket-upload-status").textContent=" ";
 }
-bucketUploadOverlay.querySelector(".bucket-upload-close").addEventListener("click",closeBucketUpload);
 bucketUploadOverlay.addEventListener("click",event=>{if(event.target===bucketUploadOverlay)closeBucketUpload();});
-bucketUploadOverlay.querySelectorAll("[data-pick]").forEach(button=>button.addEventListener("click",()=>{
-  (button.dataset.pick==="folder"?bucketFolderPicker:bucketFilePicker).click();
-}));
 const bucketDropZone=bucketUploadOverlay.querySelector(".bucket-drop-zone");
 bucketDropZone.addEventListener("dragover",event=>{event.preventDefault();bucketDropZone.classList.add("drag-active");});
 bucketDropZone.addEventListener("dragleave",event=>{if(!bucketDropZone.contains(event.relatedTarget))bucketDropZone.classList.remove("drag-active");});
@@ -1136,7 +1130,6 @@ bucketDropZone.addEventListener("drop",async event=>{
   event.preventDefault();bucketDropZone.classList.remove("drag-active");
   if(event.dataTransfer?.files?.length)await uploadBucketEntries(await extractBucketEntries(event.dataTransfer),bucketUploadTarget?.id);
 });
-bucketDropZone.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();bucketFilePicker.click();}});
 bucketFilePicker.addEventListener("change",async()=>{
   const entries=[...bucketFilePicker.files].map(file=>({file,path:file.name}));
   await uploadBucketEntries(entries,bucketUploadTarget?.id);bucketFilePicker.value="";
@@ -1170,6 +1163,7 @@ async function uploadBucketEntries(entries,parentId){
   if(!parentId||!entries.length||bucketUploadBusy)return;
   bucketUploadBusy=true;
   const status=bucketUploadOverlay.querySelector(".bucket-upload-status");
+  const popupVisible=!bucketUploadOverlay.hidden;
   const folderCache=new Map();
   let uploaded=0;
   try{
@@ -1204,10 +1198,12 @@ async function uploadBucketEntries(entries,parentId){
       uploaded++;
     }
     status.textContent="Uploaded "+uploaded+" item(s) successfully.";
+    if(!popupVisible)alert("Uploaded "+uploaded+" item(s) into "+(analyticsBucketItems.find(item=>item.id===parentId)?.name||"the selected folder")+".");
     renderBucketStructure();updateBucketCounts();
     setTimeout(()=>{if(!bucketUploadBusy)closeBucketUpload();},900);
   }catch(error){
     status.textContent="Upload stopped: "+error.message;
+    if(!popupVisible)alert("Upload stopped: "+error.message);
     renderBucketStructure();updateBucketCounts();
   }finally{bucketUploadBusy=false;}
 }
