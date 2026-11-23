@@ -1789,3 +1789,34 @@ html.dark-mode #section-calendar > .calendar-card {
 @media(max-width:640px) {
   #section-calendar > .calendar-card {padding:14px 12px 16px !important}
 }
+
+/* Keep the analytics shell centred in the available page viewport. */
+body > .layout {
+  position:relative !important;
+  left:auto !important;
+  right:auto !important;
+  transform:none !important;
+  width:min(1080px,calc(100% - 40px)) !important;
+  max-width:1080px !important;
+  margin:42px auto 100px !important;
+  justify-self:center;
+}
+@media(max-width:700px) {
+  body > .layout {
+    width:calc(100% - 24px) !important;
+    margin:20px auto 90px !important;
+  }
+}
+/* Keep the page header visible while the document scrolls. */
+body > .topbar {
+  position:sticky !important;
+  top:0 !important;
+  z-index:5000 !important;
+  width:100%;
+  flex-shrink:0;
+  background:#fff;
+}
+html.dark-mode body > .topbar {
+  background:#202124;
+  border-bottom-color:#3b3b3b;
+}
