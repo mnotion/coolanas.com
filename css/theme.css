@@ -1,0 +1,82 @@
+/* Shared dark appearance for every Coolanas page and interactive surface. */
+html.dark-mode {
+  color-scheme:dark;
+  --theme-page:#17191d;
+  --theme-surface:#22262d;
+  --theme-surface-raised:#292e37;
+  --theme-border:#3b424e;
+  --theme-text:#edf0f5;
+  --theme-muted:#a6afbd;
+  --theme-hover:#343b46;
+  --theme-input:#1d2229;
+  --theme-accent:#8db8ff;
+  --theme-shadow:0 8px 24px rgba(0,0,0,.24);
+}
+html.dark-mode,
+html.dark-mode body {
+  background:var(--theme-page)!important;
+  color:var(--theme-text)!important;
+}
+html.dark-mode :where(.topbar,.sidebar,.content,.setting-row,.calendar-card,
+  .calendar-tasks-main,.calendar-task-list-box,.calendar-hourly-chart,
+  .calendar-daily-distribution,.file-card,.panel,.confirm-panel,.viewer-panel,
+  .card-settings-panel,.upload-card,.task-list-card,.contribution-card,
+  .study-stopwatch,.users-panel,.bucket-tree-card,.tree-container,
+  .shared-bucket-card,.shared-bucket-card-owner,.profile-drawer,.mail-popover,
+  .subject-context-menu,.bucket-context-menu,.shared-bucket-menu,.file-context-menu,
+  .note-context-menu,.task-context-menu,.add-menu,.subject-menu-colours,
+  .note-card,.note-panel,.note-editor,.note-modal,.modal,.dialog,.popover) {
+  background-color:var(--theme-surface)!important;
+  border-color:var(--theme-border)!important;
+  color:var(--theme-text)!important;
+  box-shadow:var(--theme-shadow);
+}
+html.dark-mode :where(h1,h2,h3,h4,strong,b,label,.brand,.file-name,
+  .shared-bucket-name,.shared-bucket-card-open,.tree-label,.file-item,
+  .panel-heading,.settings-header,.settings-section-title) {
+  color:var(--theme-text);
+}
+html.dark-mode :where(p,small,.intro,.help,.setting-copy p,.empty,.empty-state,
+  .mail-empty,.mail-notification p,.user-empty,.user-error,.calendar-weekday,
+  .calendar-axis-label,.muted,.secondary-text,.note-meta,.file-meta) {
+  color:var(--theme-muted);
+}
+html.dark-mode :where(input,textarea,select,.search-input,.task-add-input,
+  .calendar-task-add input,.username-form input,.study-subject-input,
+  #exhibition-name,.share-permission-select) {
+  background:var(--theme-input)!important;
+  border-color:var(--theme-border)!important;
+  color:var(--theme-text)!important;
+  color-scheme:dark;
+}
+html.dark-mode :where(input,textarea,select)::placeholder {
+  color:#8e98a8!important;
+  opacity:1;
+}
+html.dark-mode :where(button,.menu-item,.add-option,.shared-bucket-menu button,
+  .subject-context-menu>button,.bucket-menu-action,.file-context-menu button,
+  .note-context-menu button,.task-context-menu button) {
+  color:var(--theme-text);
+}
+html.dark-mode :where(.menu-item:hover,.add-option:hover,
+  .shared-bucket-menu button:hover,.subject-context-menu>button:hover,
+  .bucket-menu-action:hover,.file-context-menu button:hover,
+  .note-context-menu button:hover,.task-context-menu button:hover) {
+  background:var(--theme-hover)!important;
+}
+html.dark-mode :where(.back,.topic,.nav-button,.calendar-task-remove,
+  .close-button,.mail-clear-button) { color:var(--theme-muted); }
+html.dark-mode :where(.topic.active,.nav-button[aria-current="page"],
+  .calendar-day.today,.calendar-day.selected) {
+  background:#263b57!important;
+  color:#b8d4ff!important;
+  border-color:#456b9c!important;
+}
+html.dark-mode :where(hr,.setting-row,.calendar-detail-row,.file-row,
+  .shared-buckets-divider,.profile-drawer-head) { border-color:var(--theme-border)!important; }
+html.dark-mode :where(.profile-backdrop,.modal-backdrop,.overlay-backdrop) {
+  background:rgba(0,0,0,.68);
+}
+html.dark-mode :where(.status.success) { color:#75d6a2!important; }
+html.dark-mode :where(.status.error,.danger) { color:#ff9292!important; }
+html.dark-mode ::selection { background:#365b8b;color:#fff; }
