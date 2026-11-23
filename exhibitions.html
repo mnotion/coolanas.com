@@ -1901,7 +1901,7 @@ async function uploadEntries(entries,parentId=currentFolderId){
     setUploadProgress(processed,entries.length,"Saving "+prepared.length+" file(s) for background upload…");
     const {data:{session},error:authError}=await supabase.auth.getSession();
     if(authError||!session?.access_token)throw new Error("Your sign-in session could not be verified. Please sign in again.");
-    await window.CoolanasUploads.enqueue(prepared,{accessToken:session.access_token});
+    await window.CoolanasUploads.enqueue(prepared,{accessToken:session.access_token,userId:session.user.id});
     uploadOverlay.hidden=true;
     uploadMini.hidden=true;
     activeUploadController=null;
