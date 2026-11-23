@@ -117,13 +117,14 @@ Deno.serve(async (req) => {
           }
         }
         const dailySubjects = saved?.dailySubjects && typeof saved.dailySubjects === "object" && !Array.isArray(saved.dailySubjects) ? saved.dailySubjects : {};
+        const dailyHours = saved?.dailyHours && typeof saved.dailyHours === "object" && !Array.isArray(saved.dailyHours) ? saved.dailyHours : {};
         const totalMs = Object.values(daily).reduce((sum, value) => sum + value, 0);
-        return json(200, { success: true, daily, dailySubjects, totalMs });
+        return json(200, { success: true, daily, dailySubjects, dailyHours, totalMs });
       } catch (error) {
         const status = (error as any)?.$metadata?.httpStatusCode;
         const name = (error as any)?.name ?? "";
         if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
-        return json(200, { success: true, daily: {}, totalMs: 0 });
+        return json(200, { success: true, daily: {}, dailySubjects: {}, dailyHours: {}, totalMs: 0 });
       }
     }
 
@@ -132,6 +133,7 @@ Deno.serve(async (req) => {
       const durationMs = body?.durationMs;
       const eventId = body?.eventId;
       const subject = typeof body?.subject === "string" && body.subject.trim() ? body.subject.trim().slice(0, 80) : "Unassigned";
+      const hourlyMs = body?.hourlyMs && typeof body.hourlyMs === "object" && !Array.isArray(body.hourlyMs) ? body.hourlyMs : null;
       if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
           !Number.isSafeInteger(durationMs) || durationMs <= 0 || durationMs > 604800000 ||
           typeof eventId !== "string" || !/^[A-Za-z0-9_-]{8,100}$/.test(eventId)) {
@@ -151,16 +153,25 @@ Deno.serve(async (req) => {
       if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
       if (!saved.daily || typeof saved.daily !== "object" || Array.isArray(saved.daily)) saved.daily = {};
       if (!saved.dailySubjects || typeof saved.dailySubjects !== "object" || Array.isArray(saved.dailySubjects)) saved.dailySubjects = {};
+      if (!saved.dailyHours || typeof saved.dailyHours !== "object" || Array.isArray(saved.dailyHours)) saved.dailyHours = {};
       if (!saved.events || typeof saved.events !== "object" || Array.isArray(saved.events)) saved.events = {};
       if (saved.events[eventId] !== true) {
         saved.daily[date] = Math.max(0, Number(saved.daily[date]) || 0) + durationMs;
         if (!saved.dailySubjects[date] || typeof saved.dailySubjects[date] !== "object" || Array.isArray(saved.dailySubjects[date])) saved.dailySubjects[date] = {};
         saved.dailySubjects[date][subject] = Math.max(0, Number(saved.dailySubjects[date][subject]) || 0) + durationMs;
+        if (hourlyMs) {
+          if (!saved.dailyHours[date] || typeof saved.dailyHours[date] !== "object" || Array.isArray(saved.dailyHours[date])) saved.dailyHours[date] = {};
+          for (const [hour, value] of Object.entries(hourlyMs)) {
+            if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) && Number.isSafeInteger(value) && Number(value) > 0) {
+              saved.dailyHours[date][hour] = Math.max(0, Number(saved.dailyHours[date][hour]) || 0) + Number(value);
+            }
+          }
+        }
         saved.events[eventId] = true;
       }
       const totalMs = Object.values(saved.daily).reduce((sum: number, value: unknown) =>
         sum + (Number.isFinite(value) ? Math.max(0, Number(value)) : 0), 0);
-      const payload = JSON.stringify({ version: 2, daily: saved.daily, dailySubjects: saved.dailySubjects, events: saved.events, updatedAt: new Date().toISOString() });
+      const payload = JSON.stringify({ version: 3, daily: saved.daily, dailySubjects: saved.dailySubjects, dailyHours: saved.dailyHours, events: saved.events, updatedAt: new Date().toISOString() });
       await s3.send(new PutObjectCommand({
         Bucket: bucket, Key: key, Body: payload, ContentType: "application/json; charset=utf-8",
       }));
