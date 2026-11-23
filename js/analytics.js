@@ -733,50 +733,153 @@ $("calendar-grid").addEventListener("wheel", event => {
   renderCalendar();
 }, {passive:false});
 
-// Bucket summary.
+// Bucket summary and expandable folder tree.
+let analyticsBucketItems = [];
+let selectedAnalyticsBucketId = null;
+const bucketTreeColors = [
+  {value:"#e6b325",name:"Yellow"},
+  {value:"#3b82f6",name:"Blue"},
+  {value:"#22a06b",name:"Green"},
+  {value:"#a855f7",name:"Purple"},
+  {value:"#ef4444",name:"Red"},
+  {value:"#6b7280",name:"Gray"}
+];
+function createBucketFolderIcon(open) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox","0 0 24 24");
+  svg.setAttribute("class","icon " + (open ? "folder-open-icon" : "folder-closed-icon"));
+  svg.setAttribute("fill","none");
+  svg.setAttribute("stroke","currentColor");
+  svg.setAttribute("stroke-width","1.7");
+  svg.setAttribute("stroke-linecap","round");
+  svg.setAttribute("stroke-linejoin","round");
+  const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+  path.setAttribute("d",open ? "M3 7.5h6.5l2 2H21v9.8H3z" : "M3 7.5h7l2 2H21v10H3z");
+  svg.append(path);
+  return svg;
+}
+function renderBucketTreeNode(item, childrenByParent, depth = 0) {
+  const li = document.createElement("li");
+  li.className = "tree-item";
+  const children = childrenByParent.get(item.id) || [];
+  if (item.item_type === "folder") {
+    if (children.length) {
+      const toggle = document.createElement("input");
+      toggle.type = "checkbox";
+      toggle.className = "tree-toggle";
+      toggle.id = "bucket-tree-toggle-" + String(item.id).replace(/[^a-zA-Z0-9_-]/g,"");
+      const label = document.createElement("label");
+      label.className = "tree-label";
+      label.htmlFor = toggle.id;
+      label.append(createBucketFolderIcon(true),createBucketFolderIcon(false));
+      const name = document.createElement("span");
+      name.textContent = item.name;
+      label.append(name);
+      li.append(toggle,label);
+      const wrapper = document.createElement("div");
+      wrapper.className = "tree-children-wrapper";
+      const inner = document.createElement("div");
+      inner.className = "tree-children";
+      const ul = document.createElement("ul");
+      for (const child of children) ul.append(renderBucketTreeNode(child,childrenByParent,depth+1));
+      inner.append(ul);
+      wrapper.append(inner);
+      li.append(wrapper);
+    } else {
+      const label = document.createElement("div");
+      label.className = "tree-label";
+      label.append(createBucketFolderIcon(false));
+      const name = document.createElement("span");
+      name.textContent = item.name;
+      label.append(name);
+      li.append(label);
+    }
+  } else {
+    const file = document.createElement("div");
+    file.className = "file-item";
+    const icon = document.createElementNS("http://www.w3.org/2000/svg","svg");
+    icon.setAttribute("viewBox","0 0 24 24");
+    icon.setAttribute("class","icon");
+    icon.setAttribute("fill","none");
+    icon.setAttribute("stroke","currentColor");
+    icon.setAttribute("stroke-width","1.6");
+    const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+    path.setAttribute("d","M6 3.5h8l4 4V20H6z M14 3.5V8h4");
+    icon.append(path);
+    const name = document.createElement("span");
+    name.textContent = item.name;
+    file.append(icon,name);
+    li.append(file);
+  }
+  return li;
+}
+function renderBucketStructure() {
+  const picker = $("bucket-structure-picker"), tree = $("bucket-tree");
+  picker.replaceChildren();
+  tree.replaceChildren();
+  const roots = analyticsBucketItems.filter(item => item.item_type === "folder" && item.parent_id === null);
+  if (!roots.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "Create a bucket to see its folder structure here.";
+    tree.append(empty);
+    return;
+  }
+  if (!roots.some(item => item.id === selectedAnalyticsBucketId))
+    selectedAnalyticsBucketId = roots[0].id;
+  for (const bucket of roots) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "bucket-structure-choice" + (bucket.id === selectedAnalyticsBucketId ? " selected" : "");
+    button.dataset.bucketId = bucket.id;
+    const swatch = document.createElement("span");
+    swatch.className = "bucket-structure-swatch";
+    swatch.style.backgroundColor = bucket.folder_color || "#a1a1aa";
+    const name = document.createElement("span");
+    name.textContent = bucket.name;
+    button.append(swatch,name);
+    button.setAttribute("aria-pressed",String(bucket.id === selectedAnalyticsBucketId));
+    picker.append(button);
+  }
+  const selected = roots.find(item => item.id === selectedAnalyticsBucketId);
+  if (!selected) return;
+  const byParent = new Map();
+  for (const item of analyticsBucketItems) {
+    if (item.parent_id == null) continue;
+    if (!byParent.has(item.parent_id)) byParent.set(item.parent_id,[]);
+    byParent.get(item.parent_id).push(item);
+  }
+  for (const list of byParent.values()) {
+    list.sort((left,right) => (left.item_type === "folder" ? 0 : 1) - (right.item_type === "folder" ? 0 : 1) || (Number(left.sort_order || 0) - Number(right.sort_order || 0)) || left.name.localeCompare(right.name));
+  }
+  const rootUl = document.createElement("ul");
+  rootUl.append(renderBucketTreeNode(selected,byParent));
+  tree.append(rootUl);
+}
+$("bucket-structure-picker").addEventListener("click",event => {
+  const choice = event.target.closest("button[data-bucket-id]");
+  if (!choice) return;
+  selectedAnalyticsBucketId = choice.dataset.bucketId;
+  renderBucketStructure();
+});
 async function loadBuckets() {
   const list = $("bucket-list");
   try {
-    const {data, error} =
-        await supabase.functions.invoke("coolanas-files-b2", {body: {action: "list"}});
+    const {data,error} = await supabase.functions.invoke("coolanas-files-b2",{body:{action:"list"}});
     if (error || data?.error) throw new Error(data?.error || error.message);
-    const items = Array.isArray(data?.items) ? data.items : [];
-    const folders = items.filter(item => item.item_type === "folder" && item.parent_id === null);
-    const files = items.filter(item => item.item_type === "file");
+    analyticsBucketItems = Array.isArray(data?.items) ? data.items : [];
+    const folders = analyticsBucketItems.filter(item => item.item_type === "folder" && item.parent_id === null);
+    const files = analyticsBucketItems.filter(item => item.item_type === "file");
     $("bucket-count").textContent = String(folders.length);
     $("file-count").textContent = String(files.length);
     list.replaceChildren();
-    if (!folders.length) {
-      const empty = document.createElement("p");
-      empty.className = "empty";
-      empty.textContent = "You have not created any buckets yet.";
-      list.append(empty);
-      return;
-    }
-    for (const folder of folders) {
-      const row = document.createElement("div");
-      row.className = "bucket-row";
-      const name = document.createElement("div");
-      name.className = "bucket-row-name";
-      name.innerHTML =
-          "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 7.5h7l2 2H21v10H3z\"/><path d=\"M3 7.5V5h7l2 2.5\"/></svg>";
-      const label = document.createElement("span");
-      label.textContent = folder.name;
-      name.append(label);
-      const type = document.createElement("span");
-      type.className = "bucket-row-type";
-      type.textContent = "Bucket";
-      row.append(name, type);
-      list.append(row);
-    }
+    renderBucketStructure();
   } catch (error) {
     $("bucket-count").textContent = "—";
     $("file-count").textContent = "—";
     list.replaceChildren();
-    const message = document.createElement("p");
-    message.className = "empty";
-    message.textContent = error.message || "Could not load your buckets.";
-    list.append(message);
+    $("bucket-structure-picker").replaceChildren();
+    $("bucket-tree").textContent = error.message || "Could not load your buckets.";
   }
 }
 renderTimer();
