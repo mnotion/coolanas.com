@@ -290,14 +290,6 @@ function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month, opti
   const entries=[...totals.entries()].sort((a,b)=>b[1]-a[1]);
   const total=entries.reduce((sum,entry)=>sum+entry[1],0), ns="http://www.w3.org/2000/svg";
   const make=(tag,attrs,parent=svg)=>{const node=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));parent.append(node);return node;};
-  svg.setAttribute("viewBox","0 0 560 390");
-  svg.setAttribute("preserveAspectRatio","xMidYMid meet");
-  svg.append(make("circle",{cx:280,cy:195,r:78,fill:"none",stroke:"var(--subject-donut-track,#eceff1)","stroke-width":24}));
-  if(!total){
-    const empty=make("text",{x:280,y:190,"text-anchor":"middle","class":"subject-donut-empty"});empty.textContent="No study data";
-    const sub=make("text",{x:280,y:210,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent=options.emptyLabel || "this month";
-    return;
-  }
   const palette=["#8fc36a","#39a99a","#e28d83","#e9a443","#8580c9","#54a5d8","#e76b50","#b37be0","#6b9d91","#c5a05c"];
   if(!options.svgId){
     svg.setAttribute("viewBox","0 0 220 220");
