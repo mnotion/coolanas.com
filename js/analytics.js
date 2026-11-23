@@ -340,6 +340,15 @@ function formatSubjectTime(ms) {
 }
 let calendarTasks = [];
 let calendarTasksLoaded = false;
+let calendarSubjectColours = {};
+const subjectPalette = ["#e7e7e7", "#f6caca", "#f6dfaa", "#d9edbd", "#c9e7ef", "#d7d0f2", "#f0cce8"];
+async function loadCalendarSubjectColours() {
+  try {
+    const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {body:{action:"subjects_get"}});
+    if (error || data?.error) throw new Error(data?.error || error.message);
+    calendarSubjectColours = Object.fromEntries((Array.isArray(data?.subjects) ? data.subjects : []).filter(s => s && typeof s.name === "string").map(s => [s.name, subjectPalette[Math.max(0, Math.min(6, Number(s.color) || 0))]]));
+  } catch (error) { console.warn("Could not load subject colours:", error); }
+}
 async function loadCalendarTasks() {
   try {
     const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {body:{action:"tasks_get"}});
@@ -371,37 +380,65 @@ function renderCalendarDetails() {
   else if (key === yesterdayKey) heading.textContent = "Yesterday you worked for " + formatCalendarTime(total);
   else heading.textContent = "On that day, you worked " + formatCalendarTime(total);
   $("calendar-details-total").textContent = "";
-  const close = $("calendar-details-close");
   const content = $("calendar-details-content");
   content.replaceChildren();
   const subjectsSection = document.createElement("section");
-  subjectsSection.className = "calendar-detail-section";
-  const subjectsTitle = document.createElement("h3");
-  subjectsTitle.textContent = "Subjects studied";
-  subjectsSection.append(subjectsTitle);
+  subjectsSection.className = "calendar-detail-section calendar-subjects-section";
+  const subjectCards = document.createElement("div");
+  subjectCards.className = "calendar-subject-cards";
   if (subjects.length) {
     for (const [subject, duration] of subjects) {
-      const row = document.createElement("div");
-      row.className = "calendar-detail-row";
+      const card = document.createElement("div");
+      card.className = "calendar-subject-card";
+      card.style.background = calendarSubjectColours[subject] || "#e7e7e7";
       const name = document.createElement("span"), time = document.createElement("strong");
       name.textContent = subject;
       time.textContent = formatSubjectTime(Number(duration));
-      row.append(name, time);
-      subjectsSection.append(row);
+      card.append(name, time);
+      subjectCards.append(card);
     }
   } else {
     const empty = document.createElement("p");
     empty.className = "calendar-details-empty";
     empty.textContent = "No subjects recorded.";
-    subjectsSection.append(empty);
+    subjectCards.append(empty);
   }
+  subjectsSection.append(subjectCards);
   const tasksSection = document.createElement("section");
-  tasksSection.className = "calendar-detail-section";
+  tasksSection.className = "calendar-detail-section calendar-tasks-section";
   const tasksTitle = document.createElement("h3");
   tasksTitle.textContent = "Tasks";
   tasksSection.append(tasksTitle);
-  const dayTasks = calendarTasks.filter(task =>
-    task.dueDate === key || task.completedAt === key);
+  const dayTasks = calendarTasks.filter(task => task.dueDate === key || task.completedAt === key || (!task.dueDate && key === todayKey));
+  if (key >= todayKey) {
+    const form = document.createElement("form");
+    form.className = "calendar-task-add";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 180;
+    input.placeholder = "Add a task for this day…";
+    input.setAttribute("aria-label", "New task for this day");
+    const add = document.createElement("button");
+    add.type = "submit";
+    add.textContent = "Add";
+    form.append(input, add);
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const value = input.value.trim();
+      if (!value) return;
+      try {
+        await loadCalendarTasks();
+        if (calendarTasks.length >= 100) throw new Error("You can have up to 100 tasks.");
+        calendarTasks.push({id:crypto.randomUUID(),text:value,completed:false,dueDate:key});
+        await saveCalendarTasks();
+        renderCalendarDetails();
+      } catch (error) {
+        input.setCustomValidity(error.message || "Could not save this task.");
+        input.reportValidity();
+      }
+    });
+    tasksSection.append(form);
+  }
   if (dayTasks.length) {
     for (const task of dayTasks) {
       const row = document.createElement("label");
@@ -528,10 +565,6 @@ function renderCalendar() {
   }
   renderCalendarDetails();
 }
-$("calendar-details-close").addEventListener("click", () => {
-  selectedCalendarDate = null;
-  renderCalendar();
-});
 let calendarPointerStart = null;
 let calendarSwipeHandled = false;
 $("calendar-grid").addEventListener("click", event => {
@@ -620,7 +653,10 @@ renderTimer();
 renderMonthlyChart();
 void loadCloudAnalytics();
 renderCalendar();
+void loadCalendarSubjectColours().then(renderCalendarDetails);
 void loadCalendarTasks().then(renderCalendarDetails);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) void loadCalendarTasks().then(renderCalendarDetails); });
+window.addEventListener("focus", () => { void loadCalendarTasks().then(renderCalendarDetails); });
 loadBuckets();
 setInterval(() => {
   renderTimer();
