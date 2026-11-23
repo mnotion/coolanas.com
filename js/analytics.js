@@ -127,13 +127,11 @@ $("bucket-structure-picker").addEventListener("click",event=>{
 async function loadBuckets(){
   const list=$("bucket-list");
   try{
-    const [structureResult,listResult]=await Promise.all([
-      supabase.functions.invoke("coolanas-files-b2",{body:{action:"ensure_structure"}}),
-      supabase.functions.invoke("coolanas-files-b2",{body:{action:"list"}})
-    ]);
-    const {data:structure,error:structureError}=structureResult;
-    const {data,error}=listResult;
+    const {data:structure,error:structureError}=await supabase.functions.invoke(
+      "coolanas-files-b2",{body:{action:"ensure_structure"}});
     if(structureError||structure?.error)throw new Error(structure?.error||structureError.message);
+    const {data,error}=await supabase.functions.invoke(
+      "coolanas-files-b2",{body:{action:"list"}});
     if(error||data?.error)throw new Error(data?.error||error.message);
     analyticsBucketRootId=structure?.exhibitionsId||null;
     analyticsBucketItems=Array.isArray(data?.items)?data.items:[];
