@@ -683,6 +683,10 @@ function renderCalendarHourlyGraph(panel, dateKey) {
 }
 function renderCalendarDetails() {
   const panel = $("calendar-details");
+  // This element is only a layout wrapper, never a visible card.
+  for (const property of ["border","border-radius","background","box-shadow","padding"]) {
+    panel.style.setProperty(property, property === "border" ? "0" : property === "padding" ? "0" : "transparent", "important");
+  }
   panel.querySelector(".calendar-hourly-chart")?.remove();
   panel.querySelector(".calendar-daily-distribution")?.remove();
   if (!selectedCalendarDate) {
