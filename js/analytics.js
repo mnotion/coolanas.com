@@ -423,6 +423,23 @@ function renderMonthlyChart() {
       (_, index) =>
           Math.max(0, Number(totals[monthPrefix + String(index + 1).padStart(2, "0")]) || 0));
   renderStudyHeatmap(totals, now);
+  const monthlyTotal=values.reduce((sum,value)=>sum+value,0);
+  const studiedDays=values.filter(value=>value>0).length;
+  const dailyAverage=monthlyTotal/days;
+  const bestValue=Math.max(0,...values);
+  const bestIndex=values.indexOf(bestValue);
+  const overviewTotal=$("monthly-overview-total");
+  const overviewDays=$("monthly-overview-days");
+  const overviewAverage=$("monthly-overview-average");
+  const overviewBest=$("monthly-overview-best");
+  if(overviewTotal)overviewTotal.textContent=formatCalendarTime(monthlyTotal);
+  if(overviewDays)overviewDays.textContent=studiedDays+" / "+days;
+  if(overviewAverage)overviewAverage.textContent=formatCalendarTime(dailyAverage);
+  if(overviewBest){
+    overviewBest.textContent=bestValue>0
+      ? formatCalendarTime(bestValue)+" · "+new Date(year,month,bestIndex+1).toLocaleDateString(undefined,{day:"numeric",month:"short"})
+      : "—";
+  }
   const svg = $("monthly-time-chart");
   svg.replaceChildren();
   const ns = "http://www.w3.org/2000/svg", width = 760, height = 280, left = 48, right = 16,
