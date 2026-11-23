@@ -29,10 +29,12 @@ const viewerTitle = document.getElementById("viewer-title");
 const viewerContent = document.getElementById("viewer-content");
 const filesThemeToggle = document.getElementById("files-theme-toggle");
 function applyFilesTheme(mode) {
+  window.CoolanasTheme?.apply(mode);
   document.documentElement.classList.toggle("dark-mode", mode === "dark");
+  document.documentElement.dataset.theme = mode;
   filesThemeToggle.textContent = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
 }
-applyFilesTheme(localStorage.getItem("coolanas-theme") === "dark" ? "dark" : "light");
+applyFilesTheme(window.CoolanasTheme?.get() || "light");
 filesThemeToggle.addEventListener("click", () => {
   const mode = document.documentElement.classList.contains("dark-mode") ? "light" : "dark";
   try {
@@ -326,14 +328,12 @@ document.getElementById("profile-email").textContent = user.email || "";
 let googleAvatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || "",
     customProfilePicture = false;
 function applyTheme(mode) {
+  window.CoolanasTheme?.set(mode);
   document.documentElement.classList.toggle("dark-mode", mode === "dark");
+  document.documentElement.dataset.theme = mode;
   themeToggle.textContent = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
-  try {
-    localStorage.setItem("coolanas-theme", mode);
-  } catch {
-  }
 }
-applyTheme(localStorage.getItem("coolanas-theme") === "dark" ? "dark" : "light");
+applyTheme(window.CoolanasTheme?.get() || "light");
 themeToggle.addEventListener(
     "click",
     () => applyTheme(document.documentElement.classList.contains("dark-mode") ? "light" : "dark"));
