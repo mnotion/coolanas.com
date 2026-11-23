@@ -340,265 +340,6 @@ function loadContributionGraph() {
     grid.appendChild(cell);
   }
 }
-// Lightweight YPT-style stopwatch. Elapsed time is persisted locally and
-// recalculated from timestamps, so it remains accurate when the tab sleeps.
-(function setupStudyStopwatch() {
-  const timeEl = document.getElementById("study-stopwatch-time");
-  const toggleButton = document.getElementById("study-stopwatch-toggle");
-  const resetButton = document.getElementById("study-stopwatch-reset");
-  const storageKey = "coolanas-study-stopwatch-v1";
-  let state = {elapsed: 0, startedAt: null}, restoredCloudCheckpointAt = null;
-  try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-    if (saved && typeof saved.elapsed === "number") {
-      state = {
-        elapsed: Math.max(0, saved.elapsed),
-        startedAt: Number.isFinite(saved.startedAt) ? saved.startedAt : null
-      };
-      restoredCloudCheckpointAt =
-          Number.isFinite(saved.cloudCheckpointAt) ? saved.cloudCheckpointAt : null;
-    }
-  } catch (error) {
-    console.warn("Could not restore stopwatch:", error);
-  }
-  let cloudCheckpointAt = restoredCloudCheckpointAt ?? state.startedAt;
-  const monthlyKey = "coolanas-study-monthly-time-v1";
-  function readMonthly() {
-    try {
-      const value = JSON.parse(localStorage.getItem(monthlyKey) || "{}");
-      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-    } catch {
-      return {};
-    }
-  }
-  function monthKey(timestamp) {
-    const date = new Date(timestamp);
-    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
-  }
-  const dailyKey = "coolanas-study-daily-time-v1",
-        pendingKey = "coolanas-study-pending-analytics-v1";
-  function readDaily() {
-    try {
-      const value = JSON.parse(localStorage.getItem(dailyKey) || "{}");
-      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-    } catch {
-      return {};
-    }
-  }
-  function savePending(records) {
-    try {
-      localStorage.setItem(pendingKey, JSON.stringify(records));
-    } catch (error) {
-      console.warn("Could not queue study-time sync:", error);
-    }
-  }
-  function queueInterval(start, end, eventPrefix = "session") {
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
-    const pending = (() => {
-      try {
-        return JSON.parse(localStorage.getItem(pendingKey) || "[]");
-      } catch {
-        return [];
-      }
-    })();
-    let cursor = start;
-    while (cursor < end) {
-      const date = new Date(cursor),
-            next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime(),
-            segmentEnd = Math.min(end, next),
-            dateKey = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0");
-
-      const hourlyMs = {};
-      let hourCursor = cursor;
-      while (hourCursor < segmentEnd) {
-        const hourDate = new Date(hourCursor);
-        const hourEnd = Math.min(segmentEnd, new Date(hourDate.getFullYear(), hourDate.getMonth(), hourDate.getDate(), hourDate.getHours() + 1).getTime());
-        const hour = String(hourDate.getHours());
-        hourlyMs[hour] = (hourlyMs[hour] || 0) + Math.round(hourEnd - hourCursor);
-        hourCursor = hourEnd;
-      }
-      pending.push({
-        date: dateKey,
-        durationMs: Math.round(segmentEnd - cursor),
-        hourlyMs,
-        subject: window.coolanasSubjectState?.selected || "Unassigned",
-        eventId: eventPrefix + "-" + crypto.randomUUID()
-      });
-
-      cursor = segmentEnd;
-    }
-    savePending(pending);
-  }
-  async function flushPendingAnalytics() {
-    let pending;
-    try {
-      pending = JSON.parse(localStorage.getItem(pendingKey) || "[]");
-    } catch {
-      pending = [];
-    }
-    if (!Array.isArray(pending) || !pending.length) return;
-    const remaining = [];
-    for (let index = 0; index < pending.length; index++) {
-      const record = pending[index];
-      try {
-        const {data, error} = await supabase.functions.invoke(
-            "coolanas-files-b2", {body: {action: "analytics_record", ...record}});
-        if (error || data?.error) throw error || new Error(data.error);
-      } catch (error) {
-        console.warn("Study-time cloud sync deferred:", error);
-        remaining.push(...pending.slice(index));
-        break;
-      }
-    }
-    savePending(remaining);
-  }
-  async function bootstrapCloudAnalytics() {
-    try {
-      const {data, error} =
-          await supabase.functions.invoke("coolanas-files-b2", {body: {action: "analytics_get"}});
-      if (error || data?.error) throw error || new Error(data.error);
-      const remote = data.daily && typeof data.daily === "object" ? data.daily : {};
-      if (!Object.keys(remote).length) {
-        const local = readDaily();
-        for (const [date, durationMs] of Object.entries(local)) {
-          if (/^\\d{4}-\\d{2}-\\d{2}$/.test(date) && Number(durationMs) > 0) {
-            const pending = (() => {
-              try {
-                return JSON.parse(localStorage.getItem(pendingKey) || "[]");
-              } catch {
-                return [];
-              }
-            })();
-            if (!pending.some(item => item.date === date))
-              pending.push(
-                  {date, durationMs: Math.round(Number(durationMs)), eventId: "legacy-" + date});
-            savePending(pending);
-          }
-        }
-        await flushPendingAnalytics();
-      } else {
-        localStorage.setItem(dailyKey, JSON.stringify(remote));
-      }
-      await flushPendingAnalytics();
-    } catch (error) {
-      console.warn("Could not load account study analytics:", error);
-    }
-  }
-  function addIntervalToMonthly(start, end) {
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
-    const totals = readMonthly();
-    let cursor = start;
-    while (cursor < end) {
-      const date = new Date(cursor),
-            next = new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime(),
-            segmentEnd = Math.min(end, next), key = monthKey(cursor);
-
-      totals[key] = (Number(totals[key]) || 0) + (segmentEnd - cursor);
-      cursor = segmentEnd;
-    }
-    try {
-      localStorage.setItem(monthlyKey, JSON.stringify(totals));
-    } catch (error) {
-      console.warn("Could not save monthly study time:", error);
-    }
-    const daily = readDaily();
-    cursor = start;
-    while (cursor < end) {
-      const date = new Date(cursor),
-            next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime(),
-            segmentEnd = Math.min(end, next),
-            key = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0");
-
-      daily[key] = (Number(daily[key]) || 0) + (segmentEnd - cursor);
-      cursor = segmentEnd;
-    }
-    try {
-      localStorage.setItem(dailyKey, JSON.stringify(daily));
-    } catch (error) {
-      console.warn("Could not save daily study time:", error);
-    }
-    queueInterval(start, end);
-    void flushPendingAnalytics();
-  }
-  const elapsedNow = () =>
-      state.elapsed + (state.startedAt ? Math.max(0, Date.now() - state.startedAt) : 0);
-  const format = milliseconds => {
-    const total = Math.floor(milliseconds / 1000);
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = total % 60;
-    return [hours, minutes, seconds].map(value => String(value).padStart(2, "0")).join(":");
-  };
-  function save() {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify({...state, cloudCheckpointAt}));
-    } catch (error) {
-      console.warn("Could not save stopwatch:", error);
-    }
-  }
-  function render() {
-    timeEl.textContent = format(elapsedNow());
-    const running = Boolean(state.startedAt);
-    const paused = !running && state.elapsed > 0;
-    document.body.classList.toggle("timer-running", running);
-    document.body.classList.toggle("timer-paused", paused);
-    document.body.classList.toggle("timer-idle", !running && !paused);
-    document.body.classList.toggle("timer-focus", running);
-    const label = running ? "Pause" : (state.elapsed > 0 ? "Resume" : "Start");
-    toggleButton.setAttribute("aria-label", label + " timer");
-    toggleButton.title = label;
-    toggleButton.innerHTML = running ?
-        "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 5h4v14H6zM14 5h4v14h-4z\"/></svg>" :
-        "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2l-11 7.1c-.7.4-1.6-.1-1.6-.9z\"/></svg>";
-  }
-  toggleButton.disabled = true;
-  toggleButton.title = "Loading subjects…";
-  toggleButton.addEventListener("click", () => {
-    const subjectState = window.coolanasSubjectState;
-    if (!subjectState?.ready) return;
-    if (!state.startedAt && !subjectState.selected) {
-      document.body.classList.add("subject-pick-mode");
-      const hint = document.getElementById("subject-selection-hint");
-      if (hint) {
-        hint.textContent = "Select a subject to start your session";
-        hint.classList.add("visible");
-      }
-      return;
-    }
-    if (state.startedAt) {
-      const stoppedAt = Date.now();
-      addIntervalToMonthly(cloudCheckpointAt || state.startedAt, stoppedAt);
-      cloudCheckpointAt = null;
-      state.elapsed = elapsedNow();
-      state.startedAt = null;
-    } else {
-      state.startedAt = Date.now();
-      cloudCheckpointAt = state.startedAt;
-    }
-    save();
-    render();
-  });
-  resetButton.addEventListener("click", () => {
-    if (state.startedAt) addIntervalToMonthly(cloudCheckpointAt || state.startedAt, Date.now());
-    cloudCheckpointAt = null;
-    state.elapsed = 0;
-    state.startedAt = null;
-    save();
-    render();
-  });
-  render();
-  void bootstrapCloudAnalytics();
-  setInterval(() => {
-    if (state.startedAt && cloudCheckpointAt) {
-      const checkpoint = Date.now();
-      addIntervalToMonthly(cloudCheckpointAt, checkpoint);
-      cloudCheckpointAt = checkpoint;
-      save();
-    }
-    void flushPendingAnalytics();
-  }, 30000);
-  setInterval(render, 250);
-})();
 // Subjects are account-synced in stats/subjects.json.
 (function setupSubjects() {
   const container = document.getElementById("study-subjects");
@@ -1243,6 +984,7 @@ document.getElementById("change-account").addEventListener("click", async () => 
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") closeProfileDrawer();
 });
+let activeAccountId = null;
 try {
   let session;
   if (isAuthCallback) {
@@ -1267,10 +1009,274 @@ try {
       await initialiseProfile(session);
     }
   }
+  activeAccountId = session?.user?.id || null;
 } catch (authError) {
   accountStatus.textContent = "Google sign-in could not be completed.";
   accountStatus.textContent =
-      authError?.message || "Authentication failed. Return to sign-in and try again.";
+      authError?.message || "Authentication failed. Return to sign-in and try// Lightweight YPT-style stopwatch. Elapsed time is persisted locally and
+// recalculated from timestamps, so it remains accurate when the tab sleeps.
+(function setupStudyStopwatch() {
+  if (!activeAccountId) return;
+  const accountKey = key => key + ":" + activeAccountId;
+  // Never upload legacy unscoped records: their owner cannot be verified.
+  localStorage.removeItem("coolanas-study-pending-analytics-v1");
+  const timeEl = document.getElementById("study-stopwatch-time");
+  const toggleButton = document.getElementById("study-stopwatch-toggle");
+  const resetButton = document.getElementById("study-stopwatch-reset");
+  const storageKey = accountKey("coolanas-study-stopwatch-v1");
+  let state = {elapsed: 0, startedAt: null}, restoredCloudCheckpointAt = null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (saved && typeof saved.elapsed === "number") {
+      state = {
+        elapsed: Math.max(0, saved.elapsed),
+        startedAt: Number.isFinite(saved.startedAt) ? saved.startedAt : null
+      };
+      restoredCloudCheckpointAt =
+          Number.isFinite(saved.cloudCheckpointAt) ? saved.cloudCheckpointAt : null;
+    }
+  } catch (error) {
+    console.warn("Could not restore stopwatch:", error);
+  }
+  let cloudCheckpointAt = restoredCloudCheckpointAt ?? state.startedAt;
+  const monthlyKey = accountKey("coolanas-study-monthly-time-v1");
+  function readMonthly() {
+    try {
+      const value = JSON.parse(localStorage.getItem(monthlyKey) || "{}");
+      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    } catch {
+      return {};
+    }
+  }
+  function monthKey(timestamp) {
+    const date = new Date(timestamp);
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
+  }
+  const dailyKey = accountKey("coolanas-study-daily-time-v1"),
+        pendingKey = accountKey("coolanas-study-pending-analytics-v1");
+  function readDaily() {
+    try {
+      const value = JSON.parse(localStorage.getItem(dailyKey) || "{}");
+      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    } catch {
+      return {};
+    }
+  }
+  function savePending(records) {
+    try {
+      localStorage.setItem(pendingKey, JSON.stringify(records));
+    } catch (error) {
+      console.warn("Could not queue study-time sync:", error);
+    }
+  }
+  function queueInterval(start, end, eventPrefix = "session") {
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+    const pending = (() => {
+      try {
+        return JSON.parse(localStorage.getItem(pendingKey) || "[]");
+      } catch {
+        return [];
+      }
+    })();
+    let cursor = start;
+    while (cursor < end) {
+      const date = new Date(cursor),
+            next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime(),
+            segmentEnd = Math.min(end, next),
+            dateKey = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0");
+
+      const hourlyMs = {};
+      let hourCursor = cursor;
+      while (hourCursor < segmentEnd) {
+        const hourDate = new Date(hourCursor);
+        const hourEnd = Math.min(segmentEnd, new Date(hourDate.getFullYear(), hourDate.getMonth(), hourDate.getDate(), hourDate.getHours() + 1).getTime());
+        const hour = String(hourDate.getHours());
+        hourlyMs[hour] = (hourlyMs[hour] || 0) + Math.round(hourEnd - hourCursor);
+        hourCursor = hourEnd;
+      }
+      pending.push({
+        date: dateKey,
+        durationMs: Math.round(segmentEnd - cursor),
+        hourlyMs,
+        subject: window.coolanasSubjectState?.selected || "Unassigned",
+        eventId: eventPrefix + "-" + crypto.randomUUID()
+      });
+
+      cursor = segmentEnd;
+    }
+    savePending(pending);
+  }
+  async function flushPendingAnalytics() {
+    let pending;
+    try {
+      pending = JSON.parse(localStorage.getItem(pendingKey) || "[]");
+    } catch {
+      pending = [];
+    }
+    if (!Array.isArray(pending) || !pending.length) return;
+    const remaining = [];
+    for (let index = 0; index < pending.length; index++) {
+      const record = pending[index];
+      try {
+        const {data, error} = await supabase.functions.invoke(
+            "coolanas-files-b2", {body: {action: "analytics_record", ...record}});
+        if (error || data?.error) throw error || new Error(data.error);
+      } catch (error) {
+        console.warn("Study-time cloud sync deferred:", error);
+        remaining.push(...pending.slice(index));
+        break;
+      }
+    }
+    savePending(remaining);
+  }
+  async function bootstrapCloudAnalytics() {
+    try {
+      const {data, error} =
+          await supabase.functions.invoke("coolanas-files-b2", {body: {action: "analytics_get"}});
+      if (error || data?.error) throw error || new Error(data.error);
+      const remote = data.daily && typeof data.daily === "object" ? data.daily : {};
+      if (!Object.keys(remote).length) {
+        const local = readDaily();
+        for (const [date, durationMs] of Object.entries(local)) {
+          if (/^\\d{4}-\\d{2}-\\d{2}$/.test(date) && Number(durationMs) > 0) {
+            const pending = (() => {
+              try {
+                return JSON.parse(localStorage.getItem(pendingKey) || "[]");
+              } catch {
+                return [];
+              }
+            })();
+            if (!pending.some(item => item.date === date))
+              pending.push(
+                  {date, durationMs: Math.round(Number(durationMs)), eventId: "legacy-" + date});
+            savePending(pending);
+          }
+        }
+        await flushPendingAnalytics();
+      } else {
+        localStorage.setItem(dailyKey, JSON.stringify(remote));
+      }
+      await flushPendingAnalytics();
+    } catch (error) {
+      console.warn("Could not load account study analytics:", error);
+    }
+  }
+  function addIntervalToMonthly(start, end) {
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+    const totals = readMonthly();
+    let cursor = start;
+    while (cursor < end) {
+      const date = new Date(cursor),
+            next = new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime(),
+            segmentEnd = Math.min(end, next), key = monthKey(cursor);
+
+      totals[key] = (Number(totals[key]) || 0) + (segmentEnd - cursor);
+      cursor = segmentEnd;
+    }
+    try {
+      localStorage.setItem(monthlyKey, JSON.stringify(totals));
+    } catch (error) {
+      console.warn("Could not save monthly study time:", error);
+    }
+    const daily = readDaily();
+    cursor = start;
+    while (cursor < end) {
+      const date = new Date(cursor),
+            next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime(),
+            segmentEnd = Math.min(end, next),
+            key = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0");
+
+      daily[key] = (Number(daily[key]) || 0) + (segmentEnd - cursor);
+      cursor = segmentEnd;
+    }
+    try {
+      localStorage.setItem(dailyKey, JSON.stringify(daily));
+    } catch (error) {
+      console.warn("Could not save daily study time:", error);
+    }
+    queueInterval(start, end);
+    void flushPendingAnalytics();
+  }
+  const elapsedNow = () =>
+      state.elapsed + (state.startedAt ? Math.max(0, Date.now() - state.startedAt) : 0);
+  const format = milliseconds => {
+    const total = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return [hours, minutes, seconds].map(value => String(value).padStart(2, "0")).join(":");
+  };
+  function save() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({...state, cloudCheckpointAt}));
+    } catch (error) {
+      console.warn("Could not save stopwatch:", error);
+    }
+  }
+  function render() {
+    timeEl.textContent = format(elapsedNow());
+    const running = Boolean(state.startedAt);
+    const paused = !running && state.elapsed > 0;
+    document.body.classList.toggle("timer-running", running);
+    document.body.classList.toggle("timer-paused", paused);
+    document.body.classList.toggle("timer-idle", !running && !paused);
+    document.body.classList.toggle("timer-focus", running);
+    const label = running ? "Pause" : (state.elapsed > 0 ? "Resume" : "Start");
+    toggleButton.setAttribute("aria-label", label + " timer");
+    toggleButton.title = label;
+    toggleButton.innerHTML = running ?
+        "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 5h4v14H6zM14 5h4v14h-4z\"/></svg>" :
+        "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2l-11 7.1c-.7.4-1.6-.1-1.6-.9z\"/></svg>";
+  }
+  toggleButton.disabled = true;
+  toggleButton.title = "Loading subjects…";
+  toggleButton.addEventListener("click", () => {
+    const subjectState = window.coolanasSubjectState;
+    if (!subjectState?.ready) return;
+    if (!state.startedAt && !subjectState.selected) {
+      document.body.classList.add("subject-pick-mode");
+      const hint = document.getElementById("subject-selection-hint");
+      if (hint) {
+        hint.textContent = "Select a subject to start your session";
+        hint.classList.add("visible");
+      }
+      return;
+    }
+    if (state.startedAt) {
+      const stoppedAt = Date.now();
+      addIntervalToMonthly(cloudCheckpointAt || state.startedAt, stoppedAt);
+      cloudCheckpointAt = null;
+      state.elapsed = elapsedNow();
+      state.startedAt = null;
+    } else {
+      state.startedAt = Date.now();
+      cloudCheckpointAt = state.startedAt;
+    }
+    save();
+    render();
+  });
+  resetButton.addEventListener("click", () => {
+    if (state.startedAt) addIntervalToMonthly(cloudCheckpointAt || state.startedAt, Date.now());
+    cloudCheckpointAt = null;
+    state.elapsed = 0;
+    state.startedAt = null;
+    save();
+    render();
+  });
+  render();
+  void bootstrapCloudAnalytics();
+  setInterval(() => {
+    if (state.startedAt && cloudCheckpointAt) {
+      const checkpoint = Date.now();
+      addIntervalToMonthly(cloudCheckpointAt, checkpoint);
+      cloudCheckpointAt = checkpoint;
+      save();
+    }
+    void flushPendingAnalytics();
+  }, 30000);
+  setInterval(render, 250);
+})();
+ again.";
   console.error("Coolanas OAuth callback failed:", authError);
 }
 // Dashboard navigation panels.
