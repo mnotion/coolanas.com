@@ -459,40 +459,6 @@ function renderCalendarDetails() {
     empty.textContent = calendarTasksLoaded ? "No tasks for this day yet." : "Tasks could not be loaded.";
     tasksSection.append(empty);
   }
-  if (key >= todayKey) {
-    const form = document.createElement("form");
-    form.className = "calendar-task-add";
-    const input = document.createElement("input");
-    input.type = "text";
-    input.maxLength = 180;
-    input.placeholder = "Add a task for this day…";
-    input.setAttribute("aria-label", "New task for this day");
-    const add = document.createElement("button");
-    add.type = "submit";
-    add.textContent = "Add";
-    form.append(input, add);
-    form.addEventListener("submit", async event => {
-      event.preventDefault();
-      const value = input.value.trim();
-      if (!value) return;
-      if (calendarTasks.length >= 100) {
-        input.setCustomValidity("You can have up to 100 tasks.");
-        input.reportValidity();
-        return;
-      }
-      const task = {id:crypto.randomUUID(),text:value,completed:false,dueDate:key};
-      calendarTasks.push(task);
-      try {
-        await saveCalendarTasks();
-        renderCalendarDetails();
-      } catch (error) {
-        calendarTasks = calendarTasks.filter(item => item.id !== task.id);
-        input.setCustomValidity(error.message || "Could not save this task.");
-        input.reportValidity();
-      }
-    });
-    tasksSection.append(form);
-  }
   content.append(subjectsSection, tasksSection);
   panel.hidden = false;
 }
@@ -516,6 +482,7 @@ async function updateCalendarTask(task, completed) {
     console.error("Could not update task:", error);
   }
 }
+let calendarSlideDirection = 0;
 function renderCalendar() {
   const year = calendarDate.getFullYear(), month = calendarDate.getMonth(),
         firstDay = new Date(year, month, 1).getDay(), days = new Date(year, month + 1, 0).getDate(),
@@ -563,6 +530,15 @@ function renderCalendar() {
     cell.setAttribute("aria-pressed", String(Boolean(selectedCalendarDate && key === calendarDateKey(selectedCalendarDate))));
     grid.append(cell);
   }
+  if (calendarSlideDirection) {
+    const direction = calendarSlideDirection;
+    calendarSlideDirection = 0;
+    const enteringFrom = direction > 0 ? "28px" : "-28px";
+    const keyframes = [{transform:"translateX(" + enteringFrom + ")",opacity:0.45},{transform:"translateX(0)",opacity:1}];
+    const options = {duration:260,easing:"cubic-bezier(.22,.75,.25,1)"};
+    $("calendar-grid").animate(keyframes, options);
+    $("calendar-month").animate(keyframes, options);
+  }
   renderCalendarDetails();
 }
 let calendarPointerStart = null;
@@ -590,8 +566,10 @@ $("calendar-grid").addEventListener("pointerup", event => {
   calendarPointerStart = null;
   if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
   calendarSwipeHandled = true;
-  calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + (dx < 0 ? 1 : -1), 1);
+  const direction = dx < 0 ? 1 : -1;
+  calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + direction, 1);
   selectedCalendarDate = null;
+  calendarSlideDirection = direction;
   renderCalendar();
 });
 $("calendar-grid").addEventListener("pointercancel", () => calendarPointerStart = null);
