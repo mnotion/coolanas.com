@@ -1642,3 +1642,28 @@ html.dark-mode .subject-donut-callout-time {fill:#aaa}
   .calendar-tasks-empty-slot {padding-top:0}
   .calendar-tasks-empty-slot .calendar-details-empty {margin-top:0}
 }
+
+/* Give the selected day's task list its own distinct card. */
+.calendar-task-list-box {
+  box-sizing:border-box;
+  min-height:108px;
+  padding:12px 14px;
+  border:1px solid #e2e5eb;
+  border-radius:12px;
+  background:#fff;
+}
+.calendar-task-list-box .calendar-task-row:first-child {
+  border-top:0;
+}
+.calendar-task-list-box .calendar-details-empty {
+  margin:0;
+  padding:0;
+  color:#7b8492;
+}
+html.dark-mode .calendar-task-list-box {
+  background:#252a32;
+  border-color:#424a56;
+}
+@media(max-width:520px) {
+  .calendar-task-list-box {min-height:0;padding:10px 12px}
+}
