@@ -2077,7 +2077,7 @@ async function refreshExhibitions({force = false, silent = false} = {}) {
   if (previousSignature !== nextSignature || !silent) {
     document.getElementById("bucket-title").textContent =
         "Bucket • " + formatStorage(exhibitionTotalBytes);
-    document.getElementById("exhibition-create-form").hidden = exhibitionRecords.length >= 2;
+    document.getElementById("exhibition-create-form").hidden = exhibitionRecords.length >= 3;
     if (!activeSharedBucket && previousSignature !== nextSignature) renderItems();
   }
 }
@@ -2098,7 +2098,7 @@ document.getElementById("exhibition-create-form").addEventListener("submit", asy
   } catch (err) {
     error.textContent = err.message || "Could not create bucket.";
   } finally {
-    button.disabled = exhibitionRecords.length >= 2;
+    button.disabled = exhibitionRecords.length >= 3;
   }
 });
 const addToggle = addWrap.querySelector("#add-toggle");
@@ -2547,7 +2547,7 @@ if (hasWorkspaceCache) {
   metadataCacheTimestamp = Number(startupCache.metadataSavedAt) || 0;
   document.getElementById("bucket-title").textContent =
       "Bucket • " + formatStorage(exhibitionTotalBytes);
-  document.getElementById("exhibition-create-form").hidden = exhibitionRecords.length >= 2;
+  document.getElementById("exhibition-create-form").hidden = exhibitionRecords.length >= 3;
   renderItems();
   void refreshSharedBuckets({cacheOnly: true, silent: true});
 }
