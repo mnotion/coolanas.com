@@ -5,6 +5,9 @@
   let userId = null;
   let supabase = null;
   let ready = false;
+  let clientReadyResolve;
+  const clientReady = new Promise(resolve => { clientReadyResolve = resolve; });
+  const loads = new Map();
 
   const apply = value => {
     mode = value === "dark" ? "dark" : "light";
@@ -42,52 +45,72 @@
     ready: () => ready
   };
 
+  async function loadForSession(session) {
+    if (!session?.user?.id) return {};
+    await clientReady;
+    const nextUserId = session.user.id;
+    if (userId !== nextUserId) {
+      userId = nextUserId;
+      ready = false;
+    }
+    if (loads.has(nextUserId)) return loads.get(nextUserId);
+
+    const task = (async () => {
+      let cachedMode = null;
+      try {
+        const cached = localStorage.getItem("coolanas-theme:" + nextUserId);
+        if (cached === "dark" || cached === "light") cachedMode = cached;
+      } catch {}
+      if (cachedMode) apply(cachedMode);
+
+      const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {
+        body: {action:"settings_get"}
+      });
+      if (error || data?.error) {
+        throw new Error(data?.error || error?.message || "Could not load account settings.");
+      }
+      const settings = data?.settings && typeof data.settings === "object" ? data.settings : {};
+      if (settings.theme === "dark" || settings.theme === "light") {
+        apply(settings.theme);
+        try { localStorage.setItem("coolanas-theme:" + nextUserId, settings.theme); } catch {}
+      }
+      ready = true;
+      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {detail:{settings, userId:nextUserId}}));
+      return settings;
+    })().catch(error => {
+      console.error("Could not load account settings:", error);
+      ready = true;
+      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {detail:{settings:{}, userId:nextUserId, error}}));
+      return {};
+    }).finally(() => loads.delete(nextUserId));
+
+    loads.set(nextUserId, task);
+    return task;
+  }
+
+  window.CoolanasTheme = {
+    get: () => mode,
+    set,
+    apply,
+    ready: () => ready,
+    loadForSession
+  };
+
   (async () => {
     try {
       const {createClient} = await import("https://esm.sh/@supabase/supabase-js@2.119.0");
       supabase = createClient(
         "https://nacwftrsdpglzrhasmit.supabase.co",
-        "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF",
+        "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQ",
         {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}
       );
-      const {data:{session}, error:sessionError} = await supabase.auth.getSession();
-      if (sessionError || !session?.user) return;
-      userId = session.user.id;
-      let cachedMode = null;
-      try {
-        const cached = localStorage.getItem("coolanas-theme:" + userId);
-        if (cached === "dark" || cached === "light") cachedMode = cached;
-      } catch {}
-
-      // Apply the account-scoped local preference immediately. This also keeps
-      // the UI consistent while the B2 settings endpoint is being deployed.
-      if (cachedMode) apply(cachedMode);
-
-      let settings = {};
-      try {
-        const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {
-          body:{action:"settings_get"}
-        });
-        if (error || data?.error) throw new Error(data?.error || error?.message || "Could not load settings.");
-        settings = data?.settings && typeof data.settings === "object" ? data.settings : {};
-        const stored = settings.theme;
-        if (stored === "dark" || stored === "light") {
-          apply(stored);
-          try { localStorage.setItem("coolanas-theme:" + userId, stored); } catch {}
-        }
-      } catch (error) {
-        // The previous deployed Edge Function may not yet expose settings_get.
-        // Keep the user's local preference rather than silently reverting to light.
-        console.warn("Cloud settings unavailable; using this account's local theme preference:", error);
-        if (!cachedMode) apply("light");
-      }
-      ready = true;
-      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {detail:{settings}}));
-      window.addEventListener("storage", event => {
-        if (event.key === "coolanas-theme:" + userId && (event.newValue === "dark" || event.newValue === "light")) apply(event.newValue);
-      });
+      clientReadyResolve();
+      const {data:{session}, error} = await supabase.auth.getSession();
+      if (error) throw error;
+      if (session?.user) await loadForSession(session);
     } catch (error) {
-      console.error("Could not initialise account appearance:", error);
+      clientReadyResolve();
+      console.error("Could not initialise account settings:", error);
     }
   })();
 })();
