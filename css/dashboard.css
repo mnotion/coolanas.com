@@ -2000,3 +2000,15 @@ html.dark-mode .mail-notification-actions button.secondary {
 html.dark-mode .subject-menu-colours {
   background:var(--theme-surface-raised)!important;
 }
+
+
+/* Dark mode keeps the paused stopwatch neutral instead of using the light-theme gold state. */
+html.dark-mode body.timer-paused .study-stopwatch {
+  border-color:#3b424e!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.24)!important;
+}
+html.dark-mode body.timer-paused .study-stopwatch-actions .primary {
+  background:#e8edf5!important;
+  border-color:#e8edf5!important;
+  color:#17191d!important;
+}
