@@ -803,3 +803,8 @@ html.dark-mode .calendar-task-add input { background:#292d35; border-color:#454c
 html.dark-mode .calendar-subjects-section { border-color:#484848; }
 html.dark-mode .calendar-subject-card { color:#252525; }
 @media(max-width:520px) { .calendar-details-content { grid-template-columns:1fr; gap:20px; } .calendar-subjects-section { padding-right:0; padding-bottom:18px; border-right:0; border-bottom:1px solid #dedede; } }
+
+
+/* Swipe month navigation: the incoming month slides into place. */
+.calendar-grid { overflow:hidden; }
+.calendar-month { will-change:transform,opacity; }
