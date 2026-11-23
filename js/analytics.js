@@ -423,7 +423,6 @@ function renderMonthlyChart() {
       (_, index) =>
           Math.max(0, Number(totals[monthPrefix + String(index + 1).padStart(2, "0")]) || 0));
   renderStudyHeatmap(totals, now);
-  renderSubjectDistribution(subjectsByDay, monthPrefix, year, month);
   const svg = $("monthly-time-chart");
   svg.replaceChildren();
   const ns = "http://www.w3.org/2000/svg", width = 760, height = 280, left = 48, right = 16,
