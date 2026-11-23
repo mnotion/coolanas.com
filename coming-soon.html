@@ -1,49 +1,384 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#ffffff">
-  <title>Coolanas</title>
-  <link rel="stylesheet" href="/css/coming-soon.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Coolanas</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#f7f7f7;color:#111;font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
+h1{margin:0 0 22px;font-size:26px;letter-spacing:-.04em}
+.users-panel{padding:22px;border:1px solid #e6e6e6;border-radius:16px;background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.035)}
+.users-panel h2{margin:0 0 16px;font-size:19px;letter-spacing:-.025em}
+.user-list{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.user-list li{display:flex;align-items:center;gap:11px;padding:12px 0;border-top:1px solid #eee;font-size:14px}
+.user-avatar{width:36px;height:36px;flex:none;border-radius:50%;object-fit:cover;background:#eee;border:1px solid rgba(0,0,0,.08)}
+.user-name{min-width:0;overflow-wrap:anywhere}
+.user-avatar-only{display:flex;align-items:center;min-height:48px}
+.user-list li:first-child{border-top:0}
+.user-empty,.user-error{margin:0;color:#777;font-size:13px}
+    .profile-button{position:fixed;z-index:12;top:20px;right:22px;width:42px;height:42px;padding:0;overflow:hidden;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:#eee;color:#555;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
+    .profile-button img,.profile-identity img{width:100%;height:100%;object-fit:cover}
+    .mail-button{position:fixed;z-index:12;top:20px;right:72px;width:42px;height:42px;padding:0;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:rgba(255,255,255,.92);color:#444;cursor:pointer;box-shadow:0 2px 9px rgba(0,0,0,.1);display:grid;place-items:center}
+    .mail-button svg{width:19px;height:19px}
+    .mail-popover{position:fixed;z-index:18;top:72px;right:72px;width:min(360px,calc(100vw - 32px));max-height:min(620px,calc(100vh - 92px));display:flex;flex-direction:column;gap:12px;padding:18px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:rgba(255,255,255,.97);box-shadow:0 12px 36px rgba(0,0,0,.13);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+    .mail-popover[hidden]{display:none}
+    .mail-popover h2{margin:0;font-size:16px;font-weight:650}
+    .mail-notifications{display:grid;gap:9px;overflow:auto;min-height:32px;overscroll-behavior:contain;padding-right:2px}
+    .mail-empty{margin:0;color:#777;font-size:13px}
+    .mail-notification{padding:12px;border:1px solid #e8e8e8;border-radius:11px;background:rgba(248,248,248,.8)}
+    .mail-notification.unread{border-color:#b8cfff;background:#f5f8ff}
+    .mail-notification h3{margin:0 0 5px;font-size:13px;font-weight:650}
+    .mail-notification p{margin:0;color:#777;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+    .mail-notification-actions{display:flex;gap:7px;margin-top:10px}
+    .mail-notification-actions button{padding:7px 11px;border:1px solid #222;border-radius:7px;background:#222;color:#fff;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .mail-notification-actions button.secondary{background:transparent;color:#444;border-color:#ddd}
+    .mail-notification-actions button:disabled{opacity:.5;cursor:wait}
+    .mail-notification-status{display:block;margin-top:8px;color:#888;font-size:11px}
+    html.dark-mode .mail-button,html.dark-mode .mail-popover{background:rgba(38,38,38,.97);color:#eee;border-color:rgba(255,255,255,.1)}
+    html.dark-mode .mail-popover p{color:#aaa}
+    html.dark-mode .mail-notification{background:#303030;border-color:#4b4b4b}
+    html.dark-mode .mail-notification.unread{background:#1e2a3d;border-color:#3b5d8f}
+    html.dark-mode .mail-notification-actions button{background:#eee;color:#222;border-color:#eee}
+    html.dark-mode .mail-notification-actions button.secondary{background:transparent;color:#eee;border-color:#666}
+    html.dark-mode .mail-notification-status{color:#aaa}
+    #profile-avatar-fallback,#drawer-avatar-fallback{font-weight:650;font-size:15px}
+    #profile-avatar[hidden],#drawer-avatar[hidden],#profile-avatar-fallback[hidden],#drawer-avatar-fallback[hidden]{display:none!important}
+    .profile-backdrop{position:fixed;inset:0;z-index:19;background:rgba(0,0,0,.18);backdrop-filter:blur(2px)}
+    .profile-backdrop[hidden]{display:none}
+    .profile-drawer{position:fixed;z-index:20;top:0;right:0;width:min(360px,88vw);height:100dvh;padding:22px;background:rgba(255,255,255,.96);border-left:1px solid rgba(0,0,0,.08);box-shadow:-12px 0 40px rgba(0,0,0,.12);transform:translateX(105%);transition:transform .22s ease;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+    .profile-drawer.open{transform:translateX(0)}
+    .profile-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 22px;border-bottom:1px solid #eee}
+    .profile-identity{display:flex;align-items:center;gap:12px;min-width:0}
+    .profile-identity img,.profile-identity #drawer-avatar-fallback{width:46px;height:46px;flex:none;border-radius:50%;background:#eee;display:grid;place-items:center}
+    .profile-identity div{display:grid;min-width:0}
+    .profile-identity strong,.profile-identity small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .profile-identity strong{font-size:14px}.profile-identity small{color:#777;font-size:12px}
+    .profile-actions{display:grid;gap:4px;padding-top:16px}.profile-actions .menu-item{padding:13px 10px}
+    @media(max-width:480px){.profile-button{top:12px;right:14px}}
+    @media(prefers-reduced-motion:reduce){.profile-drawer{transition:none}}
+
+    .bottom-nav{z-index:10}
+
+    .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #3985ed;background:rgba(59,130,246,.18);border-radius:2px}
+.selection-actions{position:fixed;z-index:45;display:flex;align-items:center;gap:5px;padding:0;background:transparent;pointer-events:auto;transform:translate(8px,-50%)}
+    .selection-actions[hidden]{display:none}
+    .selection-action{border:0;border-radius:8px;padding:7px 10px;background:transparent;color:#fff;font:600 12px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;text-shadow:0 1px 5px rgba(0,0,0,.35);transition:background .14s ease,transform .14s ease}
+    .selection-action:hover{background:rgba(255,255,255,.17);transform:translateY(-1px)}
+    .selection-action.danger{color:#ffb4b4}
+    .selection-colors{display:flex;align-items:center;gap:7px;margin-left:3px}
+    .selection-colors[hidden]{display:none}
+    .selection-color{width:17px;height:17px;padding:0;border:1.5px solid rgba(255,255,255,.9);border-radius:50%;background:var(--swatch);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.22);transition:transform .14s ease}
+    .selection-color:hover{transform:scale(1.22)}
+
+    .file-card{position:relative}
+    .settings-dot{position:absolute;top:9px;right:9px;width:13px;height:13px;padding:0;border:0;border-radius:50%;background:#9ca3af;box-shadow:0 0 0 2px #fff;cursor:pointer;z-index:5;opacity:.92;transition:background .12s ease,transform .12s ease}
+    .settings-dot:hover{background:#6b7280;transform:scale(1.15)}
+    .settings-dot:focus-visible{outline:2px solid #6b7280;outline-offset:3px}
+    .file-tag{margin-top:-5px;padding:3px 7px;border-radius:999px;background:#f0f1f3;color:#555;font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    .files-toolbar{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 18px;color:#333}
+    .files-toolbar[hidden]{display:none}
+    .crumb-button{border:0;background:transparent;padding:5px 8px;border-radius:7px;font:inherit;cursor:pointer}
+    .crumb-button:hover{background:#f1f1f1}
+    .crumb-current{font-size:14px;color:#777}
+    button:focus:not(:focus-visible){outline:none;box-shadow:none}
+    button:focus-visible{outline:2px solid #777;outline-offset:3px}
+    @media (hover:none) and (pointer:coarse){button:focus,button:focus-visible,a:focus,a:focus-visible,.file-card:focus,.file-card:focus-visible{outline:none!important;box-shadow:none!important}}
+    .file-viewer{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:rgba(20,20,20,.24);backdrop-filter:blur(5px)}
+    .file-viewer[hidden]{display:none}
+    .confirm-overlay{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.32);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+    .confirm-overlay[hidden]{display:none}
+    .confirm-panel{width:min(420px,100%);padding:22px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;box-shadow:0 20px 65px rgba(0,0,0,.2)}
+    .card-settings-panel{width:min(440px,100%);padding:24px}
+    #card-settings-overlay{background:rgba(0,0,0,.28)}
+    .settings-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .settings-header h2{margin:0;font-size:19px;font-weight:650;color:#171717}
+    .settings-subtitle{margin:5px 0 0;color:#858585;font-size:12px}
+    .settings-accordion{border-top:1px solid #eceef0}
+    .settings-section{border-bottom:1px solid #eceef0}
+    .settings-section>summary{min-height:58px;display:flex;align-items:center;gap:12px;list-style:none;cursor:pointer;user-select:none}
+    .settings-section>summary::-webkit-details-marker{display:none}
+    .settings-section-content{display:grid;grid-template-rows:0fr;opacity:0;overflow:hidden;padding:0!important;transition:grid-template-rows .28s cubic-bezier(.2,.8,.2,1),opacity .2s ease,padding .28s ease}
+    .settings-section-content>*{min-height:0}
+    .settings-section[open]>.settings-section-content{grid-template-rows:1fr;opacity:1;padding:0 0 18px!important}
+    .settings-section>summary::after{content:"";width:8px;height:8px;margin-left:auto;border-right:1.7px solid #777;border-bottom:1.7px solid #777;transform:rotate(45deg);transition:transform .16s ease}
+    .settings-section[open]>summary::after{transform:rotate(225deg)}
+    .settings-section-title{font-size:14px;font-weight:600;color:#252525}
+    .settings-section-value{margin-left:auto;color:#858b94;font-size:12px}
+    .settings-section>summary:has(.settings-section-title)+.settings-section-content{padding:0 0 18px}
+    .settings-section[open]>summary .settings-section-value{margin-left:auto}
+    .color-options{display:flex;gap:12px;flex-wrap:wrap;padding:3px 2px}
+    .color-choice{width:30px;height:30px;border:2px solid #fff;border-radius:50%;background:var(--swatch);box-shadow:0 0 0 1px #d1d5db;cursor:pointer;transition:transform .14s ease,box-shadow .14s ease}
+    .color-choice:hover{transform:scale(1.1)}
+    .color-choice.active{box-shadow:0 0 0 2px #2563eb}
+    .settings-section-content .search-input{width:100%;box-sizing:border-box}
+    .settings-delete-copy{margin:0 0 12px;color:#777;font-size:12px;line-height:1.5}
+    .settings-footer{display:flex;justify-content:flex-end;margin-top:18px}
+    .settings-danger-section .settings-section-title{color:#d9363e}
+
+    .confirm-title{margin:0 0 8px;font-size:17px;font-weight:650;color:#171717}
+    .confirm-message{margin:0;color:#666;font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+    .confirm-item-name{color:#2563eb;font-weight:600}
+    .confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
+    .confirm-button{min-width:82px;padding:9px 15px;border:1px solid #e5e5e5;border-radius:9px;background:#f7f7f7;color:#333;font:inherit;font-size:13px;cursor:pointer}
+    .confirm-button:hover{background:#eee}
+    .confirm-button.danger{border-color:#d9363e;background:#d9363e;color:#fff}
+    .confirm-button.danger:hover{background:#c52d35}
+
+    .viewer-panel{width:min(900px,100%);height:min(720px,90vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid #eee;border-radius:16px;background:#fff;box-shadow:0 18px 60px rgba(0,0,0,.18)}
+    .viewer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid #eee}
+    .viewer-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .viewer-close{width:32px;height:32px;border:0;border-radius:8px;background:#f1f1f1;font-size:20px;cursor:pointer}
+    .viewer-content{flex:1;min-height:0;overflow:auto;padding:18px;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+    .viewer-content img,.viewer-content iframe{display:block;width:100%;height:100%;border:0;object-fit:contain}
+    .folder-icon{width:112px;height:112px;flex:none;color:#e3b52f}
+    .file-icon{width:112px;height:112px;flex:none;color:#888}
+    .file-name{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .drop-hint{position:fixed;inset:12px;z-index:20;display:grid;place-items:center;border:2px dashed #b9bdc2;border-radius:18px;background:rgba(245,246,247,.88);color:#555;font-size:16px;pointer-events:none}
+    .drop-hint[hidden]{display:none}
+    .upload-overlay{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:20px;background:rgba(245,246,247,.72);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
+    .upload-overlay[hidden]{display:none}
+    .upload-card{width:min(360px,100%);padding:26px;border:1px solid rgba(0,0,0,.07);border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 18px 60px rgba(0,0,0,.14);text-align:center}
+    .upload-spinner{width:34px;height:34px;margin:0 auto 16px;border:3px solid #e8e8e8;border-top-color:#555;border-radius:50%;animation:upload-spin .8s linear infinite}
+    .upload-title{margin:0 0 5px;font-size:15px;font-weight:650;color:#222}
+    .upload-detail{min-height:20px;margin:0;color:#777;font-size:12px;overflow-wrap:anywhere}
+    .upload-progress{height:5px;margin-top:18px;overflow:hidden;border-radius:9px;background:#eee}
+    .upload-progress-bar{width:0;height:100%;border-radius:9px;background:#555;transition:width .15s ease}
+    .upload-actions{display:flex;justify-content:center;gap:8px;margin-top:18px}.upload-actions button{padding:8px 13px;border:1px solid #e1e1e1;border-radius:8px;background:#f7f7f7;color:#333;font:600 12px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}.upload-actions #upload-cancel{border-color:#e7caca;background:#fff7f7;color:#b42318}.upload-mini{position:fixed;z-index:79;left:50%;bottom:72px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;width:min(310px,calc(100% - 32px));padding:9px 12px;border:1px solid rgba(0,0,0,.08);border-radius:12px;background:rgba(255,255,255,.97);box-shadow:0 5px 20px rgba(0,0,0,.12);color:#333;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}.upload-mini[hidden]{display:none}.upload-mini-track{height:5px;flex:1;overflow:hidden;border-radius:8px;background:#eee}.upload-mini-bar{display:block;width:0;height:100%;border-radius:8px;background:#555;transition:width .15s ease}.upload-mini strong{min-width:30px;text-align:right;font-variant-numeric:tabular-nums}@media(max-width:480px){.upload-mini{bottom:64px}}
+    @keyframes upload-spin{to{transform:rotate(360deg)}}
+    @media(prefers-reduced-motion:reduce){.upload-spinner{animation-duration:2s}.upload-progress-bar{transition:none}}
+
+    .bottom-nav{
+      position:fixed;z-index:10;left:50%;bottom:20px;transform:translateX(-50%);
+      width:min(300px,calc(100% - 24px));min-height:44px;padding:3px;
+      display:grid;grid-template-columns:repeat(4,1fr);gap:3px;
+      background:rgba(235,236,238,.9);border:1px solid rgba(0,0,0,.06);
+      border-radius:14px;box-shadow:0 3px 10px rgba(0,0,0,.055),inset 0 1px 0 rgba(255,255,255,.65);
+      backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
+    }
+    .nav-button{
+      display:flex;align-items:center;justify-content:center;min-height:36px;
+      border:1px solid rgba(0,0,0,.045);border-radius:9px;
+      background:rgba(255,255,255,.28);color:#555;cursor:pointer;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.45);
+      position:relative;z-index:1;
+      transition:transform .08s ease-out,background .16s ease,border-color .16s ease,box-shadow .16s ease;
+      -webkit-tap-highlight-color:transparent
+    }
+    .bottom-nav:has(.nav-button:hover) .nav-button:not(:hover):not([aria-current="page"]){transform:scale(.94)}
+    .nav-button:hover{z-index:2;transform:scale(1.08);background:rgba(255,255,255,.72);border-color:rgba(0,0,0,.09);box-shadow:0 2px 7px rgba(0,0,0,.06)}
+    .nav-button:active{transform:translate3d(var(--shift-x,0px),var(--shift-y,0px),0) scale(1.06)}
+    .nav-button svg{width:17px;height:17px}
+    .nav-button[aria-current="page"]{color:#333;background:rgba(185,188,192,.48);border-color:rgba(0,0,0,.10);box-shadow:inset 0 1px 2px rgba(0,0,0,.07)}
+
+html.dark-mode,html.dark-mode body{background:#191919!important;color:#eee!important}
+html.dark-mode .users-panel,html.dark-mode .profile-drawer{background:#262626!important;border-color:#444!important;color:#eee!important}
+html.dark-mode .user-list li{border-color:#444}
+html.dark-mode .profile-drawer-head{border-color:#444}
+html.dark-mode .profile-identity strong{color:#eee}
+html.dark-mode .bottom-nav{background:rgba(45,45,45,.94)!important;border-color:#555!important}
+html.dark-mode .nav-button[aria-current="page"]{background:rgba(100,100,100,.5);color:#fff}
+html.dark-mode .nav-button{color:#ddd}
+@media(max-width:480px){main{padding-top:76px}.bottom-nav{bottom:12px}}
+
+.close-button{width:32px;height:32px;border:0;border-radius:9px;background:rgba(0,0,0,.05);cursor:pointer;font-size:20px;line-height:1}
+.menu-item{display:block;width:100%;padding:12px;border:0;border-radius:9px;background:transparent;color:#111;text-align:left;font:500 14px/1.3 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+.menu-item:hover{background:rgba(0,0,0,.05)}
+html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
+
+    .profile-actions #change-pfp,.profile-actions #remove-pfp,.profile-actions #theme-toggle{display:none!important}
+    .profile-actions .menu-item{display:flex;align-items:center;gap:12px}
+    .profile-actions .menu-item svg{width:19px;height:19px;flex:0 0 19px}
+  </style>
 </head>
 <body>
-  <button id="mail-button" class="mail-button" type="button" aria-label="Open mail" aria-expanded="false" aria-controls="mail-popover">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="m4 7 8 6 8-6"></path></svg>
-  </button>
-  <section class="mail-popover" id="mail-popover" aria-label="Mail" hidden><h2>Mail</h2><div class="mail-notifications" id="mail-notifications"><p class="mail-empty">Loading mail…</p></div></section>
-  <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
-  <main>
-    <h1>Coolanas</h1>
-    <section class="users-panel" aria-labelledby="users-title">
-      <h2 id="users-title">Signed up users</h2>
-      <ul class="user-list" id="user-list"><li class="user-empty">Loading usernames…</li></ul>
-      <p class="user-error" id="user-error" role="status"></p>
-    </section>
-  </main>
-  <div class="profile-backdrop" id="profile-backdrop" hidden></div>
-  <aside class="profile-drawer" id="profile-drawer" aria-label="Account menu" aria-hidden="true">
-    <div class="profile-drawer-head"><div class="profile-identity"><img id="drawer-avatar" alt="" hidden><span id="drawer-avatar-fallback">?</span><div><strong id="profile-name">Account</strong><small id="profile-email"></small></div></div><button class="close-button" id="profile-close" type="button" aria-label="Close">×</button></div>
-    <nav class="profile-actions">
-      <button class="menu-item" id="change-pfp" type="button">Change profile picture</button>
-      <button class="menu-item" id="remove-pfp" type="button" hidden>Remove profile picture</button>
-      <button class="menu-item" id="change-account" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 8v6m-3-3h6"/></svg><span>Change account</span></button>
-      <button class="menu-item" id="profile-settings" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1-.1 1.8Z"/></svg><span>Settings</span></button>
-      <button class="menu-item" id="theme-toggle" type="button">Switch to dark mode</button>
-      <button class="menu-item" id="profile-signout" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg><span>Sign out</span></button>
-    </nav>
-    <input id="profile-picture-input" type="file" accept="image/*" hidden>
-  </aside>
-  <nav class="bottom-nav" aria-label="Main navigation">
-    <a class="nav-button" href="/dashboard.html" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"></path><path d="M5 9v11h14V9"></path><path d="M9 20v-6h6v6"></path></svg></a>
-    <a class="nav-button" href="/coming-soon.html" aria-label="Coolanas" aria-current="page"><svg viewBox="380 370 710 830" width="22" height="22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path fill="#555555" d="M1027 414 1018 407 934 401 898 397 884 397 763 386 749 386 697 380 687 381 676 386 601 446 410 594 392 610 391 622 392 625 399 631 450 632 450 736 438 746 431 762 431 770 437 785 426 862 426 871 429 878 436 883 447 884 480 878 495 877 504 873 511 862 511 846 500 783 505 769 505 762 500 748 492 739 486 735 487 629 514 627 546 627 549 631 571 703 588 683 617 654 646 630 672 612 715 589 762 571 802 561 845 556 882 556 906 559 906 547 902 517 965 470 1022 431 1028 424Z"/>
-    <path fill="#000000" d="M880 592 838 592 820 594 799 598 760 609 728 622 689 643 659 664 618 703 599 727 583 752 572 773 562 797 555 818 547 857 545 877 545 907 548 934 555 967 568 1003 582 1031 606 1067 622 1086 641 1105 668 1127 691 1142 735 1163 763 1172 803 1180 824 1182 856 1182 876 1180 915 1172 952 1159 983 1143 1016 1120 1040 1099 1079 1059 1075 1054 1049 1033 987 976 973 995 949 1019 933 1031 906 1045 892 1050 863 1056 831 1056 806 1051 788 1045 773 1038 743 1018 728 1004 715 989 702 970 691 948 683 925 678 896 678 867 681 847 685 833 696 807 714 780 739 754 756 741 784 725 817 714 836 711 865 711 879 713 901 719 928 732 961 757 980 778 1070 693 1058 679 1027 650 1002 632 983 621 959 610 927 600Z"/>
-    </svg></a>
-    <a class="nav-button" href="/exhibitions.html" aria-label="Bucket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.1 8.2C3.3 5.1 5.7 2.5 12 2.5s8.7 2.6 6.9 5.7"/><path d="M3.2 8.2h17.6l-2 12.1c-4.4 1.6-9.2 1.6-13.6 0L3.2 8.2Z"/><path d="M3.2 8.2c4.9 1.1 12.7 1.1 17.6 0"/><path d="M6.1 17.5c3.8 1 8 1 11.8 0"/></svg></a>
-    <a class="nav-button" href="/analytics.html" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5"></path><path d="M4 19h17"></path><path d="m7 15 4-4 3 2 5-6"></path><path d="M19 7h-4"></path><path d="M19 7v4"></path></svg></a>
-  </nav>
-  <script type="module" src="/js/coming-soon.js"></script>
+<button id="mail-button" class="mail-button" type="button" aria-label="Open mail" aria-expanded="false" aria-controls="mail-popover">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="m4 7 8 6 8-6"></path></svg>
+</button>
+<section class="mail-popover" id="mail-popover" aria-label="Mail" hidden><h2>Mail</h2><div class="mail-notifications" id="mail-notifications"><p class="mail-empty">Loading mail…</p></div></section>
+<button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
+<main>
+<h1>Coolanas</h1>
+<section class="users-panel" aria-labelledby="users-title">
+<h2 id="users-title">Signed up users</h2>
+<ul class="user-list" id="user-list"><li class="user-empty">Loading usernames…</li></ul>
+<p class="user-error" id="user-error" role="status"></p>
+</section>
+</main>
+<div class="profile-backdrop" id="profile-backdrop" hidden></div>
+<aside class="profile-drawer" id="profile-drawer" aria-label="Account menu" aria-hidden="true">
+<div class="profile-drawer-head"><div class="profile-identity"><img id="drawer-avatar" alt="" hidden><span id="drawer-avatar-fallback">?</span><div><strong id="profile-name">Account</strong><small id="profile-email"></small></div></div><button class="close-button" id="profile-close" type="button" aria-label="Close">×</button></div>
+<nav class="profile-actions">
+<button class="menu-item" id="change-pfp" type="button">Change profile picture</button>
+<button class="menu-item" id="remove-pfp" type="button" hidden>Remove profile picture</button>
+<button class="menu-item" id="change-account" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 8v6m-3-3h6"/></svg><span>Change account</span></button>
+<button class="menu-item" id="profile-settings" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1-.1 1.8Z"/></svg><span>Settings</span></button>
+<button class="menu-item" id="theme-toggle" type="button">Switch to dark mode</button>
+<button class="menu-item" id="profile-signout" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg><span>Sign out</span></button>
+</nav>
+<input id="profile-picture-input" type="file" accept="image/*" hidden>
+</aside>
+<nav class="bottom-nav" aria-label="Main navigation">
+<a class="nav-button" href="/dashboard.html" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"></path><path d="M5 9v11h14V9"></path><path d="M9 20v-6h6v6"></path></svg></a>
+<a class="nav-button" href="/coming-soon.html" aria-label="Coolanas" aria-current="page"><svg viewBox="380 370 710 830" width="22" height="22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path fill="#555555" d="M1027 414 1018 407 934 401 898 397 884 397 763 386 749 386 697 380 687 381 676 386 601 446 410 594 392 610 391 622 392 625 399 631 450 632 450 736 438 746 431 762 431 770 437 785 426 862 426 871 429 878 436 883 447 884 480 878 495 877 504 873 511 862 511 846 500 783 505 769 505 762 500 748 492 739 486 735 487 629 514 627 546 627 549 631 571 703 588 683 617 654 646 630 672 612 715 589 762 571 802 561 845 556 882 556 906 559 906 547 902 517 965 470 1022 431 1028 424Z"/>
+        <path fill="#000000" d="M880 592 838 592 820 594 799 598 760 609 728 622 689 643 659 664 618 703 599 727 583 752 572 773 562 797 555 818 547 857 545 877 545 907 548 934 555 967 568 1003 582 1031 606 1067 622 1086 641 1105 668 1127 691 1142 735 1163 763 1172 803 1180 824 1182 856 1182 876 1180 915 1172 952 1159 983 1143 1016 1120 1040 1099 1079 1059 1075 1054 1049 1033 987 976 973 995 949 1019 933 1031 906 1045 892 1050 863 1056 831 1056 806 1051 788 1045 773 1038 743 1018 728 1004 715 989 702 970 691 948 683 925 678 896 678 867 681 847 685 833 696 807 714 780 739 754 756 741 784 725 817 714 836 711 865 711 879 713 901 719 928 732 961 757 980 778 1070 693 1058 679 1027 650 1002 632 983 621 959 610 927 600Z"/>
+      </svg></a>
+<a class="nav-button" href="/exhibitions.html" aria-label="Bucket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.1 8.2C3.3 5.1 5.7 2.5 12 2.5s8.7 2.6 6.9 5.7"/><path d="M3.2 8.2h17.6l-2 12.1c-4.4 1.6-9.2 1.6-13.6 0L3.2 8.2Z"/><path d="M3.2 8.2c4.9 1.1 12.7 1.1 17.6 0"/><path d="M6.1 17.5c3.8 1 8 1 11.8 0"/></svg></a>
+<a class="nav-button" href="/analytics.html" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5"></path><path d="M4 19h17"></path><path d="m7 15 4-4 3 2 5-6"></path><path d="M19 7h-4"></path><path d="M19 7v4"></path></svg></a>
+</nav>
+<script type="module">
+const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
+const {createClient}=await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+const {data:{session},error:sessionError}=await supabase.auth.getSession();
+if(sessionError||!session){location.replace("/index.html");throw new Error("Sign-in required");}
+const user=session.user;
+const {data:profile}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();
+const displayName=profile?.username||user.user_metadata?.full_name||user.email||"Account";
+document.getElementById("profile-name").textContent=displayName;
+document.getElementById("profile-email").textContent=user.email||"";
+const userList=document.getElementById("user-list");
+try{
+ const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"profile_picture_directory"}});
+ if(error)throw error;
+ if(data?.error)throw new Error(data.error);
+ userList.replaceChildren();
+ const users=data?.users||[];
+ if(!users.length){const li=document.createElement("li");li.className="user-empty";li.textContent="No signed-up users yet.";userList.append(li);}
+ for(const userEntry of users){
+  const li=document.createElement("li");
+  if(!userEntry.username)li.classList.add("user-avatar-only");
+  const avatar=userEntry.pictureUrl||userEntry.googleAvatar||"";
+  if(avatar){
+   const img=document.createElement("img");
+   img.className="user-avatar";
+   img.alt="";
+   img.loading="lazy";
+   img.referrerPolicy="no-referrer";
+   img.src=avatar;
+   img.onerror=()=>{img.remove();};
+   li.append(img);
+  }
+  if(userEntry.username){
+   const name=document.createElement("span");
+   name.className="user-name";
+   name.textContent=userEntry.username;
+   li.append(name);
+  }
+  userList.append(li);
+ }
+}catch(error){userList.replaceChildren();const li=document.createElement("li");li.className="user-empty";li.textContent="Could not load users.";userList.append(li);document.getElementById("user-error").textContent=error.message||"";}
+const mailButton=document.getElementById("mail-button");
+const mailPopover=document.getElementById("mail-popover");
+const mailNotifications=document.getElementById("mail-notifications");
+async function refreshMail(){
+ try{
+  const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_list"}});
+  if(error)throw error;
+  if(data?.error)throw new Error(data.error);
+  const notifications=data?.notifications||[];
+  mailNotifications.replaceChildren();
+  if(!notifications.length){const empty=document.createElement("p");empty.className="mail-empty";empty.textContent="No new mails.";mailNotifications.append(empty);return;}
+  for(const notification of notifications){
+   const card=document.createElement("article");card.className="mail-notification"+(notification.read_at?"":" unread");
+   const title=document.createElement("h3");title.textContent=notification.title||"Coolanas notification";
+   const message=document.createElement("p");message.textContent=notification.message||"";
+   card.append(title,message);
+   const status=notification.payload?.invitation_status;
+   if(notification.type==="bucket_invitation"&&status==="pending"&&notification.invitation_id){
+    const actions=document.createElement("div");actions.className="mail-notification-actions";
+    const accept=document.createElement("button");accept.type="button";accept.textContent="Accept";
+    const decline=document.createElement("button");decline.type="button";decline.className="secondary";decline.textContent="Decline";
+    const respond=async(response)=>{
+     accept.disabled=true;decline.disabled=true;
+     try{
+      const {data:result,error:responseError}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"bucket_invitation_respond",invitationId:notification.invitation_id,response}});
+      if(responseError)throw responseError;
+      if(result?.error)throw new Error(result.error);
+      await refreshMail();
+     }catch(error){
+      const feedback=document.createElement("span");feedback.className="mail-notification-status";feedback.textContent=error.message||"Could not update this invitation.";card.append(feedback);
+      accept.disabled=false;decline.disabled=false;
+     }
+    };
+    accept.addEventListener("click",()=>respond("accept"));
+    decline.addEventListener("click",()=>respond("decline"));
+    actions.append(accept,decline);card.append(actions);
+   }else if(notification.type==="bucket_invitation"&&status){
+    const label=document.createElement("span");label.className="mail-notification-status";
+    label.textContent=(status==="accepted"||status==="accept")?"Invitation accepted":(status==="declined"||status==="decline")?"Invitation declined":status==="revoked"?"Access withdrawn":"";
+    card.append(label);
+   }
+   if(!notification.read_at){
+    supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_mark_read",notificationId:notification.id}}).catch(()=>{});
+   }
+   mailNotifications.append(card);
+  }
+ }catch(error){mailNotifications.replaceChildren();const empty=document.createElement("p");empty.className="mail-empty";empty.textContent=error.message||"Could not load mail.";mailNotifications.append(empty);}
+}
+mailButton.addEventListener("click",()=>{
+ const opening=mailPopover.hidden;
+ mailPopover.hidden=!opening;
+ mailButton.setAttribute("aria-expanded",String(opening));
+ if(opening)refreshMail();
+});
+document.addEventListener("click",event=>{
+ if(!mailPopover.hidden&&!mailPopover.contains(event.target)&&!mailButton.contains(event.target)){
+  mailPopover.hidden=true;
+  mailButton.setAttribute("aria-expanded","false");
+ }
+});
+const profileButton=document.getElementById("profile-button");
+const profileDrawer=document.getElementById("profile-drawer");
+const profileBackdrop=document.getElementById("profile-backdrop");
+const profilePictureInput=document.getElementById("profile-picture-input");
+const profileAvatar=document.getElementById("profile-avatar");
+const drawerAvatar=document.getElementById("drawer-avatar");
+const avatarFallback=document.getElementById("profile-avatar-fallback");
+const drawerAvatarFallback=document.getElementById("drawer-avatar-fallback");
+const removePfpButton=document.getElementById("remove-pfp");
+const themeToggle=document.getElementById("theme-toggle");
+function applyTheme(mode){document.documentElement.classList.toggle("dark-mode",mode==="dark");themeToggle.textContent=mode==="dark"?"Switch to light mode":"Switch to dark mode";try{localStorage.setItem("coolanas-theme",mode);}catch{}}
+applyTheme(localStorage.getItem("coolanas-theme")==="dark"?"dark":"light");
+themeToggle.addEventListener("click",()=>applyTheme(document.documentElement.classList.contains("dark-mode")?"light":"dark"));
+window.addEventListener("storage",event=>{if(event.key==="coolanas-theme")applyTheme(event.newValue==="dark"?"dark":"light");});
+let googleAvatarUrl=user.user_metadata?.avatar_url||user.user_metadata?.picture||"";
+let customProfilePicture=false;
+function setAvatar(url){
+ for(const img of [profileAvatar,drawerAvatar]){img.onerror=null;if(url){img.src=url;img.hidden=false;img.onerror=()=>{img.onerror=null;img.hidden=true;};}else{img.removeAttribute("src");img.hidden=true;}}
+ avatarFallback.hidden=Boolean(url);drawerAvatarFallback.hidden=Boolean(url);
+ avatarFallback.textContent=String(displayName).trim().charAt(0).toUpperCase()||"?";
+ drawerAvatarFallback.textContent=avatarFallback.textContent;
+ removePfpButton.hidden=!customProfilePicture;
+}
+async function profileAction(action,payload={}){const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action,...payload}});if(error)throw new Error(error.message||"Profile picture request failed.");if(data?.error)throw new Error(data.error);return data;}
+async function refreshProfilePicture(){const result=await profileAction("profile_picture_get");customProfilePicture=Boolean(result.exists&&result.url);setAvatar(customProfilePicture?result.url:googleAvatarUrl);}
+function closeProfileDrawer(){profileDrawer.classList.remove("open");profileDrawer.setAttribute("aria-hidden","true");profileButton.setAttribute("aria-expanded","false");profileBackdrop.hidden=true;}
+function openProfileDrawer(){profileDrawer.classList.add("open");profileDrawer.setAttribute("aria-hidden","false");profileButton.setAttribute("aria-expanded","true");profileBackdrop.hidden=false;}
+profileButton.addEventListener("click",openProfileDrawer);
+document.getElementById("profile-settings").addEventListener("click",()=>location.assign("/settings.html"));
+document.getElementById("profile-close").addEventListener("click",closeProfileDrawer);
+profileBackdrop.addEventListener("click",closeProfileDrawer);
+document.getElementById("change-pfp").addEventListener("click",()=>profilePictureInput.click());
+async function convertProfilePictureToPng(file){
+ if(file.size>20*1024*1024)throw new Error("Choose an image smaller than 20 MB.");
+ if(!file.type.startsWith("image/")&&!/\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|tiff?|webp)$/i.test(file.name))throw new Error("Choose an image file.");
+ let bitmap;try{bitmap=await createImageBitmap(file,{imageOrientation:"from-image"});}catch{throw new Error("This image format cannot be opened by this browser.");}
+ try{const side=Math.min(bitmap.width,bitmap.height);if(!side)throw new Error("This image has invalid dimensions.");const canvas=document.createElement("canvas");canvas.width=512;canvas.height=512;const ctx=canvas.getContext("2d",{alpha:true});if(!ctx)throw new Error("Image conversion is unavailable.");ctx.drawImage(bitmap,(bitmap.width-side)/2,(bitmap.height-side)/2,side,side,0,0,512,512);return await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error("Could not convert image.")),"image/png"));}finally{bitmap.close?.();}
+}
+profilePictureInput.addEventListener("change",async()=>{const file=profilePictureInput.files?.[0];profilePictureInput.value="";if(!file)return;try{if(file.size>20*1024*1024)throw new Error("Choose an image smaller than 20 MB.");const isGif=file.type==="image/gif"||/\.gif$/i.test(file.name);const contentType=isGif?"image/gif":"image/png";const uploadBody=isGif?file:await convertProfilePictureToPng(file);const signed=await profileAction("profile_picture_upload",{contentType});const response=await fetch(signed.uploadUrl,{method:"PUT",headers:{"Content-Type":contentType},body:uploadBody});if(!response.ok)throw new Error("Image upload failed.");await refreshProfilePicture();closeProfileDrawer();}catch(error){alert(error.message||"Could not update profile picture.");}});
+removePfpButton.addEventListener("click",async()=>{try{await profileAction("profile_picture_delete");customProfilePicture=false;setAvatar(googleAvatarUrl);closeProfileDrawer();}catch(error){alert(error.message||"Could not remove profile picture.");}});
+async function leaveAccount(){const {error}=await supabase.auth.signOut({scope:"local"});if(error)throw error;location.assign("/index.html");}
+document.getElementById("profile-signout").addEventListener("click",async()=>{try{await leaveAccount();}catch(error){alert(error.message);}});
+document.getElementById("change-account").addEventListener("click",async()=>{try{await leaveAccount();}catch(error){alert(error.message);}});
+document.addEventListener("keydown",event=>{if(event.key==="Escape")closeProfileDrawer();});
+setAvatar(googleAvatarUrl);try{await refreshProfilePicture();}catch(error){console.warn("Could not load profile picture:",error.message);}
+</script>
   <script src="/js/upload-manager.js?v=3" defer></script>
 </body>
 </html>
