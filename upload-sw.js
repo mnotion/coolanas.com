@@ -1,5 +1,5 @@
 const DB_NAME="coolanas-background-uploads";
-const DB_VERSION=1;
+const DB_VERSION=2;
 const STORE="tasks";
 const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
 const SUPABASE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
