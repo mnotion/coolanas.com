@@ -25,6 +25,7 @@ if (sessionError || !session?.user) {
   location.replace("/index.html");
   throw new Error("Sign in required.");
 }
+await window.CoolanasTheme?.loadForSession(session);
 const accountKey = key => key + ":" + session.user.id;
 supabase.auth.onAuthStateChange((_event, nextSession) => {
   if ((nextSession?.user?.id || null) !== session.user.id) location.reload();
