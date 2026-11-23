@@ -938,6 +938,10 @@ function ensureDropIndicator() {
 }
 function renderTasks() {
   taskItemsEl.replaceChildren();
+  const todayKey = taskDateKey();
+  updateTaskDayLockButton();
+  taskAddInput.disabled = taskDayLocked;
+  taskAddForm.querySelector("button[type='submit']").disabled = taskDayLocked;
   if (!tasks.length) {
     const empty = document.createElement("div");
     empty.className = "task-empty";
@@ -945,11 +949,7 @@ function renderTasks() {
     taskItemsEl.appendChild(empty);
     return;
   }
-  const todayKey = taskDateKey();
   const visibleTasks = tasks.filter(task => !task.dueDate || task.dueDate <= todayKey);
-  updateTaskDayLockButton();
-  taskAddInput.disabled = taskDayLocked;
-  taskAddForm.querySelector("button[type='submit']").disabled = taskDayLocked;
   if (!visibleTasks.length) {
     const empty = document.createElement("div");
     empty.className = "task-empty";
@@ -994,6 +994,7 @@ function renderTasks() {
     complete.append(completeInput, completeSvg);
     completeInput.addEventListener("change", async () => {
       const previous = task.completed;
+      const previousCompletedAt = task.completedAt;
       task.completed = completeInput.checked;
       if (task.completed) task.completedAt = new Date().getFullYear() + "-" +
           String(new Date().getMonth() + 1).padStart(2, "0") + "-" +
@@ -1007,7 +1008,8 @@ function renderTasks() {
       await persistTasks();
       if (taskError.textContent) {
         task.completed = previous;
-        if (previous && !task.completedAt) task.completedAt = todayKey;
+        if (previousCompletedAt) task.completedAt = previousCompletedAt;
+        else delete task.completedAt;
         renderTasks();
       }
     });
