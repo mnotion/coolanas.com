@@ -1517,3 +1517,38 @@ html.dark-mode {--subject-donut-track:#303936}
   font-size:12px;line-height:1.45;box-shadow:0 3px 12px rgba(0,0,0,.2)
 }
 .subject-distribution-tooltip[hidden] {display:none}
+
+/* Calendar daily subject distribution: render directly beneath the hourly graph. */
+.calendar-daily-distribution {
+  display:block;
+  width:100%;
+  margin:14px 0 0;
+  padding:22px 24px;
+  border:1px solid #e5e5e5;
+  border-radius:12px;
+  background:#fafafa;
+}
+.calendar-daily-distribution .subject-distribution-content {
+  grid-template-columns:minmax(150px,220px) minmax(110px,1fr);
+  max-width:560px;
+}
+.calendar-daily-distribution #calendar-subject-distribution-chart {
+  display:block;
+  width:100%;
+  max-width:220px;
+  height:auto;
+}
+.calendar-daily-distribution .subject-distribution-legend {
+  max-height:none;
+}
+html.dark-mode .calendar-daily-distribution {
+  background:#2a2a2a;
+  border-color:#444;
+}
+@media(max-width:520px) {
+  .calendar-daily-distribution {padding:16px 12px}
+  .calendar-daily-distribution .subject-distribution-content {
+    grid-template-columns:minmax(120px,170px) minmax(90px,1fr);
+    gap:8px;
+  }
+}
