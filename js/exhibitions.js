@@ -44,7 +44,11 @@ filesThemeToggle.addEventListener("click", () => {
   applyFilesTheme(mode);
 });
 window.addEventListener("storage", event => {
-  if (event.key === "coolanas-theme") applyFilesTheme(event.newValue === "dark" ? "dark" : "light");
+  if (event.key === "coolanas-theme") {
+    applyFilesTheme(event.newValue === "dark" ? "dark" : "light");
+    const accountToggle = document.getElementById("theme-toggle");
+    if (accountToggle) accountToggle.textContent = event.newValue === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  }
 });
 const uploadOverlay = document.getElementById("upload-overlay");
 const uploadTitle = document.getElementById("upload-title");
