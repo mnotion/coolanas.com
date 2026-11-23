@@ -104,7 +104,6 @@ function getCurrentMonthTotal() {
   return total;
 }
 function renderTimer() {
-  $("total-time").textContent = formatTotalDuration(getCurrentMonthTotal());
 }
 async function loadCloudAnalytics() {
   try {
