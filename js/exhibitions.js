@@ -873,8 +873,8 @@ async function loadItems({force = false} = {}) {
 }
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible" || Date.now() - lastItemsLoad < 5 * 60 * 1000) return;
-  loadItems({force: true}).catch(
-      error => console.warn("Could not refresh files after returning to this tab:", error.message));
+  checkForWorkspaceChanges().catch(
+      error => console.warn("Could not check for bucket changes after returning to this tab:", error.message));
 });
 let uploadQueueWasActive = false;
 window.addEventListener("coolanas-upload-updated", event => {
