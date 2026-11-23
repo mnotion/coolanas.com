@@ -3,6 +3,7 @@ const DB_VERSION=1;
 const STORE="tasks";
 const SUPABASE_URL="https://nacwftrsdpglzrhasmit.supabase.co";
 const SUPABASE_KEY="sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
+const activeControllers=new Map();
 function openDb(){
   return new Promise((resolve,reject)=>{
     const request=indexedDB.open(DB_NAME,DB_VERSION);
@@ -63,7 +64,11 @@ async function invoke(action,task,payload={}){
   return data;
 }
 async function uploadTask(task){
-  await patchTask(task.id,{status:"uploading",error:null});
+  const latest=(await getTasks()).find(value=>value.id===task.id);
+  if(!latest||latest.status==="cancelled")return;
+  const controller=new AbortController();
+  activeControllers.set(task.id,controller);
+  await patchTask(task.id,{status:"uploading",error:null,startedAt:Date.now()});
   try{
     let current=task;
     if(!current.itemId||!current.uploadUrl){
@@ -71,21 +76,42 @@ async function uploadTask(task){
       current={...current,itemId:created.item.id,uploadUrl:created.uploadUrl,contentType:created.contentType};
       await patchTask(task.id,{itemId:current.itemId,uploadUrl:current.uploadUrl,contentType:current.contentType});
     }
-    const response=await fetch(current.uploadUrl,{method:"PUT",headers:{"Content-Type":current.contentType},body:current.file});
-    if(!response.ok){
-      if(response.status===403||response.status===401){
-        await patchTask(task.id,{uploadUrl:null,status:"pending",error:"Upload link expired; retrying"});
-        throw new Error("Signed upload link expired");
-      }
-      throw new Error("File upload failed ("+response.status+").");
+    let response=await fetch(current.uploadUrl,{method:"PUT",headers:{"Content-Type":current.contentType},body:current.file,signal:controller.signal});
+    if((response.status===403||response.status===401)&&current.itemId){
+      const fresh=await invoke("create_upload",current,{parentId:current.parentId,name:current.fileName,contentType:current.contentType});
+      current={...current,itemId:fresh.item.id,uploadUrl:fresh.uploadUrl,contentType:fresh.contentType};
+      await patchTask(task.id,{itemId:current.itemId,uploadUrl:current.uploadUrl,contentType:current.contentType});
+      response=await fetch(current.uploadUrl,{method:"PUT",headers:{"Content-Type":current.contentType},body:current.file,signal:controller.signal});
     }
+    if(!response.ok)throw new Error("File upload failed ("+response.status+").");
+    const afterUpload=(await getTasks()).find(value=>value.id===task.id);
+    if(!afterUpload||afterUpload.status==="cancelled")throw new DOMException("Upload terminated","AbortError");
     await invoke("finish_upload",current,{id:current.itemId});
     await patchTask(task.id,{status:"complete",completedAt:Date.now(),error:null,file:null,uploadUrl:null,accessToken:null});
   }catch(error){
+    const latest=(await getTasks()).find(value=>value.id===task.id);
+    if(latest?.status==="cancelled"||error.name==="AbortError"){
+      if(currentItemId(task.id))await invoke("delete",task,{id:currentItemId(task.id)}).catch(()=>{});
+      await patchTask(task.id,{status:"cancelled",file:null,accessToken:null,uploadUrl:null,error:"Terminated by you"});
+      return;
+    }
     const transient=/fetch|network|temporar|expired|429|500|502|503|504/i.test(error.message);
     await patchTask(task.id,{status:transient?"pending":"failed",error:error.message});
     throw error;
+  }finally{activeControllers.delete(task.id);}
+}
+async function currentItemId(id){
+  return (await getTasks()).find(value=>value.id===id)?.itemId||null;
+}
+async function terminateTasks(ownerId,taskIds){
+  const wanted=new Set(taskIds||[]);
+  const tasks=(await getTasks()).filter(task=>task.ownerId===ownerId&&wanted.has(task.id));
+  for(const task of tasks){
+    activeControllers.get(task.id)?.abort();
+    if(task.itemId)await invoke("delete",task,{id:task.itemId}).catch(()=>{});
+    await patchTask(task.id,{status:"cancelled",file:null,accessToken:null,uploadUrl:null,error:"Terminated by you"});
   }
+  await updateClients();
 }
 async function processQueueImpl(){
   const tasks=(await getTasks()).filter(task=>task.status==="pending"||task.status==="uploading");
@@ -117,5 +143,6 @@ self.addEventListener("sync",event=>{
 });
 self.addEventListener("message",event=>{
   if(event.data?.type==="PROCESS_COOLANAS_UPLOADS")event.waitUntil(processQueue());
+  if(event.data?.type==="TERMINATE_COOLANAS_UPLOADS")event.waitUntil(terminateTasks(event.data.ownerId,event.data.taskIds));
   if(event.data?.type==="REFRESH_COOLANAS_UPLOADS")event.waitUntil(updateClients());
 });
