@@ -102,6 +102,58 @@ Deno.serve(async (req) => {
     const action = body?.action;
     const profilePictureKey = prefix + "/assets/settings/profile-picture.png";
 
+    if (action === "settings_get") {
+      const key = prefix + "/stats/settings.json";
+      try {
+        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        const raw = await object.Body?.transformToString();
+        const saved = raw ? JSON.parse(raw) : {};
+        const settings = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+        return json(200, { success: true, settings });
+      } catch (error) {
+        const status = (error as any)?.$metadata?.httpStatusCode;
+        const name = (error as any)?.name ?? "";
+        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
+        return json(200, { success: true, settings: {} });
+      }
+    }
+
+    if (action === "settings_update") {
+      const incoming = body?.settings;
+      if (!incoming || typeof incoming !== "object" || Array.isArray(incoming) ||
+          JSON.stringify(incoming).length > 20000) {
+        return json(400, { error: "Invalid settings payload." });
+      }
+      const key = prefix + "/stats/settings.json";
+      let saved: Record<string, unknown> = {};
+      try {
+        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        const raw = await object.Body?.transformToString();
+        const parsed = raw ? JSON.parse(raw) : {};
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) saved = parsed;
+      } catch (error) {
+        const status = (error as any)?.$metadata?.httpStatusCode;
+        const name = (error as any)?.name ?? "";
+        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
+      }
+      for (const [setting, value] of Object.entries(incoming)) {
+        if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(setting)) {
+          return json(400, { error: "Invalid setting name." });
+        }
+        if (setting === "theme" && value !== "light" && value !== "dark") {
+          return json(400, { error: "Theme must be light or dark." });
+        }
+        saved[setting] = value;
+      }
+      saved.version = 1;
+      saved.updatedAt = new Date().toISOString();
+      await s3.send(new PutObjectCommand({
+        Bucket: bucket, Key: key, Body: JSON.stringify(saved),
+        ContentType: "application/json; charset=utf-8",
+      }));
+      return json(200, { success: true, settings: saved });
+    }
+
     if (action === "analytics_get") {
       const key = prefix + "/stats/analytics.json";
       try {
