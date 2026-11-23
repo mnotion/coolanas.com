@@ -771,6 +771,8 @@ function createBucketTreeIcon(kind) {
 function renderBucketTreeNode(item,childrenByParent,depth=0){
   const li=document.createElement("li");
   li.className="tree-item";
+  li.dataset.itemId=item.id;
+  li.dataset.itemType=item.item_type;
   if(item.item_type==="folder"){
     const toggle=document.createElement("input");
     toggle.type="checkbox";
@@ -780,7 +782,15 @@ function renderBucketTreeNode(item,childrenByParent,depth=0){
     const label=document.createElement("label");
     label.className="tree-label";
     label.htmlFor=toggle.id;
-    label.append(createBucketTreeIcon("closed"),createBucketTreeIcon("open"),document.createTextNode(item.name));
+    label.dataset.itemId=item.id;
+    label.style.setProperty("--item-folder-colour",item.folder_color||"transparent");
+    const closedIcon=createBucketTreeIcon("closed");
+    const openIcon=createBucketTreeIcon("open");
+    if(item.folder_color){
+      closedIcon.style.color=item.folder_color;
+      openIcon.style.color=item.folder_color;
+    }
+    label.append(closedIcon,openIcon,document.createTextNode(item.name));
     const wrapper=document.createElement("div");
     wrapper.className="tree-children-wrapper";
     const children=document.createElement("ul");
@@ -792,12 +802,12 @@ function renderBucketTreeNode(item,childrenByParent,depth=0){
   } else {
     const file=document.createElement("div");
     file.className="file-item";
+    file.dataset.itemId=item.id;
     file.append(createBucketTreeIcon("file"),document.createTextNode(item.name));
     li.append(file);
   }
   return li;
-}
-function bucketDescendantIds(bucketId){
+}function bucketDescendantIds(bucketId){
   const descendants=new Set([bucketId]);
   let changed=true;
   while(changed){
