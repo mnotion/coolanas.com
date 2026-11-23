@@ -514,11 +514,20 @@ function renderCalendarDetails() {
   const today = new Date(), todayKey = calendarDateKey(today),
         yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1),
         yesterdayKey = calendarDateKey(yesterday),
-        heading = $("calendar-details-date");
-  if (key > todayKey) heading.textContent = "I can't predict the future...";
-  else if (key === todayKey) heading.textContent = "Today's work: " + formatCalendarTime(total);
-  else if (key === yesterdayKey) heading.textContent = "Yesterday you worked for " + formatCalendarTime(total);
-  else heading.textContent = "On that day, you worked " + formatCalendarTime(total);
+        heading = $("calendar-details-date"),
+        headingWrap = heading.closest(".calendar-details-heading"),
+        isFutureDate = key > todayKey;
+  panel.classList.toggle("future-date", isFutureDate);
+  if (isFutureDate) {
+    heading.textContent = "I can't predict the future...";
+    panel.prepend(headingWrap);
+  } else {
+    if (headingWrap.parentElement !== panel.parentElement)
+      panel.parentElement.insertBefore(headingWrap, panel);
+    if (key === todayKey) heading.textContent = "Today's work: " + formatCalendarTime(total);
+    else if (key === yesterdayKey) heading.textContent = "Yesterday you worked for " + formatCalendarTime(total);
+    else heading.textContent = "On that day, you worked " + formatCalendarTime(total);
+  }
   $("calendar-details-total").textContent = "";
   const content = $("calendar-details-content");
   content.replaceChildren();
