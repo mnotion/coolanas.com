@@ -738,9 +738,13 @@ function renderCalendarDetails() {
   subjectsSection.append(subjectCards);
   const tasksSection = document.createElement("section");
   tasksSection.className = "calendar-detail-section calendar-tasks-section";
+  const tasksMain = document.createElement("div");
+  tasksMain.className = "calendar-tasks-main";
   const tasksTitle = document.createElement("h3");
   tasksTitle.textContent = "Tasks";
-  tasksSection.append(tasksTitle);
+  tasksMain.append(tasksTitle);
+  const tasksEmpty = document.createElement("div");
+  tasksEmpty.className = "calendar-tasks-empty-slot";
   const dayTasks = calendarTasks.filter(task => task.dueDate === key || task.completedAt === key || (!task.dueDate && key === todayKey));
   if (key >= todayKey) {
     const form = document.createElement("form");
@@ -769,7 +773,7 @@ function renderCalendarDetails() {
       queueCalendarTasksSync();
       renderCalendarDetails();
     });
-    tasksSection.append(form);
+    tasksMain.append(form);
   }
   if (dayTasks.length) {
     for (const task of dayTasks) {
@@ -792,15 +796,15 @@ function renderCalendarDetails() {
       remove.setAttribute("aria-label", "Remove task: " + task.text);
       remove.addEventListener("click", () => removeCalendarTask(task));
       row.append(checkbox, label, remove);
-      tasksSection.append(row);
+      tasksMain.append(row);
     }
   } else {
     const empty = document.createElement("p");
     empty.className = "calendar-details-empty";
     empty.textContent = calendarTasksLoaded ? "No tasks for this day yet." : "Tasks could not be loaded.";
-    tasksSection.append(empty);
+    tasksEmpty.append(empty);
   }
-  if (key <= todayKey) content.append(subjectsSection);
+  tasksSection.append(tasksMain, tasksEmpty);
   content.append(tasksSection);
   if (key <= todayKey) {
     renderCalendarHourlyGraph(panel, key);
