@@ -664,7 +664,9 @@ async function flushPendingMutations() {
         for (const item of updatedItems) upsertItem(item);
         for (const entry of queuedMetadataAndDeletes)
           if (entry.type === "delete") removeCachedItems([entry.itemId]);
-        renderItems();
+        // Do not rebuild a shared folder's DOM during the background sync.
+        // Its contents are read-only here and should remain stable while open.
+        if (!activeSharedBucket) renderItems();
         if (exhibitionRootId)
           refreshExhibitions().catch(
               error => console.warn("Storage usage refresh failed:", error.message));
@@ -2039,7 +2041,8 @@ async function refreshExhibitions({force = false} = {}) {
       "Bucket • " + formatStorage(exhibitionTotalBytes);
   const blocked = exhibitionRecords.length >= 2;
   document.getElementById("exhibition-create-form").hidden = blocked;
-  renderItems();
+  // Refreshing the owner's bucket summary must not re-render a friend's open folder.
+  if (!activeSharedBucket) renderItems();
 }
 document.getElementById("exhibition-create-form").addEventListener("submit", async (event) => {
   event.preventDefault();
