@@ -787,3 +787,19 @@ html.dark-mode .calendar-day.has-study[style*="--study-level: 3"] { background:#
 html.dark-mode .calendar-day.has-study[style*="--study-level: 4"] { background:#3b6ca3; border-color:#5689c4; }
 html.dark-mode .calendar-day-time { color:#8db9ff; }
 html.dark-mode .calendar-task-add input { background:#292d35; border-color:#454c58; }
+
+
+/* Selected-day details layout. */
+.calendar-details-heading { padding-right:0; margin-bottom:24px; }
+.calendar-details-heading > button { display:none; }
+.calendar-details-content { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:30px; margin-top:0; }
+.calendar-subjects-section { padding-right:28px; border-right:1px solid #dedede; }
+.calendar-subject-cards { display:flex; flex-wrap:wrap; gap:10px; min-height:42px; }
+.calendar-subject-card { display:flex; align-items:center; justify-content:space-between; gap:18px; min-width:130px; max-width:100%; padding:12px 14px; border:1px solid rgba(0,0,0,.06); border-radius:10px; color:#333; font-size:13px; }
+.calendar-subject-card strong { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.calendar-tasks-section h3 { margin:0 0 14px; }
+.calendar-task-add { margin:0 0 14px; }
+.calendar-task-row:first-of-type { border-top:1px solid #e7eaf0; }
+html.dark-mode .calendar-subjects-section { border-color:#484848; }
+html.dark-mode .calendar-subject-card { color:#252525; }
+@media(max-width:520px) { .calendar-details-content { grid-template-columns:1fr; gap:20px; } .calendar-subjects-section { padding-right:0; padding-bottom:18px; border-right:0; border-bottom:1px solid #dedede; } }
