@@ -2528,8 +2528,29 @@ document.addEventListener("keydown", event => {
     closeDeleteConfirmation();
   }
 });
-// Finish startup: resolve the root before rendering so the internal
-// "exhibitions" folder is never briefly shown as a user bucket.
+// Paint the last known workspace immediately. Network checks happen silently
+// in the background and only update the page when the data actually changes.
+const startupCache = readWorkspaceCache();
+const hasWorkspaceCache = Boolean(startupCache?.rootId);
+if (hasWorkspaceCache) {
+  exhibitionRootId = startupCache.rootId;
+  currentFolderId = exhibitionRootId;
+  items = Array.isArray(startupCache.items) ? startupCache.items : [];
+  ownedItems = items;
+  exhibitionRecords = Array.isArray(startupCache.exhibitions) ? startupCache.exhibitions : [];
+  exhibitionTotalBytes = Number(startupCache.totalBytes) || 0;
+  sharedBucketRecords = Array.isArray(startupCache.sharedBuckets) ? startupCache.sharedBuckets : [];
+  sharedByYouRecords = Array.isArray(startupCache.sharedByYou) ? startupCache.sharedByYou : [];
+  sharedFolderCache = startupCache.sharedFolderCache && typeof startupCache.sharedFolderCache === "object" ?
+      startupCache.sharedFolderCache : {};
+  workspaceCacheTimestamp = Number(startupCache.savedAt) || Date.now();
+  metadataCacheTimestamp = Number(startupCache.metadataSavedAt) || 0;
+  document.getElementById("bucket-title").textContent =
+      "Bucket • " + formatStorage(exhibitionTotalBytes);
+  document.getElementById("exhibition-create-form").hidden = exhibitionRecords.length >= 2;
+  renderItems();
+  void refreshSharedBuckets({cacheOnly: true, silent: true});
+}
 const migrationKey = "coolanas-prefix-migrated:" + user.id;
 if (localStorage.getItem(migrationKey) !== "1") {
   try {
@@ -2539,14 +2560,46 @@ if (localStorage.getItem(migrationKey) !== "1") {
     console.warn("Existing file prefix migration could not finish:", error.message);
   }
 }
-let accountStructure = null;
-try {
-  accountStructure = await filesAction("ensure_structure");
-  exhibitionRootId = accountStructure?.exhibitionsId || null;
-  currentFolderId = exhibitionRootId;
-} catch (error) {
-  alert("Your account folders could not be prepared: " + error.message);
+if (!exhibitionRootId) {
+  try {
+    const accountStructure = await filesAction("ensure_structure");
+    exhibitionRootId = accountStructure?.exhibitionsId || null;
+    currentFolderId = exhibitionRootId;
+  } catch (error) {
+    console.warn("Your account folders could not be prepared:", error.message);
+  }
 }
-await loadItems();
-if (exhibitionRootId) await refreshExhibitions();
+if (!hasWorkspaceCache) {
+  await loadItems();
+  if (exhibitionRootId) await refreshExhibitions({force: true});
+}
 flushPendingMutations();
+
+async function checkForWorkspaceChanges() {
+  if (document.visibilityState !== "visible" || !exhibitionRootId) return;
+  try {
+    if (activeSharedBucket) {
+      const result = await filesAction("shared_bucket_open", {bucketId: activeSharedBucket.id});
+      const nextItems = result.items || [];
+      if (JSON.stringify(nextItems) !== JSON.stringify(items)) {
+        items = nextItems;
+        renderItems();
+      }
+      sharedFolderCache[activeSharedBucket.id] = {items: nextItems, savedAt: Date.now()};
+    } else {
+      const result = await filesAction("list");
+      const nextItems = result.items || [];
+      if (JSON.stringify(nextItems) !== JSON.stringify(ownedItems)) {
+        ownedItems = nextItems;
+        items = ownedItems;
+        renderItems();
+      }
+      workspaceCacheTimestamp = Date.now();
+    }
+    await refreshExhibitions({force: true, silent: true});
+    writeWorkspaceCache();
+  } catch (error) {
+    console.warn("Background bucket check failed:", error.message);
+  }
+}
+setInterval(checkForWorkspaceChanges, 30000);
