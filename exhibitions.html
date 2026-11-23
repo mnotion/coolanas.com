@@ -1263,13 +1263,14 @@ async function createPdfThumbnail(item){
   if(pdfPreviewRequests.has(item.id))return pdfPreviewRequests.get(item.id);
   const request=(async()=>{
     const signed=await filesAction("file_preview",{id:item.id});
+    // Fetch through the same signed-URL path as the full viewer, then give PDF.js
+    // local bytes. This avoids browser/CDN range-request CORS differences.
+    const response=await fetch(signed.downloadUrl);
+    if(!response.ok)throw new Error("PDF download failed ("+response.status+").");
+    const pdfBytes=new Uint8Array(await response.arrayBuffer());
+    if(!pdfBytes.length)throw new Error("The PDF file is empty.");
     const pdfjs=await loadPdfJs();
-    const loading=pdfjs.getDocument({
-      url:signed.downloadUrl,
-      disableAutoFetch:true,
-      disableStream:true,
-      rangeChunkSize:65536
-    });
+    const loading=pdfjs.getDocument({data:pdfBytes,isEvalSupported:false});
     const pdf=await loading.promise;
     try{
       const page=await pdf.getPage(1);
@@ -1298,7 +1299,7 @@ async function renderPdfThumbnail(item,container){
   }catch(error){
     if(container.isConnected){
       container.classList.add("pdf-preview-error");
-      container.title="PDF preview unavailable";
+      container.title="PDF preview unavailable: "+(error?.message||"unknown error");
       const placeholder=document.createElement("span");
       placeholder.className="pdf-thumbnail-placeholder";
       placeholder.textContent="PDF";
