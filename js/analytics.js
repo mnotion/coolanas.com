@@ -420,15 +420,10 @@ function renderCalendar() {
     time.className = "calendar-day-time";
     time.textContent = formatCalendarTime(studied);
     cell.append(number, time);
+    cell.dataset.date = key;
     cell.setAttribute("aria-label", date.toLocaleDateString(undefined, {dateStyle:"full"}) +
       ", studied " + formatCalendarTime(studied));
     cell.setAttribute("aria-pressed", String(Boolean(selectedCalendarDate && key === calendarDateKey(selectedCalendarDate))));
-    cell.addEventListener("click", () => {
-      if (muted) calendarDate = new Date(date.getFullYear(), date.getMonth(), 1);
-      selectedCalendarDate = date;
-      renderCalendar();
-      renderCalendarDetails();
-    });
     grid.append(cell);
   }
   renderCalendarDetails();
@@ -438,6 +433,20 @@ $("calendar-details-close").addEventListener("click", () => {
   renderCalendar();
 });
 let calendarPointerStart = null;
+let calendarSwipeHandled = false;
+$("calendar-grid").addEventListener("click", event => {
+  if (calendarSwipeHandled) {
+    calendarSwipeHandled = false;
+    event.preventDefault();
+    return;
+  }
+  const cell = event.target.closest("button.calendar-day[data-date]");
+  if (!cell) return;
+  const [year, month, day] = cell.dataset.date.split("-").map(Number);
+  selectedCalendarDate = new Date(year, month - 1, day);
+  calendarDate = new Date(year, month - 1, 1);
+  renderCalendar();
+});
 $("calendar-grid").addEventListener("pointerdown", event => {
   if (event.pointerType === "mouse" && event.button !== 0) return;
   calendarPointerStart = {x:event.clientX, y:event.clientY};
@@ -447,6 +456,7 @@ $("calendar-grid").addEventListener("pointerup", event => {
   const dx = event.clientX - calendarPointerStart.x, dy = event.clientY - calendarPointerStart.y;
   calendarPointerStart = null;
   if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+  calendarSwipeHandled = true;
   calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + (dx < 0 ? 1 : -1), 1);
   selectedCalendarDate = null;
   renderCalendar();
