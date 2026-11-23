@@ -731,9 +731,16 @@ function setupSubjects() {
           (s, i) => i !== editingIndex && s.name.toLowerCase() === value.toLowerCase());
       if (!duplicate) {
         if (editingIndex < 0) {
-          if (subjects.length < 40) subjects.push({name: value.slice(0, 32), color: 0});
-        } else
+          if (subjects.length < 40) {
+            subjects.push({name: value.slice(0, 32), color: 0});
+            selected = subjects.length - 1;
+            window.coolanasSubjectState.selected = subjects[selected].name;
+          }
+        } else {
           subjects[editingIndex].name = value.slice(0, 32);
+          if (selected === editingIndex)
+            window.coolanasSubjectState.selected = subjects[selected].name;
+        }
         persist();
       }
     }
