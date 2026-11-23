@@ -653,3 +653,37 @@ html.dark-mode .nav-button[aria-current=page] {
     padding:13px
   }
 }
+
+.calendar-day {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:5px;
+  text-align:left
+}
+.calendar-day-number {
+  font-size:12px;
+  line-height:1
+}
+.calendar-day-time {
+  color:#27866b;
+  font-size:10px;
+  line-height:1.25;
+  font-weight:700;
+  font-variant-numeric:tabular-nums
+}
+.calendar-day.has-study {
+  border-color:#b9e4d5;
+  background:#f2fbf7
+}
+.calendar-day.today.has-study {
+  border-color:#3985ed;
+  background:#edf3ff
+}
+html.dark-mode .calendar-day.has-study {
+  border-color:#326b59;
+  background:#20352e
+}
+html.dark-mode .calendar-day-time {
+  color:#8bd9ba
+}
