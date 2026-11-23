@@ -87,7 +87,7 @@ async function uploadTask(task){
     throw error;
   }
 }
-async function processQueue(){
+async function processQueueImpl(){
   const tasks=(await getTasks()).filter(task=>task.status==="pending"||task.status==="uploading");
   let cursor=0,transientFailure=null;
   async function worker(){
@@ -103,6 +103,12 @@ async function processQueue(){
   if(transientFailure)throw transientFailure;
   const remaining=(await getTasks()).some(task=>task.status==="pending"||task.status==="uploading");
   if(remaining)throw new Error("Uploads remain queued.");
+}
+let processingPromise=null;
+function processQueue(){
+  if(processingPromise)return processingPromise;
+  processingPromise=processQueueImpl().finally(()=>{processingPromise=null;});
+  return processingPromise;
 }
 self.addEventListener("install",event=>event.waitUntil(self.skipWaiting()));
 self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));
