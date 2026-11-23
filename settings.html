@@ -97,6 +97,6 @@ user=session.user;googleAvatar=user.user_metadata?.avatar_url||user.user_metadat
 const {data:profile,error:profileError}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();if(profileError){setStatus("username-status","Could not load your profile.","error");}else $("username").value=profile?.username||"";
 try{await refreshPicture();}catch(error){setStatus("account-status",error.message||"Could not load profile picture.","error");}
 </script>
-  <script src="/js/upload-manager.js" defer></script>
+  <script src="/js/upload-manager.js?v=3" defer></script>
 </body>
 </html>
