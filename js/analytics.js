@@ -654,11 +654,12 @@ function renderCalendarHourlyGraph(panel, dateKey) {
   const xLabel = add("text", {x:374,y:260,"text-anchor":"middle",fill:"#858b96","font-size":11});
   xLabel.textContent = "Time of day";
   chart.append(title, svg);
-  panel.insertAdjacentElement("afterend", chart);
+  panel.append(chart);
 }
 function renderCalendarDetails() {
   const panel = $("calendar-details");
-  document.querySelector(".calendar-hourly-chart")?.remove();
+  panel.querySelector(".calendar-hourly-chart")?.remove();
+  panel.querySelector(".calendar-daily-distribution")?.remove();
   if (!selectedCalendarDate) {
     panel.hidden = true;
     return;
@@ -801,7 +802,7 @@ function renderCalendarDetails() {
     distributionLegend.className="subject-distribution-legend";
     distributionContent.append(distributionSvg,distributionLegend);
     dailyDistribution.append(distributionHeading,distributionContent);
-    document.querySelector(".calendar-hourly-chart")?.insertAdjacentElement("afterend",dailyDistribution);
+    panel.append(dailyDistribution);
     renderSubjectDistribution(dailySubjects,key,selectedCalendarDate.getFullYear(),selectedCalendarDate.getMonth(),{
       exactDate:true,
       label:selectedCalendarDate.toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}),
