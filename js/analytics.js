@@ -226,6 +226,37 @@ function renderStudyHeatmap(totals, now) {
   });
   if (!scroller.dataset.initialized) { scroller.scrollLeft = 0; scroller.dataset.initialized = "true"; }
 }
+function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month) {
+  const svg=$("subject-distribution-chart"), legend=$("subject-distribution-legend"), monthLabel=$("subject-distribution-month");
+  if(!svg||!legend||!monthLabel)return;
+  svg.replaceChildren(); legend.replaceChildren();
+  monthLabel.textContent=new Date(year,month,1).toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  const totals=new Map();
+  for(const [date,entries] of Object.entries(subjectsByDay||{})){
+    if(!date.startsWith(monthPrefix)||!entries||typeof entries!=="object")continue;
+    for(const [subject,duration] of Object.entries(entries)){const amount=Math.max(0,Number(duration)||0);if(amount)totals.set(subject,(totals.get(subject)||0)+amount);}
+  }
+  const entries=[...totals.entries()].sort((a,b)=>b[1]-a[1]);
+  const total=entries.reduce((sum,entry)=>sum+entry[1],0), ns="http://www.w3.org/2000/svg";
+  const make=(tag,attrs)=>{const node=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));return node;};
+  svg.append(make("circle",{cx:110,cy:110,r:76,fill:"none",stroke:"var(--subject-donut-track,#eceff1)","stroke-width":24}));
+  if(!total){const empty=make("text",{x:110,y:106,"text-anchor":"middle","class":"subject-donut-empty"});empty.textContent="No study data";const sub=make("text",{x:110,y:126,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent="this month";svg.append(empty,sub);const note=document.createElement("p");note.className="subject-distribution-empty";note.textContent="Subject breakdown will appear here as you study.";legend.append(note);return;}
+  const circumference=2*Math.PI*76, palette=["#8fc36a","#39a99a","#e28d83","#e9a443","#8580c9","#54a5d8","#e76b50","#b37be0","#6b9d91","#c5a05c"];
+  let offset=0;
+  entries.forEach(([subject,duration],index)=>{
+    const fraction=duration/total, colour=calendarSubjectColours[subject]||palette[index%palette.length];
+    const ring=make("circle",{cx:110,cy:110,r:76,fill:"none",stroke:colour,"stroke-width":24,"stroke-dasharray":(fraction*circumference)+" "+circumference,"stroke-dashoffset":-offset,transform:"rotate(-90 110 110)","stroke-linecap":"butt","aria-label":subject+": "+(fraction*100).toFixed(1)+" percent"});
+    svg.append(ring);offset+=fraction*circumference;
+    const row=document.createElement("div");row.className="subject-distribution-item";
+    const swatch=document.createElement("span");swatch.className="subject-distribution-swatch";swatch.style.backgroundColor=colour;
+    const name=document.createElement("span");name.className="subject-distribution-name";name.textContent=subject;
+    const percent=document.createElement("strong");percent.textContent=(fraction*100).toFixed(1)+"%";
+    const time=document.createElement("small");time.textContent=formatDuration(duration);
+    row.append(swatch,name,percent,time);legend.append(row);
+  });
+  const centre=make("text",{x:110,y:104,"text-anchor":"middle","class":"subject-donut-total"});centre.textContent=formatDuration(total);
+  const caption=make("text",{x:110,y:126,"text-anchor":"middle","class":"subject-donut-caption"});caption.textContent="total studied";svg.append(centre,caption);
+}
 function renderMonthlyChart() {
   const dailyKey = accountKey("coolanas-study-daily-time-v1");
   let totals = {}, subjectsByDay = {};
@@ -261,6 +292,7 @@ function renderMonthlyChart() {
       (_, index) =>
           Math.max(0, Number(totals[monthPrefix + String(index + 1).padStart(2, "0")]) || 0));
   renderStudyHeatmap(totals, now);
+  renderSubjectDistribution(subjectsByDay, monthPrefix, year, month);
   const svg = $("monthly-time-chart");
   svg.replaceChildren();
   const ns = "http://www.w3.org/2000/svg", width = 760, height = 280, left = 48, right = 16,
