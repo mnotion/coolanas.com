@@ -19,6 +19,10 @@ jobs:
           deno-version: v2.x
       - name: Check dashboard JavaScript syntax
         run: node --check --input-type=module < js/dashboard.js
+      - name: Check shared theme JavaScript syntax
+        run: node --check < js/theme.js
+      - name: Check settings JavaScript syntax
+        run: node --check --input-type=module < js/settings.js
       - name: Check analytics JavaScript syntax
         run: node --check --input-type=module < js/analytics.js
       - name: Check exhibitions page JavaScript syntax
