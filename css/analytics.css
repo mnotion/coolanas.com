@@ -1156,3 +1156,57 @@ html.dark-mode .tree-container {
   background:color-mix(in srgb,var(--bucket-colour,#555) 25%,#242424);
   border-color:color-mix(in srgb,var(--bucket-colour,#555) 58%,#444);
 }
+
+
+/* Display every bucket structure at once in a responsive side-by-side grid. */
+#bucket-structure-picker { display:none !important; }
+#bucket-tree.tree-container {
+  width:100%;
+  max-width:none;
+  min-height:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+.bucket-tree-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));
+  align-items:start;
+  gap:16px;
+}
+.bucket-tree-card {
+  min-width:0;
+  padding:24px;
+  border:1px solid color-mix(in srgb,var(--bucket-colour) 78%,#d4d4d8);
+  border-radius:10px;
+  background:color-mix(in srgb,var(--bucket-colour) 36%,white);
+  box-shadow:0 1px 2px rgba(0,0,0,.05);
+  overflow:hidden;
+}
+.bucket-tree-card > ul {
+  min-width:0;
+}
+.bucket-tree-card .tree-label,
+.bucket-tree-card .file-item {
+  min-width:0;
+  overflow:hidden;
+}
+.bucket-tree-card .tree-label {
+  font-weight:500;
+}
+.bucket-tree-card .tree-label:not(:has(.folder-open-icon)) {
+  cursor:default;
+}
+.bucket-tree-card .tree-label,
+.bucket-tree-card .file-item {
+  text-overflow:ellipsis;
+}
+html.dark-mode .bucket-tree-card {
+  background:color-mix(in srgb,var(--bucket-colour) 38%,#242424);
+  border-color:color-mix(in srgb,var(--bucket-colour) 72%,#444);
+}
+@media(max-width:520px) {
+  .bucket-tree-grid { grid-template-columns:minmax(0,1fr); }
+  .bucket-tree-card { padding:16px; }
+}
