@@ -106,7 +106,7 @@
       const {createClient} = await import("https://esm.sh/@supabase/supabase-js@2.119.0");
       supabase = createClient(
         "https://nacwftrsdpglzrhasmit.supabase.co",
-        "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQ",
+        "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF",
         {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}
       );
       clientReadyResolve();
