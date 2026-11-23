@@ -846,9 +846,12 @@ Deno.serve(async (req) => {
       const uniqueIds = [...new Set(ids as string[])];
       const targetParent = body.targetParentId == null ? null : cleanId(body.targetParentId);
       if (body.targetParentId != null && !targetParent) return json(400, { error: "Invalid destination folder." });
-      await assertParent(targetParent);
       const rows = await ownedItems();
       const byId = new Map(rows.map((row: { id: string }) => [row.id, row]));
+      const destinationFolder = targetParent ? byId.get(targetParent) as { item_type: string } | undefined : null;
+      if (targetParent && (!destinationFolder || destinationFolder.item_type !== "folder")) {
+        return json(404, { error: "Folder not found or not owned by this account." });
+      }
       const selected = uniqueIds.map((id) => byId.get(id));
       if (selected.some((row) => !row)) return json(404, { error: "One or more selected items no longer exist." });
       const selectedRows = selected as Array<{id:string;name:string;item_type:string;parent_id:string|null;storage_path:string|null}>;
@@ -861,9 +864,9 @@ Deno.serve(async (req) => {
         const ancestorRow = byId.get(destinationAncestor) as { parent_id: string | null } | undefined;
         destinationAncestor = ancestorRow?.parent_id ?? null;
       }
-      const { data: exhibitionsRoot } = await supabase.from("coolanas_files")
-        .select("id").eq("owner_id", user.id).eq("item_type", "folder")
-        .eq("name", "exhibitions").is("parent_id", null).maybeSingle();
+      const exhibitionsRoot = rows.find((row: any) =>
+        row.item_type === "folder" && row.name === "exhibitions" && row.parent_id === null
+      );
       if (exhibitionsRoot && selectedRows.some((item) => item.parent_id === exhibitionsRoot.id)) {
         return json(400, { error: "Exhibitions cannot be moved out of the exhibitions area." });
       }
@@ -877,7 +880,17 @@ Deno.serve(async (req) => {
         return item.parent_id !== targetParent;
       });
       if (!roots.length) return json(200, { success: true, moved: 0 });
-      const targetPath = await buildFolderPath(targetParent);
+      const targetPathParts: string[] = [];
+      let pathCursor = targetParent;
+      let pathDepth = 0;
+      while (pathCursor) {
+        if (++pathDepth > 40) throw new Error("Folder nesting is too deep.");
+        const parent = byId.get(pathCursor) as { name: string; parent_id: string | null; item_type: string } | undefined;
+        if (!parent || parent.item_type !== "folder") throw new Error("Folder path could not be verified.");
+        targetPathParts.unshift(parent.name);
+        pathCursor = parent.parent_id;
+      }
+      const targetPath = targetPathParts.join("/");
       const destinationNames = new Set(rows.filter((row: {parent_id:string|null}) => row.parent_id === targetParent).map((row: {name:string}) => row.name));
       for (const root of roots) {
         if (destinationNames.has(root.name)) return json(409, { error: "A file or folder named \"" + root.name + "\" already exists in that folder." });
@@ -889,6 +902,13 @@ Deno.serve(async (req) => {
       const newKeys: string[] = [];
       const parentPaths = new Map<string, string>();
       const movingSet = new Set<string>();
+      const childrenByParent = new Map<string, any[]>();
+      for (const row of rows) {
+        if (!row.parent_id) continue;
+        const siblings = childrenByParent.get(row.parent_id) ?? [];
+        siblings.push(row);
+        childrenByParent.set(row.parent_id, siblings);
+      }
       const queue: Array<{item:any; newParentId:string|null; parentRel:string}> =
         roots.map((item) => ({ item, newParentId: targetParent, parentRel: targetPath }));
       const changes: Array<{id:string;newParentId:string|null;oldKey:string|null;newKey:string}> = [];
@@ -904,7 +924,7 @@ Deno.serve(async (req) => {
         changes.push({ id: item.id, newParentId: current.newParentId, oldKey: item.storage_path, newKey });
         if (item.item_type === "folder") {
           const childRel = baseRel + item.name;
-          for (const child of rows.filter((row: {parent_id:string|null}) => row.parent_id === item.id)) {
+          for (const child of childrenByParent.get(item.id) ?? []) {
             queue.push({ item: child, newParentId: item.id, parentRel: childRel });
           }
         }
@@ -912,35 +932,51 @@ Deno.serve(async (req) => {
       if (changes.length > 1000) {
         return json(413, { error: "This move contains too many nested items. Move a smaller group." });
       }
-      let recoveredObjectKeys: Set<string> | null = null;
+      let recoveredObjectKeysPromise: Promise<Set<string>> | null = null;
       const findRecoveredFileKey = async (item: { id: string; name: string }): Promise<string | null> => {
-        if (!recoveredObjectKeys) {
-          recoveredObjectKeys = new Set<string>();
-          for (const objectPrefix of [prefix + "/", legacyNamedPrefix + "/", legacyUserPrefix]) {
-            let continuationToken: string | undefined;
-            do {
-              const page = await s3.send(new ListObjectsV2Command({
-                Bucket: bucket, Prefix: objectPrefix, ContinuationToken: continuationToken,
-                MaxKeys: 1000,
-              }));
-              for (const object of page.Contents ?? []) if (object.Key) recoveredObjectKeys.add(object.Key);
-              continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
-            } while (continuationToken);
-          }
+        if (!recoveredObjectKeysPromise) {
+          recoveredObjectKeysPromise = (async () => {
+            const keys = new Set<string>();
+            for (const objectPrefix of [prefix + "/", legacyNamedPrefix + "/", legacyUserPrefix]) {
+              let continuationToken: string | undefined;
+              do {
+                const page = await s3.send(new ListObjectsV2Command({
+                  Bucket: bucket, Prefix: objectPrefix, ContinuationToken: continuationToken,
+                  MaxKeys: 1000,
+                }));
+                for (const object of page.Contents ?? []) if (object.Key) keys.add(object.Key);
+                continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+              } while (continuationToken);
+            }
+            return keys;
+          })();
         }
+        const recoveredObjectKeys = await recoveredObjectKeysPromise;
         const expectedName = item.id + "-" + item.name;
         for (const key of recoveredObjectKeys) {
           if (key.endsWith("/" + expectedName) && belongsToUserPath(key)) return key;
         }
         return null;
       };
+
+      const copyChanges = changes.filter((change) => change.oldKey && change.oldKey !== change.newKey);
       for (const change of changes) {
         if (change.oldKey && !belongsToUserPath(change.oldKey)) {
           return json(403, { error: "A selected item has a storage path outside this account." });
         }
-        if (change.oldKey && change.oldKey !== change.newKey) {
+      }
+      const copiedDestinationKeys: string[] = [];
+      const oldKeyById = new Map<string, string>();
+      let nextCopyIndex = 0;
+      let copyFailure: unknown = null;
+      const copyWorker = async () => {
+        while (!copyFailure) {
+          const index = nextCopyIndex++;
+          if (index >= copyChanges.length) return;
+          const change = copyChanges[index];
+          try {
           const movingItem = byId.get(change.id) as { id: string; name: string; item_type: string } | undefined;
-          let sourceKey = change.oldKey;
+          let sourceKey = change.oldKey!;
           try {
             await s3.send(new CopyObjectCommand({
               Bucket: bucket, CopySource: copySource(bucket, sourceKey), Key: change.newKey,
@@ -951,14 +987,11 @@ Deno.serve(async (req) => {
             const missingSource = errorName === "NoSuchKey" ||
               /specified key does not exist|no such key/i.test(errorMessage);
             if (movingItem?.item_type === "folder" && missingSource) {
-              // Empty folder marker objects are optional; recreate them at the destination.
               await s3.send(new PutObjectCommand({
                 Bucket: bucket, Key: change.newKey, Body: new Uint8Array(0),
                 ContentType: "application/x-directory",
               }));
             } else if (movingItem?.item_type === "file" && missingSource) {
-              // Older moves can leave a file's DB path stale. Recover only by its
-              // unique database id + filename, never by a loose filename match.
               const recoveredKey = await findRecoveredFileKey(movingItem);
               if (!recoveredKey) {
                 throw new Error('Cannot move "' + movingItem.name + '": its stored file object could not be found. No source files were deleted.');
@@ -971,9 +1004,24 @@ Deno.serve(async (req) => {
               throw error;
             }
           }
-          oldKeys.push(sourceKey);
+          copiedDestinationKeys.push(change.newKey);
+          oldKeyById.set(change.id, sourceKey);
+          } catch (error) {
+            copyFailure = error;
+            return;
+          }
         }
-        newKeys.push(change.newKey);
+      };
+      const copyWorkers = Array.from(
+        { length: Math.min(5, copyChanges.length) },
+        () => copyWorker()
+      );
+      await Promise.all(copyWorkers);
+      if (copyFailure) {
+        await Promise.all(copiedDestinationKeys.map((key) =>
+          s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })).catch(() => undefined)
+        ));
+        throw copyFailure;
       }
       const { error: moveError } = await supabase.rpc("coolanas_move_files", {
         p_changes: changes.map((change) => ({
@@ -982,9 +1030,27 @@ Deno.serve(async (req) => {
           storage_path: change.newKey,
         })),
       });
-      if (moveError) throw moveError;
+      if (moveError) {
+        await Promise.all(copiedDestinationKeys.map((key) =>
+          s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })).catch(() => undefined)
+        ));
+        throw moveError;
+      }
       movedIds.push(...changes.map((change) => change.id));
-      for (const oldKey of oldKeys) await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: oldKey }));
+      const oldKeys = [...oldKeyById.values()];
+      let nextDeleteIndex = 0;
+      const deleteWorker = async () => {
+        while (true) {
+          const index = nextDeleteIndex++;
+          if (index >= oldKeys.length) return;
+          try {
+            await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: oldKeys[index] }));
+          } catch (error) {
+            console.warn("Could not remove old moved-file object:", oldKeys[index], error);
+          }
+        }
+      };
+      await Promise.all(Array.from({length:Math.min(8,oldKeys.length)},()=>deleteWorker()));
       return json(200, { success: true, moved: movedIds.length });
     }
 
