@@ -445,8 +445,14 @@ function renderCalendarDetails() {
       }
       const task = {id:crypto.randomUUID(),text:value,completed:false,dueDate:key};
       calendarTasks.push(task);
-      await saveCalendarTasks();
-      renderCalendarDetails();
+      try {
+        await saveCalendarTasks();
+        renderCalendarDetails();
+      } catch (error) {
+        calendarTasks = calendarTasks.filter(item => item.id !== task.id);
+        input.setCustomValidity(error.message || "Could not save this task.");
+        input.reportValidity();
+      }
     });
     tasksSection.append(form);
   }
