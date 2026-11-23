@@ -78,6 +78,7 @@ async function uploadTask(task){
     }
     let response=await fetch(current.uploadUrl,{method:"PUT",headers:{"Content-Type":current.contentType},body:current.file,signal:controller.signal});
     if((response.status===403||response.status===401)&&current.itemId){
+      await invoke("delete",current,{id:current.itemId}).catch(()=>{});
       const fresh=await invoke("create_upload",current,{parentId:current.parentId,name:current.fileName,contentType:current.contentType});
       current={...current,itemId:fresh.item.id,uploadUrl:fresh.uploadUrl,contentType:fresh.contentType};
       await patchTask(task.id,{itemId:current.itemId,uploadUrl:current.uploadUrl,contentType:current.contentType});
@@ -91,8 +92,9 @@ async function uploadTask(task){
   }catch(error){
     const latest=(await getTasks()).find(value=>value.id===task.id);
     if(latest?.status==="cancelled"||error.name==="AbortError"){
-      if(currentItemId(task.id))await invoke("delete",task,{id:currentItemId(task.id)}).catch(()=>{});
-      await patchTask(task.id,{status:"cancelled",file:null,accessToken:null,uploadUrl:null,error:"Terminated by you"});
+      const itemId=latest?.itemId||task.itemId;
+      if(itemId)await invoke("delete",task,{id:itemId}).catch(()=>{});
+      await patchTask(task.id,{status:"cancelled",file:null,uploadUrl:null,error:"Terminated by you"});
       return;
     }
     const transient=/fetch|network|temporar|expired|429|500|502|503|504/i.test(error.message);
