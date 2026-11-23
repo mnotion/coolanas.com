@@ -270,9 +270,7 @@ function setAvatar(url) {
 let customProfilePicture = false;
 async function profileAction(action, payload = {}) {
   const {data, error} =
-      await withRequestTimeout(
-          supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}}),
-          action.startsWith("subjects_") ? "Subject request" : action.startsWith("tasks_") ? "Task request" : "Profile request");
+      await supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}});
   if (error) throw new Error(error.message || "Profile picture request failed.");
   if (data?.error) throw new Error(data.error);
   return data;
@@ -342,6 +340,488 @@ function loadContributionGraph() {
     grid.appendChild(cell);
   }
 }
+// Lightweight YPT-style stopwatch. Elapsed time is persisted locally and
+// recalculated from timestamps, so it remains accurate when the tab sleeps.
+function setupStudyStopwatch() {
+  const timeEl = document.getElementById("study-stopwatch-time");
+  const toggleButton = document.getElementById("study-stopwatch-toggle");
+  const resetButton = document.getElementById("study-stopwatch-reset");
+  const storageKey = "coolanas-study-stopwatch-v1:" + activeAccountId;
+  let state = {elapsed: 0, startedAt: null}, restoredCloudCheckpointAt = null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+    if (saved && typeof saved.elapsed === "number") {
+      state = {
+        elapsed: Math.max(0, saved.elapsed),
+        startedAt: Number.isFinite(saved.startedAt) ? saved.startedAt : null
+      };
+      restoredCloudCheckpointAt =
+          Number.isFinite(saved.cloudCheckpointAt) ? saved.cloudCheckpointAt : null;
+    }
+  } catch (error) {
+    console.warn("Could not restore stopwatch:", error);
+  }
+  let cloudCheckpointAt = restoredCloudCheckpointAt ?? state.startedAt;
+  const monthlyKey = "coolanas-study-monthly-time-v1:" + activeAccountId;
+  function readMonthly() {
+    try {
+      const value = JSON.parse(localStorage.getItem(monthlyKey) || "{}");
+      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    } catch {
+      return {};
+    }
+  }
+  function monthKey(timestamp) {
+    const date = new Date(timestamp);
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
+  }
+  const dailyKey = "coolanas-study-daily-time-v1:" + activeAccountId,
+        pendingKey = "coolanas-study-pending-analytics-v1:" + activeAccountId;
+  function readDaily() {
+    try {
+      const value = JSON.parse(localStorage.getItem(dailyKey) || "{}");
+      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    } catch {
+      return {};
+    }
+  }
+  function savePending(records) {
+    try {
+      localStorage.setItem(pendingKey, JSON.stringify(records));
+    } catch (error) {
+      console.warn("Could not queue study-time sync:", error);
+    }
+  }
+  function queueInterval(start, end, eventPrefix = "session") {
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+    const pending = (() => {
+      try {
+        return JSON.parse(localStorage.getItem(pendingKey) || "[]");
+      } catch {
+        return [];
+      }
+    };
+    let cursor = start;
+    while (cursor < end) {
+      const date = new Date(cursor),
+            next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime(),
+            segmentEnd = Math.min(end, next),
+            dateKey = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0");
+
+      pending.push({
+        date: dateKey,
+        durationMs: Math.round(segmentEnd - cursor),
+        subject: window.coolanasSubjectState?.selected || "Unassigned",
+        eventId: eventPrefix + "-" + crypto.randomUUID()
+      });
+
+      cursor = segmentEnd;
+    }
+    savePending(pending);
+  }
+  async function flushPendingAnalytics() {
+    let pending;
+    try {
+      pending = JSON.parse(localStorage.getItem(pendingKey) || "[]");
+    } catch {
+      pending = [];
+    }
+    if (!Array.isArray(pending) || !pending.length) return;
+    const remaining = [];
+    for (let index = 0; index < pending.length; index++) {
+      const record = pending[index];
+      try {
+        const {data, error} = await supabase.functions.invoke(
+            "coolanas-files-b2", {body: {action: "analytics_record", ...record}});
+        if (error || data?.error) throw error || new Error(data.error);
+      } catch (error) {
+        console.warn("Study-time cloud sync deferred:", error);
+        remaining.push(...pending.slice(index));
+        break;
+      }
+    }
+    savePending(remaining);
+  }
+  async function bootstrapCloudAnalytics() {
+    try {
+      const {data, error} =
+          await supabase.functions.invoke("coolanas-files-b2", {body: {action: "analytics_get"}});
+      if (error || data?.error) throw error || new Error(data.error);
+      const remote = data.daily && typeof data.daily === "object" ? data.daily : {};
+      if (!Object.keys(remote).length) {
+        const local = readDaily();
+        for (const [date, durationMs] of Object.entries(local)) {
+          if (/^\\d{4}-\\d{2}-\\d{2}$/.test(date) && Number(durationMs) > 0) {
+            const pending = (() => {
+              try {
+                return JSON.parse(localStorage.getItem(pendingKey) || "[]");
+              } catch {
+                return [];
+              }
+            })();
+            if (!pending.some(item => item.date === date))
+              pending.push(
+                  {date, durationMs: Math.round(Number(durationMs)), eventId: "legacy-" + date});
+            savePending(pending);
+          }
+        }
+        await flushPendingAnalytics();
+      } else {
+        localStorage.setItem(dailyKey, JSON.stringify(remote));
+      }
+      await flushPendingAnalytics();
+    } catch (error) {
+      console.warn("Could not load account study analytics:", error);
+    }
+  }
+  function addIntervalToMonthly(start, end) {
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+    const totals = readMonthly();
+    let cursor = start;
+    while (cursor < end) {
+      const date = new Date(cursor),
+            next = new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime(),
+            segmentEnd = Math.min(end, next), key = monthKey(cursor);
+
+      totals[key] = (Number(totals[key]) || 0) + (segmentEnd - cursor);
+      cursor = segmentEnd;
+    }
+    try {
+      localStorage.setItem(monthlyKey, JSON.stringify(totals));
+    } catch (error) {
+      console.warn("Could not save monthly study time:", error);
+    }
+    const daily = readDaily();
+    cursor = start;
+    while (cursor < end) {
+      const date = new Date(cursor),
+            next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime(),
+            segmentEnd = Math.min(end, next),
+            key = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0");
+
+      daily[key] = (Number(daily[key]) || 0) + (segmentEnd - cursor);
+      cursor = segmentEnd;
+    }
+    try {
+      localStorage.setItem(dailyKey, JSON.stringify(daily));
+    } catch (error) {
+      console.warn("Could not save daily study time:", error);
+    }
+    queueInterval(start, end);
+    void flushPendingAnalytics();
+  }
+  const elapsedNow = () =>
+      state.elapsed + (state.startedAt ? Math.max(0, Date.now() - state.startedAt) : 0);
+  const format = milliseconds => {
+    const total = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return [hours, minutes, seconds].map(value => String(value).padStart(2, "0")).join(":");
+  };
+  function save() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({...state, cloudCheckpointAt}));
+    } catch (error) {
+      console.warn("Could not save stopwatch:", error);
+    }
+  }
+  function render() {
+    timeEl.textContent = format(elapsedNow());
+    const running = Boolean(state.startedAt);
+    const paused = !running && state.elapsed > 0;
+    document.body.classList.toggle("timer-running", running);
+    document.body.classList.toggle("timer-paused", paused);
+    document.body.classList.toggle("timer-idle", !running && !paused);
+    document.body.classList.toggle("timer-focus", running);
+    const label = running ? "Pause" : (state.elapsed > 0 ? "Resume" : "Start");
+    toggleButton.setAttribute("aria-label", label + " timer");
+    toggleButton.title = label;
+    toggleButton.innerHTML = running ?
+        "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 5h4v14H6zM14 5h4v14h-4z\"/></svg>" :
+        "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2l-11 7.1c-.7.4-1.6-.1-1.6-.9z\"/></svg>";
+  }
+  toggleButton.disabled = true;
+  toggleButton.title = "Loading subjects…";
+  toggleButton.addEventListener("click", () => {
+    const subjectState = window.coolanasSubjectState;
+    if (!subjectState?.ready) return;
+    if (!state.startedAt && !subjectState.selected) {
+      document.body.classList.add("subject-pick-mode");
+      const hint = document.getElementById("subject-selection-hint");
+      if (hint) {
+        hint.textContent = "Select a subject to start your session";
+        hint.classList.add("visible");
+      }
+      return;
+    }
+    if (state.startedAt) {
+      const stoppedAt = Date.now();
+      addIntervalToMonthly(cloudCheckpointAt || state.startedAt, stoppedAt);
+      cloudCheckpointAt = null;
+      state.elapsed = elapsedNow();
+      state.startedAt = null;
+    } else {
+      state.startedAt = Date.now();
+      cloudCheckpointAt = state.startedAt;
+    }
+    save();
+    render();
+  });
+  resetButton.addEventListener("click", () => {
+    if (state.startedAt) addIntervalToMonthly(cloudCheckpointAt || state.startedAt, Date.now());
+    cloudCheckpointAt = null;
+    state.elapsed = 0;
+    state.startedAt = null;
+    save();
+    render();
+  });
+  render();
+  void bootstrapCloudAnalytics();
+  setInterval(() => {
+    if (state.startedAt && cloudCheckpointAt) {
+      const checkpoint = Date.now();
+      addIntervalToMonthly(cloudCheckpointAt, checkpoint);
+      cloudCheckpointAt = checkpoint;
+      save();
+    }
+    void flushPendingAnalytics();
+  }, 30000);
+  setInterval(render, 250);
+})();
+// Subjects are account-synced in stats/subjects.json.
+(function setupSubjects() {
+  const container = document.getElementById("study-subjects");
+  const add = document.getElementById("study-subject-add");
+  const input = document.getElementById("study-subject-input");
+  const menu = document.getElementById("subject-context-menu");
+  const colourRow = document.getElementById("subject-menu-colours");
+  const activeLabel = document.getElementById("active-subject-label");
+  const timerButton = document.getElementById("study-stopwatch-toggle");
+  const hint = document.getElementById("subject-selection-hint");
+  const palette = ["#e7e7e7", "#f6caca", "#f6dfaa", "#d9edbd", "#c9e7ef", "#d7d0f2", "#f0cce8"];
+  const defaults = [
+    "Maths", "English", "Biology", "Chemistry", "Physics", "History", "Geography",
+    "Computer Science"
+  ].map(name => ({name, color: 0}));
+
+  const localKey = "coolanas-study-subjects-v1:" + activeAccountId;
+  let subjects = defaults;
+  let selected = null, activeIndex = -1, editingIndex = -1, saveQueue = Promise.resolve();
+  window.coolanasSubjectState = {ready: false, selected: null};
+  async function subjectAction(action, payload = {}) {
+    const {data, error} =
+        await supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}});
+    if (error) throw new Error(error.message || "Could not sync subjects.");
+    if (data?.error) throw new Error(data.error);
+    return data;
+  }
+  function normalize(list) {
+    if (!Array.isArray(list)) return null;
+    return list.filter(s => s && typeof s.name === "string" && s.name.trim())
+        .slice(0, 40)
+        .map(s => ({
+               name: s.name.trim().slice(0, 32),
+               color: Math.max(0, Math.min(6, Number(s.color) || 0))
+             }));
+  }
+  function persist() {
+    const snapshot = subjects.map(s => ({...s}));
+    saveQueue =
+        saveQueue.then(() => subjectAction("subjects_save", {subjects: snapshot})).catch(error => {
+          console.error("Could not sync subjects:", error);
+          hint.textContent = "Subjects could not sync. Changes will retry when you edit again.";
+          hint.classList.add("visible");
+        });
+  }
+  function render() {
+    container.classList.remove("loading");
+    container.querySelectorAll(".study-subject").forEach(el => el.remove());
+    subjects.forEach((subject, index) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "study-subject";
+      chip.textContent = subject.name;
+      chip.dataset.index = String(index);
+      chip.style.background = palette[subject.color];
+      chip.style.borderColor = palette[subject.color];
+      chip.style.color = "#444";
+      chip.classList.toggle("selected", selected === index);
+      chip.setAttribute("aria-pressed", String(selected === index));
+      chip.title = "Click to select; double-click for options";
+      container.insertBefore(chip, add);
+    });
+    const chosen = selected === null ? null : subjects[selected];
+    window.coolanasSubjectState.selected = chosen ? chosen.name : null;
+    if (chosen) {
+      document.body.style.setProperty("--subject-colour", palette[chosen.color]);
+      document.body.classList.add("subject-colour-preview");
+    } else {
+      document.body.classList.remove("subject-colour-preview");
+      document.body.style.removeProperty("--subject-colour");
+    }
+    activeLabel.textContent = chosen ? chosen.name : "";
+    activeLabel.style.background = chosen ? palette[chosen.color] : "#f7f7f7";
+    activeLabel.style.borderColor = chosen ? palette[chosen.color] : "#dedede";
+    activeLabel.style.color = "#555";
+  }
+  function closeMenu() {
+    menu.hidden = true;
+    colourRow.hidden = true;
+  }
+  function beginInlineEdit(index, isNew = false) {
+    closeMenu();
+    editingIndex = isNew ? -1 : index;
+    const chip =
+        isNew ? null : container.querySelector(".study-subject[data-index=\"" + index + "\"]");
+    if (chip) chip.hidden = true;
+    add.hidden = true;
+    input.hidden = false;
+    input.value = isNew ? "" : subjects[index].name;
+    if (chip)
+      chip.parentNode.insertBefore(input, chip);
+    else
+      container.insertBefore(input, add);
+    input.focus();
+    input.select();
+  }
+  function finishInlineEdit(save) {
+    const value = input.value.trim();
+    if (save && value) {
+      const duplicate = subjects.some(
+          (s, i) => i !== editingIndex && s.name.toLowerCase() === value.toLowerCase());
+      if (!duplicate) {
+        if (editingIndex < 0) {
+          if (subjects.length < 40) subjects.push({name: value.slice(0, 32), color: 0});
+        } else
+          subjects[editingIndex].name = value.slice(0, 32);
+        persist();
+      }
+    }
+    input.hidden = true;
+    add.hidden = false;
+    render();
+  }
+  function openMenu(chip) {
+    activeIndex = Number(chip.dataset.index);
+    closeMenu();
+    menu.hidden = false;
+    const rect = chip.getBoundingClientRect();
+    menu.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 150)) + "px";
+    menu.style.top = Math.max(6, Math.min(rect.bottom + 5, window.innerHeight - 80)) + "px";
+    colourRow.replaceChildren();
+    palette.forEach((color, i) => {
+      const swatch = document.createElement("button");
+      swatch.type = "button";
+      swatch.className = "subject-colour";
+      swatch.style.background = color;
+      swatch.setAttribute("aria-label", "Colour " + (i + 1));
+      swatch.setAttribute("aria-pressed", String(subjects[activeIndex].color === i));
+      swatch.addEventListener("click", () => {
+        subjects[activeIndex].color = i;
+        if (selected === activeIndex) document.body.style.setProperty("--subject-colour", color);
+        persist();
+        render();
+        closeMenu();
+      });
+      colourRow.appendChild(swatch);
+    });
+  }
+  add.addEventListener("click", () => beginInlineEdit(-1, true));
+  input.addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      finishInlineEdit(true);
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      finishInlineEdit(false);
+    }
+  });
+  input.addEventListener("blur", () => finishInlineEdit(true));
+  container.addEventListener("click", event => {
+    const chip = event.target.closest(".study-subject");
+    if (!chip) return;
+    selected = Number(chip.dataset.index);
+    window.coolanasSubjectState.selected = subjects[selected]?.name || null;
+    const selectedColour = palette[subjects[selected]?.color ?? 0];
+    document.body.style.setProperty("--subject-colour", selectedColour);
+    document.body.classList.add("subject-colour-preview");
+    activeLabel.textContent = subjects[selected]?.name || "";
+    activeLabel.style.background =
+        subjects[selected] ? palette[subjects[selected].color] : "#f7f7f7";
+    activeLabel.style.borderColor =
+        subjects[selected] ? palette[subjects[selected].color] : "#dedede";
+    activeLabel.style.color = "#555";
+    document.body.classList.remove("subject-pick-mode");
+    hint.textContent = "";
+    hint.classList.remove("visible");
+    container.querySelectorAll(".study-subject").forEach((item, index) => {
+      item.classList.toggle("selected", index === selected);
+      item.setAttribute("aria-pressed", String(index === selected));
+    });
+  });
+  container.addEventListener("dblclick", event => {
+    const chip = event.target.closest(".study-subject");
+    if (chip) openMenu(chip);
+  });
+  menu.addEventListener("click", event => {
+    const action = event.target.closest("button")?.dataset.action;
+    if (action === "rename") beginInlineEdit(activeIndex);
+    if (action === "colour") colourRow.hidden = !colourRow.hidden;
+    if (action === "delete") {
+      subjects.splice(activeIndex, 1);
+      if (selected === activeIndex)
+        selected = null;
+      else if (selected !== null && selected > activeIndex)
+        selected--;
+      persist();
+      render();
+      closeMenu();
+    }
+  });
+  document.addEventListener("pointerdown", event => {
+    if (!menu.hidden && !menu.contains(event.target)) closeMenu();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeMenu();
+  });
+  (async () => {
+    try {
+      const result = await subjectAction("subjects_get");
+      const cloud = normalize(result.subjects);
+      if (cloud) {
+        subjects = cloud;
+      } else {
+        try {
+          const local = normalize(JSON.parse(localStorage.getItem(localKey) || "null"));
+          if (local) subjects = local;
+        } catch {
+        }
+        await subjectAction("subjects_save", {subjects});
+      }
+      localStorage.removeItem(localKey);
+      selected = null;
+      render();
+      window.coolanasSubjectState.ready = true;
+      timerButton.disabled = false;
+      timerButton.title = "Start";
+    } catch (error) {
+      console.error("Could not load subjects:", error);
+      hint.textContent = "Could not load your subjects. Refresh to retry.";
+      hint.classList.add("visible");
+      container.classList.remove("loading");
+      container.replaceChildren();
+      const failed = document.createElement("span");
+      failed.className = "subject-load-error";
+      failed.textContent = "Subjects unavailable";
+      container.appendChild(failed);
+      timerButton.disabled = true;
+      timerButton.title = "Subjects unavailable";
+    }
+  };
+  container.classList.add("loading");
+})();
 // Personal task list and drag-to-reorder behavior.
 const taskItemsEl = document.getElementById("task-items");
 const taskAddForm = document.getElementById("task-add-form");
@@ -353,9 +833,7 @@ let taskDragId = null;
 let dropIndicator = null;
 async function taskAction(action, payload = {}) {
   const {data, error} =
-      await withRequestTimeout(
-        supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}}),
-        action.startsWith("subjects_") ? "Subject request" : "Task request");
+      await supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}});
   if (error) throw new Error(error.message || "Could not save tasks.");
   if (data?.error) throw new Error(data.error);
   return data;
@@ -624,9 +1102,6 @@ async function loadTasks() {
     taskError.textContent = error.message || "Try refreshing the page.";
   }
 }
-document.addEventListener("visibilitychange", () => { if (!document.hidden && tasksReady) void loadTasks(); });
-window.addEventListener("focus", () => { if (tasksReady) void loadTasks(); });
-setInterval(() => { if (tasksReady) renderTasks(); }, 60000);
 // Profile loading, picture updates, and sign-out.
 async function initialiseProfile(session) {
   const meta = session.user.user_metadata || {};
@@ -755,15 +1230,6 @@ document.getElementById("change-account").addEventListener("click", async () => 
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") closeProfileDrawer();
 });
-function withRequestTimeout(promise, label, timeoutMs = 12000) {
-  let timeoutId;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error(label + " timed out. Please retry.")), timeoutMs);
-    })
-  ]).finally(() => clearTimeout(timeoutId));
-}
 let activeAccountId = null;
 try {
   let session;
@@ -776,330 +1242,36 @@ try {
     }
     history.replaceState(null, document.title, location.pathname);
     await requireUsername(session);
-    void initialiseProfile(session);
+    activeAccountId = session.user.id;
+    await initialiseProfile(session);
   } else {
     const {data: {session: storedSession}, error} = await supabase.auth.getSession();
     if (error) throw error;
     session = storedSession;
     if (!session) {
+      accountStatus.textContent = "You are not signed in.";
       accountStatus.textContent = "You are not signed in. Return to sign in.";
     } else {
       await requireUsername(session);
-      void initialiseProfile(session);
+      activeAccountId = session.user.id;
+      await initialiseProfile(session);
     }
   }
-  activeAccountId = session?.user?.id || null;
 } catch (authError) {
   accountStatus.textContent = "Google sign-in could not be completed.";
   accountStatus.textContent =
       authError?.message || "Authentication failed. Return to sign-in and try again.";
   console.error("Coolanas OAuth callback failed:", authError);
 }
-// Subjects are account-synced in stats/subjects.json.
-(function setupSubjects() {
-  const container = document.getElementById("study-subjects");
-  const add = document.getElementById("study-subject-add");
-  const input = document.getElementById("study-subject-input");
-  const menu = document.getElementById("subject-context-menu");
-  const colourRow = document.getElementById("subject-menu-colours");
-  const activeLabel = document.getElementById("active-subject-label");
-  const timerButton = document.getElementById("study-stopwatch-toggle");
-  const hint = document.getElementById("subject-selection-hint");
-  const palette = ["#e7e7e7", "#f6caca", "#f6dfaa", "#d9edbd", "#c9e7ef", "#d7d0f2", "#f0cce8"];
-  const defaults = [
-    "Maths", "English", "Biology", "Chemistry", "Physics", "History", "Geography",
-    "Computer Science"
-  ].map(name => ({name, color: 0}));
-
-  const localKey = "coolanas-study-subjects-v1:" + activeAccountId;
-  let subjects = defaults;
-  let selected = null, activeIndex = -1, editingIndex = -1, saveQueue = Promise.resolve();
-  window.coolanasSubjectState = {ready: false, selected: null};
-  async function subjectAction(action, payload = {}) {
-    const {data, error} =
-        await withRequestTimeout(
-        supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}}),
-        action.startsWith("subjects_") ? "Subject request" : "Task request");
-    if (error) throw new Error(error.message || "Could not sync subjects.");
-    if (data?.error) throw new Error(data.error);
-    return data;
-  }
-  function normalize(list) {
-    if (!Array.isArray(list)) return null;
-    return list.filter(s => s && typeof s.name === "string" && s.name.trim())
-        .slice(0, 40)
-        .map(s => ({
-               name: s.name.trim().slice(0, 32),
-               color: Math.max(0, Math.min(6, Number(s.color) || 0))
-             }));
-  }
-  function persist() {
-    const snapshot = subjects.map(s => ({...s}));
-    saveQueue =
-        saveQueue.then(() => subjectAction("subjects_save", {subjects: snapshot})).catch(error => {
-          console.error("Could not sync subjects:", error);
-          hint.textContent = "Subjects could not sync. Changes will retry when you edit again.";
-          hint.classList.add("visible");
-        });
-  }
-  function render() {
-    container.classList.remove("loading");
-    container.querySelectorAll(".study-subject").forEach(el => el.remove());
-    subjects.forEach((subject, index) => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "study-subject";
-      chip.textContent = subject.name;
-      chip.dataset.index = String(index);
-      chip.style.background = palette[subject.color];
-      chip.style.borderColor = palette[subject.color];
-      chip.style.color = "#444";
-      chip.classList.toggle("selected", selected === index);
-      chip.setAttribute("aria-pressed", String(selected === index));
-      chip.title = "Click to select; double-click for options";
-      container.insertBefore(chip, add);
-    });
-    const chosen = selected === null ? null : subjects[selected];
-    window.coolanasSubjectState.selected = chosen ? chosen.name : null;
-    if (chosen) {
-      document.body.style.setProperty("--subject-colour", palette[chosen.color]);
-      document.body.classList.add("subject-colour-preview");
-    } else {
-      document.body.classList.remove("subject-colour-preview");
-      document.body.style.removeProperty("--subject-colour");
-    }
-    activeLabel.textContent = chosen ? chosen.name : "";
-    activeLabel.style.background = chosen ? palette[chosen.color] : "#f7f7f7";
-    activeLabel.style.borderColor = chosen ? palette[chosen.color] : "#dedede";
-    activeLabel.style.color = "#555";
-  }
-  function closeMenu() {
-    menu.hidden = true;
-    colourRow.hidden = true;
-  }
-  function beginInlineEdit(index, isNew = false) {
-    closeMenu();
-    editingIndex = isNew ? -1 : index;
-    const chip =
-        isNew ? null : container.querySelector(".study-subject[data-index=\"" + index + "\"]");
-    if (chip) chip.hidden = true;
-    add.hidden = true;
-    input.hidden = false;
-    input.value = isNew ? "" : subjects[index].name;
-    if (chip)
-      chip.parentNode.insertBefore(input, chip);
-    else
-      container.insertBefore(input, add);
-    input.focus();
-    input.select();
-  }
-  function finishInlineEdit(save) {
-    const value = input.value.trim();
-    if (save && value) {
-      const duplicate = subjects.some(
-          (s, i) => i !== editingIndex && s.name.toLowerCase() === value.toLowerCase());
-      if (!duplicate) {
-        if (editingIndex < 0) {
-          if (subjects.length < 40) subjects.push({name: value.slice(0, 32), color: 0});
-        } else
-          subjects[editingIndex].name = value.slice(0, 32);
-        persist();
-      }
-    }
-    input.hidden = true;
-    add.hidden = false;
-    render();
-  }
-  function openMenu(chip) {
-    activeIndex = Number(chip.dataset.index);
-    closeMenu();
-    menu.hidden = false;
-    const rect = chip.getBoundingClientRect();
-    menu.style.left = Math.max(6, Math.min(rect.left, window.innerWidth - 150)) + "px";
-    menu.style.top = Math.max(6, Math.min(rect.bottom + 5, window.innerHeight - 80)) + "px";
-    colourRow.replaceChildren();
-    palette.forEach((color, i) => {
-      const swatch = document.createElement("button");
-      swatch.type = "button";
-      swatch.className = "subject-colour";
-      swatch.style.background = color;
-      swatch.setAttribute("aria-label", "Colour " + (i + 1));
-      swatch.setAttribute("aria-pressed", String(subjects[activeIndex].color === i));
-      swatch.addEventListener("click", () => {
-        subjects[activeIndex].color = i;
-        if (selected === activeIndex) document.body.style.setProperty("--subject-colour", color);
-        persist();
-        render();
-        closeMenu();
-      });
-      colourRow.appendChild(swatch);
-    });
-  }
-  add.addEventListener("click", () => beginInlineEdit(-1, true));
-  input.addEventListener("keydown", event => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      finishInlineEdit(true);
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      finishInlineEdit(false);
-    }
-  });
-  input.addEventListener("blur", () => finishInlineEdit(true));
-  container.addEventListener("click", event => {
-    const chip = event.target.closest(".study-subject");
-    if (!chip) return;
-    selected = Number(chip.dataset.index);
-    window.coolanasSubjectState.selected = subjects[selected]?.name || null;
-    const selectedColour = palette[subjects[selected]?.color ?? 0];
-    document.body.style.setProperty("--subject-colour", selectedColour);
-    document.body.classList.add("subject-colour-preview");
-    activeLabel.textContent = subjects[selected]?.name || "";
-    activeLabel.style.background =
-        subjects[selected] ? palette[subjects[selected].color] : "#f7f7f7";
-    activeLabel.style.borderColor =
-        subjects[selected] ? palette[subjects[selected].color] : "#dedede";
-    activeLabel.style.color = "#555";
-    document.body.classList.remove("subject-pick-mode");
-    hint.textContent = "";
-    hint.classList.remove("visible");
-    container.querySelectorAll(".study-subject").forEach((item, index) => {
-      item.classList.toggle("selected", index === selected);
-      item.setAttribute("aria-pressed", String(index === selected));
-    });
-  });
-  container.addEventListener("dblclick", event => {
-    const chip = event.target.closest(".study-subject");
-    if (chip) openMenu(chip);
-  });
-  menu.addEventListener("click", event => {
-    const action = event.target.closest("button")?.dataset.action;
-    if (action === "rename") beginInlineEdit(activeIndex);
-    if (action === "colour") colourRow.hidden = !colourRow.hidden;
-    if (action === "delete") {
-      subjects.splice(activeIndex, 1);
-      if (selected === activeIndex)
-        selected = null;
-      else if (selected !== null && selected > activeIndex)
-        selected--;
-      persist();
-      render();
-      closeMenu();
-    }
-  });
-  document.addEventListener("pointerdown", event => {
-    if (!menu.hidden && !menu.contains(event.target)) closeMenu();
-  });
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape") closeMenu();
-  });
-  (async () => {
-    try {
-      const result = await subjectAction("subjects_get");
-      const cloud = normalize(result.subjects);
-      if (cloud) {
-        subjects = cloud;
-      } else {
-        try {
-          const local = normalize(JSON.parse(localStorage.getItem(localKey) || "null"));
-          if (local) subjects = local;
-        } catch {
-        }
-        await subjectAction("subjects_save", {subjects});
-      }
-      localStorage.removeItem(localKey);
-      selected = null;
-      render();
-      window.coolanasSubjectState.ready = true;
-      timerButton.disabled = false;
-      timerButton.title = "Start";
-    } catch (error) {
-      console.error("Could not load subjects:", error);
-      hint.textContent = "Could not load your subjects. Refresh to retry.";
-      hint.classList.add("visible");
-      container.classList.remove("loading");
-      container.replaceChildren();
-      const failed = document.createElement("span");
-      failed.className = "subject-load-error";
-      failed.textContent = "Subjects unavailable";
-      container.appendChild(failed);
-      timerButton.disabled = true;
-      timerButton.title = "Subjects unavailable";
-    }
-  })();
-  container.classList.add("loading");
-})();
-
-// Lightweight YPT-style stopwatch. Elapsed time is persisted locally and
-// recalculated from timestamps, so it remains accurate when the tab sleeps.
-(function setupStudyStopwatch() {
-  if (!activeAccountId) return;
-  const accountKey = key => key + ":" + activeAccountId;
-  // Never upload legacy unscoped records: their owner cannot be verified.
+if (activeAccountId) {
   localStorage.removeItem("coolanas-study-pending-analytics-v1");
-  const timeEl = document.getElementById("study-stopwatch-time");
-  const toggleButton = document.getElementById("study-stopwatch-toggle");
-  const resetButton = document.getElementById("study-stopwatch-reset");
-  const storageKey = accountKey("coolanas-study-stopwatch-v1");
-  let state = {elapsed: 0, startedAt: null}, restoredCloudCheckpointAt = null;
-  try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-    if (saved && typeof saved.elapsed === "number") {
-      state = {
-        elapsed: Math.max(0, saved.elapsed),
-        startedAt: Number.isFinite(saved.startedAt) ? saved.startedAt : null
-      };
-      restoredCloudCheckpointAt =
-          Number.isFinite(saved.cloudCheckpointAt) ? saved.cloudCheckpointAt : null;
-    }
-  } catch (error) {
-    console.warn("Could not restore stopwatch:", error);
-  }
-  let cloudCheckpointAt = restoredCloudCheckpointAt ?? state.startedAt;
-  const monthlyKey = accountKey("coolanas-study-monthly-time-v1");
-  function readMonthly() {
-    try {
-      const value = JSON.parse(localStorage.getItem(monthlyKey) || "{}");
-      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-    } catch {
-      return {};
-    }
-  }
-  function monthKey(timestamp) {
-    const date = new Date(timestamp);
-    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
-  }
-  const dailyKey = accountKey("coolanas-study-daily-time-v1"),
-        pendingKey = accountKey("coolanas-study-pending-analytics-v1");
-  function readDaily() {
-    try {
-      const value = JSON.parse(localStorage.getItem(dailyKey) || "{}");
-      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-    } catch {
-      return {};
-    }
-  }
-  function savePending(records) {
-    try {
-      localStorage.setItem(pendingKey, JSON.stringify(records));
-    } catch (error) {
-      console.warn("Could not queue study-time sync:", error);
-    }
-  }
-  function queueInterval(start, end, eventPrefix = "session") {
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
-    const pending = (() => {
-      try {
-        return JSON.parse(localStorage.getItem(pendingKey) || "[]");
-      } catch {
-        return [];
-      }
-    })();
-// Reload if the authenticated account changes in this tab.
+  setupSubjects();
+  setupStudyStopwatch();
+}
 supabase.auth.onAuthStateChange((_event, nextSession) => {
   if ((nextSession?.user?.id || null) !== activeAccountId) location.reload();
 });
+
 // Dashboard navigation panels.
 const navSearch = document.getElementById("search-toggle");
 const navAnalytics = document.getElementById("analytics-toggle");
