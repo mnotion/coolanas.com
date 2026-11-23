@@ -408,9 +408,19 @@ function loadContributionGraph() {
             segmentEnd = Math.min(end, next),
             dateKey = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0");
 
+      const hourlyMs = {};
+      let hourCursor = cursor;
+      while (hourCursor < segmentEnd) {
+        const hourDate = new Date(hourCursor);
+        const hourEnd = Math.min(segmentEnd, new Date(hourDate.getFullYear(), hourDate.getMonth(), hourDate.getDate(), hourDate.getHours() + 1).getTime());
+        const hour = String(hourDate.getHours());
+        hourlyMs[hour] = (hourlyMs[hour] || 0) + Math.round(hourEnd - hourCursor);
+        hourCursor = hourEnd;
+      }
       pending.push({
         date: dateKey,
         durationMs: Math.round(segmentEnd - cursor),
+        hourlyMs,
         subject: window.coolanasSubjectState?.selected || "Unassigned",
         eventId: eventPrefix + "-" + crypto.randomUUID()
       });
