@@ -1080,6 +1080,10 @@ try {
         return [];
       }
     })();
+// Reload if the authenticated account changes in this tab.
+supabase.auth.onAuthStateChange((_event, nextSession) => {
+  if ((nextSession?.user?.id || null) !== activeAccountId) location.reload();
+});
 // Dashboard navigation panels.
 const navSearch = document.getElementById("search-toggle");
 const navAnalytics = document.getElementById("analytics-toggle");
