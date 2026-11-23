@@ -872,7 +872,6 @@ async function loadBuckets(){
     $("bucket-count").textContent="—";
     $("file-count").textContent="—";
     list.replaceChildren();
-    $("bucket-structure-picker").replaceChildren();
     $("bucket-tree").textContent=error.message||"Could not load your buckets.";
   }
 }
