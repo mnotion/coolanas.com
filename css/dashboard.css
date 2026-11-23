@@ -2012,3 +2012,58 @@ html.dark-mode body.timer-paused .study-stopwatch-actions .primary {
   border-color:#e8edf5!important;
   color:#17191d!important;
 }
+
+
+/* Daily task lock control. */
+.task-day-lock {
+  width:34px;
+  height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid #dedede;
+  border-radius:9px;
+  background:#fff;
+  color:#777;
+  cursor:pointer;
+  transition:background .22s ease,border-color .22s ease,color .22s ease,transform .22s ease;
+}
+.task-day-lock svg {width:19px;height:19px;overflow:visible}
+.task-lock-shackle {
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  transform-origin:8px 10px;
+  transition:transform .32s cubic-bezier(.2,.8,.2,1);
+}
+.task-lock-body {
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  transition:fill .22s ease,stroke .22s ease;
+}
+.task-lock-keyhole {fill:currentColor;stroke:currentColor;stroke-width:1.1}
+.task-day-lock.is-locked {
+  color:#258765;
+  background:#eaf7f1;
+  border-color:#b8e2d0;
+}
+.task-day-lock.is-locked .task-lock-shackle {
+  transform:translateX(1.1px) rotate(-13deg);
+}
+.task-day-lock.is-locked .task-lock-body {
+  fill:#258765;
+  stroke:#258765;
+}
+.task-day-lock.is-locked .task-lock-keyhole {fill:#fff;stroke:#fff}
+.task-day-lock:active {transform:scale(.92)}
+.task-day-lock:disabled {opacity:.55;cursor:wait}
+.task-drag-handle.is-disabled {opacity:.35;cursor:not-allowed}
+.task-row:has(.task-complete input:disabled) {opacity:.78}
+html.dark-mode .task-day-lock {background:#292d35;border-color:#454c58;color:#aab2bf}
+html.dark-mode .task-day-lock.is-locked {background:#193c31;border-color:#2b6e56;color:#8de0bb}
+html.dark-mode .task-day-lock.is-locked .task-lock-body {fill:#258765;stroke:#258765}
+@media(prefers-reduced-motion:reduce) {
+  .task-day-lock,.task-lock-shackle,.task-lock-body {transition:none!important}
+}
