@@ -929,3 +929,42 @@ html.dark-mode .calendar-hourly-chart {
 }
 html.dark-mode .calendar-task-remove { color:#aaa; }
 html.dark-mode .calendar-task-remove:hover { background:#4a2929; color:#ff9999; }
+
+
+/* Selected calendar day heading placement. */
+.calendar-details-heading {
+  width:100%;
+  margin:0 0 14px;
+  padding:0;
+  text-align:center;
+}
+.calendar-details-heading > div { width:100%; }
+.calendar-details-date { text-align:center; }
+.calendar-details:not(.future-date) {
+  display:block;
+}
+.calendar-details.future-date {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  min-height:250px;
+  padding:28px 24px;
+}
+.calendar-details.future-date .calendar-details-heading {
+  margin:0 0 20px;
+}
+.calendar-details.future-date .calendar-details-content {
+  display:block;
+  width:min(560px,100%);
+  margin:0 auto;
+}
+.calendar-details.future-date .calendar-tasks-section {
+  width:100%;
+}
+.calendar-details.future-date .calendar-tasks-section h3 {
+  text-align:center;
+}
+.calendar-details.future-date .calendar-task-add {
+  width:100%;
+}
