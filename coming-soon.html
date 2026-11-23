@@ -6,7 +6,6 @@
 <meta name="theme-color" content="#ffffff">
 <title>Coolanas</title>
 <script src="/js/theme.js"></script>
-<link rel="stylesheet" href="/css/theme.css?v=sitewide-dark-mode-1">
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:#f7f7f7;color:#111;font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -195,6 +194,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .profile-actions .menu-item{display:flex;align-items:center;gap:12px}
     .profile-actions .menu-item svg{width:19px;height:19px;flex:0 0 19px}
   </style>
+<link rel="stylesheet" href="/css/theme.css?v=sitewide-dark-mode-1">
 </head>
 <body>
 <button id="mail-button" class="mail-button" type="button" aria-label="Open mail" aria-expanded="false" aria-controls="mail-popover">
@@ -345,9 +345,9 @@ const avatarFallback=document.getElementById("profile-avatar-fallback");
 const drawerAvatarFallback=document.getElementById("drawer-avatar-fallback");
 const removePfpButton=document.getElementById("remove-pfp");
 const themeToggle=document.getElementById("theme-toggle");
-function applyTheme(mode){window.CoolanasTheme?.set(mode);document.documentElement.classList.toggle("dark-mode",mode==="dark");document.documentElement.dataset.theme=mode;themeToggle.textContent=mode==="dark"?"Switch to light mode":"Switch to dark mode";}
+function applyTheme(mode){window.CoolanasTheme?.apply(mode);document.documentElement.classList.toggle("dark-mode",mode==="dark");document.documentElement.dataset.theme=mode;themeToggle.textContent=mode==="dark"?"Switch to light mode":"Switch to dark mode";}
 applyTheme(window.CoolanasTheme?.get()||"light");
-themeToggle.addEventListener("click",()=>applyTheme(document.documentElement.classList.contains("dark-mode")?"light":"dark"));
+themeToggle.addEventListener("click",()=>{const next=document.documentElement.classList.contains("dark-mode")?"light":"dark";window.CoolanasTheme?.set(next);applyTheme(next);});
 window.addEventListener("storage",event=>{if(event.key==="coolanas-theme")applyTheme(event.newValue==="dark"?"dark":"light");});
 let googleAvatarUrl=user.user_metadata?.avatar_url||user.user_metadata?.picture||"";
 let customProfilePicture=false;
