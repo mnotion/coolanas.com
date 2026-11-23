@@ -323,11 +323,63 @@ function renderMonthlyChart() {
 // Calendar view.
 let calendarDate = new Date();
 calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1);
+let selectedCalendarDate = null;
+function calendarDateKey(date) {
+  return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") +
+      "-" + String(date.getDate()).padStart(2, "0");
+}
+function formatCalendarTime(ms) {
+  const minutes = Math.floor(Math.max(0, ms) / 60000);
+  return Math.floor(minutes / 60) + "h " + String(minutes % 60).padStart(2, "0") + "m";
+}
+function renderCalendarDetails() {
+  const panel = $("calendar-details");
+  if (!selectedCalendarDate) {
+    panel.hidden = true;
+    return;
+  }
+  const key = calendarDateKey(selectedCalendarDate), dailyTotals = readDailyTotals(),
+        dailySubjects = readDailySubjects(), total = Math.max(0, Number(dailyTotals[key]) || 0),
+        subjects = Object.entries(dailySubjects[key] || {})
+            .filter(([, duration]) => Number(duration) > 0)
+            .sort((a, b) => Number(b[1]) - Number(a[1]));
+  $("calendar-details-date").textContent =
+      selectedCalendarDate.toLocaleDateString(undefined, {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+  $("calendar-details-total").textContent = "Hours studied: " + formatCalendarTime(total);
+  const content = $("calendar-details-content");
+  content.replaceChildren();
+  const tasksTitle = document.createElement("h3");
+  tasksTitle.textContent = "Tasks completed";
+  const tasksEmpty = document.createElement("p");
+  tasksEmpty.className = "calendar-details-empty";
+  tasksEmpty.textContent = "Task completion isn't currently recorded by date.";
+  content.append(tasksTitle, tasksEmpty);
+  const subjectsTitle = document.createElement("h3");
+  subjectsTitle.textContent = "Study breakdown";
+  content.append(subjectsTitle);
+  if (subjects.length) {
+    for (const [subject, duration] of subjects) {
+      const row = document.createElement("div");
+      row.className = "calendar-detail-row";
+      const name = document.createElement("span"), time = document.createElement("strong");
+      name.textContent = subject;
+      time.textContent = formatCalendarTime(Number(duration));
+      row.append(name, time);
+      content.append(row);
+    }
+  } else {
+    const empty = document.createElement("p");
+    empty.className = "calendar-details-empty";
+    empty.textContent = "No subject breakdown recorded for this date.";
+    content.append(empty);
+  }
+  panel.hidden = false;
+}
 function renderCalendar() {
   const year = calendarDate.getFullYear(), month = calendarDate.getMonth(),
         firstDay = new Date(year, month, 1).getDay(), days = new Date(year, month + 1, 0).getDate(),
         previousDays = new Date(year, month, 0).getDate(),
-        dailyTotals = readDailyTotals(), dailySubjects = readDailySubjects();
+        dailyTotals = readDailyTotals();
   $("calendar-month").textContent =
       calendarDate.toLocaleDateString(undefined, {month: "long", year: "numeric"});
   const grid = $("calendar-grid");
@@ -338,9 +390,8 @@ function renderCalendar() {
     el.textContent = day;
     grid.append(el);
   }
-  const total = Math.ceil((firstDay + days) / 7) * 7;
-  const today = new Date();
-  for (let index = 0; index < total; index++) {
+  const totalCells = Math.ceil((firstDay + days) / 7) * 7, today = new Date();
+  for (let index = 0; index < totalCells; index++) {
     let day, muted = false, date;
     if (index < firstDay) {
       day = previousDays - firstDay + index + 1;
@@ -354,47 +405,60 @@ function renderCalendar() {
       day = index - firstDay + 1;
       date = new Date(year, month, day);
     }
-    const key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") +
-          "-" + String(date.getDate()).padStart(2, "0"),
-          studied = Math.max(0, Number(dailyTotals[key]) || 0),
-          cell = document.createElement("div"),
-          number = document.createElement("span");
+    const key = calendarDateKey(date), studied = Math.max(0, Number(dailyTotals[key]) || 0),
+          cell = document.createElement("button"), number = document.createElement("span"),
+          time = document.createElement("span");
+    cell.type = "button";
     cell.className = "calendar-day" + (muted ? " muted" : "");
     if (studied > 0) cell.classList.add("has-study");
+    if (selectedCalendarDate && key === calendarDateKey(selectedCalendarDate))
+      cell.classList.add("selected");
     if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() &&
         date.getDate() === today.getDate()) cell.classList.add("today");
     number.className = "calendar-day-number";
     number.textContent = String(day);
-    cell.append(number);
-    if (studied > 0) {
-      const time = document.createElement("span");
-      time.className = "calendar-day-time";
-      time.textContent = formatTotalDuration(studied);
-      cell.append(time);
-    }
-    const subjectEntries = Object.entries(dailySubjects[key] || {})
-        .filter(([, duration]) => Number(duration) > 0)
-        .sort((a, b) => Number(b[1]) - Number(a[1]));
-    const subjectLabel = subjectEntries.map(([name, duration]) =>
-      name + ": " + formatDuration(Number(duration))).join(", ");
-    const dateLabel = date.toLocaleDateString(undefined, {dateStyle: "full"});
-    cell.setAttribute("aria-label", dateLabel + (studied > 0 ?
-      ", studied " + formatDuration(studied) + (subjectLabel ? ". " + subjectLabel : "") :
-      ", no study time recorded"));
-    if (studied > 0) cell.title = "Studied " + formatDuration(studied) +
-      (subjectLabel ? "\n" + subjectLabel : "");
+    time.className = "calendar-day-time";
+    time.textContent = formatCalendarTime(studied);
+    cell.append(number, time);
+    cell.setAttribute("aria-label", date.toLocaleDateString(undefined, {dateStyle:"full"}) +
+      ", studied " + formatCalendarTime(studied));
+    cell.setAttribute("aria-pressed", String(Boolean(selectedCalendarDate && key === calendarDateKey(selectedCalendarDate))));
+    cell.addEventListener("click", () => {
+      if (muted) calendarDate = new Date(date.getFullYear(), date.getMonth(), 1);
+      selectedCalendarDate = date;
+      renderCalendar();
+      renderCalendarDetails();
+    });
     grid.append(cell);
   }
+  renderCalendarDetails();
 }
-$("calendar-prev").addEventListener("click", () => {
-  calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1);
+$("calendar-details-close").addEventListener("click", () => {
+  selectedCalendarDate = null;
   renderCalendar();
 });
-
-$("calendar-next").addEventListener("click", () => {
-  calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1);
+let calendarPointerStart = null;
+$("calendar-grid").addEventListener("pointerdown", event => {
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  calendarPointerStart = {x:event.clientX, y:event.clientY};
+});
+$("calendar-grid").addEventListener("pointerup", event => {
+  if (!calendarPointerStart) return;
+  const dx = event.clientX - calendarPointerStart.x, dy = event.clientY - calendarPointerStart.y;
+  calendarPointerStart = null;
+  if (Math.abs(dx) < 55 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+  calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + (dx < 0 ? 1 : -1), 1);
+  selectedCalendarDate = null;
   renderCalendar();
 });
+$("calendar-grid").addEventListener("pointercancel", () => calendarPointerStart = null);
+$("calendar-grid").addEventListener("wheel", event => {
+  if (Math.abs(event.deltaX) < 25 || Math.abs(event.deltaX) < Math.abs(event.deltaY)) return;
+  event.preventDefault();
+  calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + (event.deltaX > 0 ? 1 : -1), 1);
+  selectedCalendarDate = null;
+  renderCalendar();
+}, {passive:false});
 
 // Bucket summary.
 async function loadBuckets() {
