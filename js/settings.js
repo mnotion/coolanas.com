@@ -168,6 +168,7 @@ if (sessionError || !session?.user) {
   location.replace("/index.html");
   throw new Error("Sign in required.");
 }
+await window.CoolanasTheme?.loadForSession(session);
 user = session.user;
 googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || "";
 const {data: profile, error: profileError} =
