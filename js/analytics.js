@@ -994,24 +994,27 @@ function renderCalendarDetails() {
     tasksMain.append(tasksTitle);
     const tasksEmpty = document.createElement("div");
     tasksEmpty.className = "calendar-tasks-empty-slot calendar-task-list-box";
-    const dayTasks = calendarTasks.filter(task => !task.dueDate || task.dueDate <= todayKey);
-    if (key === todayKey) {
+    const dayTasks = calendarTasks.filter(task =>
+      task.dueDate ? task.dueDate === key : key === todayKey
+    );
+    if (key >= todayKey) {
       const form = document.createElement("form");
       form.className = "calendar-task-add";
       const input = document.createElement("input");
       input.type = "text";
       input.maxLength = 180;
-      input.placeholder = "Add a task for this day…";
-      input.setAttribute("aria-label", "New task for this day");
+      input.placeholder = key === todayKey ? "Add a task for today…" : "Plan a task for this day…";
+      input.setAttribute("aria-label", "New task for " + key);
       const add = document.createElement("button");
       add.type = "submit";
       add.textContent = "Add";
       form.append(input, add);
-      input.disabled = daySnapshot?.locked === true;
-      add.disabled = daySnapshot?.locked === true;
+      const isTodayLocked = key === todayKey && daySnapshot?.locked === true;
+      input.disabled = isTodayLocked;
+      add.disabled = isTodayLocked;
       form.addEventListener("submit", event => {
         event.preventDefault();
-        if (daySnapshot?.locked) return;
+        if (key === todayKey && daySnapshot?.locked) return;
         const value = input.value.trim();
         if (!value) return;
         if (calendarTasks.length >= 100) {
@@ -1023,9 +1026,11 @@ function renderCalendarDetails() {
         input.value = "";
         input.setCustomValidity("");
         queueCalendarTasksSync();
-        void saveCalendarDaySnapshot(todayKey,calendarTasks.filter(item => !item.dueDate || item.dueDate <= todayKey).map(item => ({
-          id:item.id,text:item.text,completed:item.completedAt === todayKey
-        })),false);
+        if (key === todayKey) {
+          void saveCalendarDaySnapshot(todayKey,calendarTasks.filter(item => !item.dueDate || item.dueDate <= todayKey).map(item => ({
+            id:item.id,text:item.text,completed:item.completedAt === todayKey
+          })),false);
+        }
         renderCalendarDetails();
       });
       tasksMain.append(form);
@@ -1037,7 +1042,7 @@ function renderCalendarDetails() {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.checked = task.completedAt === key;
-        checkbox.disabled = key > todayKey || daySnapshot?.locked === true;
+        checkbox.disabled = key > todayKey || (key === todayKey && daySnapshot?.locked === true);
         checkbox.setAttribute("aria-label", "Mark " + task.text + " as completed");
         checkbox.addEventListener("change", () => updateCalendarTask(task, checkbox.checked));
         const label = document.createElement("span");
@@ -1048,7 +1053,7 @@ function renderCalendarDetails() {
         remove.className = "calendar-task-remove";
         remove.textContent = "×";
         remove.title = "Remove task";
-        remove.disabled = daySnapshot?.locked === true;
+        remove.disabled = key === todayKey && daySnapshot?.locked === true;
         remove.setAttribute("aria-label", "Remove task: " + task.text);
         remove.addEventListener("click", () => removeCalendarTask(task));
         row.append(checkbox, label, remove);
