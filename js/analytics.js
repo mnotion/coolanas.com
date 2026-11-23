@@ -856,6 +856,361 @@ function renderBucketStructure(){
   }
   tree.append(grid);
 }
+// Bucket item actions, queued metadata changes, and folder uploads.
+async function bucketAction(action,payload={}){
+  const retryable=new Set([408,425,429,500,502,503,504]);
+  for(let attempt=1;attempt<=4;attempt++){
+    const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action,...payload}});
+    if(!error&&!data?.error)return data;
+    const status=Number(error?.context?.status)||0;
+    const message=data?.error||error?.message||"Bucket request failed.";
+    if(attempt===4||(!retryable.has(status)&&status!==0))throw new Error(message);
+    await new Promise(resolve=>setTimeout(resolve,500*attempt));
+  }
+  throw new Error("Bucket request failed.");
+}
+const bucketSyncDb=new Promise((resolve,reject)=>{
+  const request=indexedDB.open("coolanas-analytics-bucket-sync",1);
+  request.onupgradeneeded=()=>{
+    if(!request.result.objectStoreNames.contains("mutations"))
+      request.result.createObjectStore("mutations",{keyPath:"id"});
+  };
+  request.onsuccess=()=>resolve(request.result);
+  request.onerror=()=>reject(request.error||new Error("Could not open bucket sync queue."));
+});
+async function bucketQueueRead(){
+  const db=await bucketSyncDb;
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction("mutations","readonly");
+    const req=tx.objectStore("mutations").getAll();
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error||new Error("Could not read bucket changes."));
+  });
+}
+async function bucketQueueWrite(mutation){
+  const db=await bucketSyncDb;
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction("mutations","readwrite");
+    const store=tx.objectStore("mutations");
+    const req=store.getAll();
+    req.onsuccess=()=>{
+      const existing=(req.result||[]).filter(entry=>entry.userId===session.user.id&&entry.itemId===mutation.itemId);
+      if(mutation.type==="delete"){
+        existing.forEach(entry=>store.delete(entry.id));
+        store.put(mutation);
+      }else{
+        if(existing.some(entry=>entry.type==="delete"))return;
+        const prior=existing.find(entry=>entry.type==="patch");
+        existing.filter(entry=>entry!==prior).forEach(entry=>store.delete(entry.id));
+        if(prior)store.put({...prior,changes:{...(prior.changes||{}),...(mutation.changes||{})}});
+        else store.put(mutation);
+      }
+    };
+    req.onerror=()=>reject(req.error||new Error("Could not read pending bucket changes."));
+    tx.oncomplete=()=>resolve();
+    tx.onerror=()=>reject(tx.error||new Error("Could not save bucket change."));
+    tx.onabort=()=>reject(tx.error||new Error("Bucket change was not saved."));
+  });
+}
+async function bucketQueueRemove(id){
+  const db=await bucketSyncDb;
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction("mutations","readwrite");
+    tx.objectStore("mutations").delete(id);
+    tx.oncomplete=resolve;
+    tx.onerror=()=>reject(tx.error||new Error("Could not clear synced bucket change."));
+  });
+}
+let bucketFlushPromise=null;
+async function flushBucketChanges(){
+  if(bucketFlushPromise)return bucketFlushPromise;
+  bucketFlushPromise=(async()=>{
+    const pending=(await bucketQueueRead()).filter(entry=>entry.userId===session.user.id).sort((a,b)=>a.createdAt-b.createdAt);
+    for(const entry of pending){
+      if(entry.type==="delete")await bucketAction("delete",{id:entry.itemId});
+      else{
+        if(typeof entry.changes?.name==="string")
+          await bucketAction("rename",{id:entry.itemId,name:entry.changes.name});
+        const metadata={...entry.changes};
+        delete metadata.name;
+        if(Object.keys(metadata).length)
+          await bucketAction("update_metadata",{id:entry.itemId,...metadata});
+      }
+      await bucketQueueRemove(entry.id);
+    }
+  })().catch(error=>{
+    console.warn("Bucket changes remain queued until the next sync:",error.message);
+  }).finally(()=>{bucketFlushPromise=null;});
+  return bucketFlushPromise;
+}
+async function queueBucketChange(type,itemId,changes={}){
+  const mutation={id:crypto.randomUUID(),userId:session.user.id,type,itemId,changes,createdAt:Date.now()};
+  await bucketQueueWrite(mutation);
+  if(type==="delete"){
+    const removed=bucketDescendantIds(itemId);
+    analyticsBucketItems=analyticsBucketItems.filter(item=>!removed.has(item.id));
+  }else{
+    const item=analyticsBucketItems.find(value=>value.id===itemId);
+    if(item)Object.assign(item,changes);
+  }
+  renderBucketStructure();
+  updateBucketCounts();
+}
+function updateBucketCounts(){
+  const buckets=analyticsBucketItems.filter(item=>item.item_type==="folder"&&item.parent_id===analyticsBucketRootId);
+  const ids=new Set();
+  for(const bucket of buckets)for(const id of bucketDescendantIds(bucket.id))ids.add(id);
+  $("bucket-count").textContent=String(buckets.length);
+  $("file-count").textContent=String(analyticsBucketItems.filter(item=>item.item_type==="file"&&ids.has(item.id)).length);
+}
+window.setInterval(()=>{void flushBucketChanges();},5000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")void flushBucketChanges();});
+window.addEventListener("pagehide",()=>{void flushBucketChanges();});
+
+const bucketMenu=document.createElement("div");
+bucketMenu.className="bucket-context-menu";
+bucketMenu.hidden=true;
+bucketMenu.setAttribute("role","menu");
+document.body.append(bucketMenu);
+let bucketMenuItem=null;
+function hideBucketMenu(){
+  bucketMenu.classList.remove("is-open");
+  bucketMenu.hidden=true;
+  bucketMenuItem=null;
+}
+function addBucketMenuButton(label,action,danger=false){
+  const button=document.createElement("button");
+  button.type="button";
+  button.className="bucket-menu-action"+(danger?" danger":"");
+  button.textContent=label;
+  button.dataset.action=action;
+  button.setAttribute("role","menuitem");
+  bucketMenu.append(button);
+  return button;
+}
+function showBucketMenu(item,x,y){
+  bucketMenuItem=item;
+  bucketMenu.replaceChildren();
+  if(item.item_type==="folder"){
+    addBucketMenuButton("Add file","add-file");
+    addBucketMenuButton("Add folder","add-folder");
+    addBucketMenuButton("Drag & drop","drag-drop");
+    const divider=document.createElement("div");
+    divider.className="bucket-menu-divider";
+    bucketMenu.append(divider);
+  }
+  addBucketMenuButton("Rename","rename");
+  if(item.item_type==="folder"){
+    const colorButton=addBucketMenuButton("Colour","colour");
+    const palette=document.createElement("div");
+    palette.className="bucket-menu-palette";
+    palette.hidden=true;
+    for(const color of ["#e6b325","#3b82f6","#22a06b","#a855f7","#ef4444","#6b7280"]){
+      const choice=document.createElement("button");
+      choice.type="button";
+      choice.className="bucket-menu-color";
+      choice.dataset.color=color;
+      choice.style.setProperty("--swatch",color);
+      choice.title=color;
+      choice.setAttribute("aria-label","Set folder colour "+color);
+      palette.append(choice);
+    }
+    bucketMenu.append(palette);
+    colorButton.addEventListener("click",()=>{palette.hidden=!palette.hidden;});
+  }
+  const divider=document.createElement("div");
+  divider.className="bucket-menu-divider";
+  bucketMenu.append(divider);
+  addBucketMenuButton("Delete","delete",true);
+  bucketMenu.hidden=false;
+  bucketMenu.style.left="0px";
+  bucketMenu.style.top="0px";
+  bucketMenu.classList.remove("is-open");
+  requestAnimationFrame(()=>{
+    const rect=bucketMenu.getBoundingClientRect();
+    bucketMenu.style.left=Math.max(8,Math.min(x,innerWidth-rect.width-8))+"px";
+    bucketMenu.style.top=Math.max(8,Math.min(y,innerHeight-rect.height-8))+"px";
+    requestAnimationFrame(()=>bucketMenu.classList.add("is-open"));
+  });
+}
+const bucketTree=$("bucket-tree");
+bucketTree.addEventListener("contextmenu",event=>{
+  const node=event.target.closest(".tree-item[data-item-id]");
+  if(!node)return;
+  const item=analyticsBucketItems.find(value=>value.id===node.dataset.itemId);
+  if(!item)return;
+  event.preventDefault();
+  showBucketMenu(item,event.clientX,event.clientY);
+});
+bucketTree.addEventListener("click",async event=>{
+  const file=event.target.closest(".file-item[data-item-id]");
+  if(!file)return;
+  const item=analyticsBucketItems.find(value=>value.id===file.dataset.itemId);
+  if(!item)return;
+  const tab=window.open("about:blank","_blank");
+  try{
+    const result=await bucketAction("file_preview",{id:item.id});
+    if(tab)tab.location=result.downloadUrl;
+    else location.assign(result.downloadUrl);
+  }catch(error){
+    if(tab)tab.close();
+    alert("Could not open file: "+error.message);
+  }
+});
+document.addEventListener("click",async event=>{
+  if(!bucketMenu.hidden&&!event.target.closest(".bucket-context-menu"))hideBucketMenu();
+  const actionButton=event.target.closest(".bucket-menu-action,.bucket-menu-color");
+  if(!actionButton||bucketMenu.hidden||!bucketMenuItem)return;
+  event.preventDefault();
+  event.stopPropagation();
+  const item=bucketMenuItem;
+  const action=actionButton.dataset.action;
+  if(action==="colour"||actionButton.dataset.color)return;
+  hideBucketMenu();
+  if(action==="add-file"||action==="drag-drop"){
+    openBucketUpload(item);
+  }else if(action==="add-folder"){
+    const name=prompt("New folder name");
+    if(!name?.trim())return;
+    try{
+      const result=await bucketAction("create_folder",{parentId:item.id,name:name.trim()});
+      analyticsBucketItems.push(result.item);
+      renderBucketStructure();updateBucketCounts();
+    }catch(error){alert("Could not create folder: "+error.message);}
+  }else if(action==="rename"){
+    const name=prompt("Rename item",item.name);
+    if(!name?.trim()||name.trim()===item.name)return;
+    try{await queueBucketChange("patch",item.id,{name:name.trim()});}
+    catch(error){alert("Could not queue rename: "+error.message);}
+  }else if(action==="delete"){
+    if(!confirm("Delete “"+item.name+"”"+(item.item_type==="folder"?" and everything inside it":"")+"?"))return;
+    try{await queueBucketChange("delete",item.id);}
+    catch(error){alert("Could not queue deletion: "+error.message);}
+  }
+});
+bucketMenu.addEventListener("click",async event=>{
+  const choice=event.target.closest(".bucket-menu-color[data-color]");
+  if(!choice||!bucketMenuItem)return;
+  const item=bucketMenuItem;
+  const color=choice.dataset.color;
+  hideBucketMenu();
+  try{await queueBucketChange("patch",item.id,{folder_color:color});}
+  catch(error){alert("Could not queue folder colour: "+error.message);}
+});
+document.addEventListener("keydown",event=>{if(event.key==="Escape"){hideBucketMenu();closeBucketUpload();}});
+
+const bucketUploadOverlay=document.createElement("div");
+bucketUploadOverlay.className="bucket-upload-overlay";
+bucketUploadOverlay.hidden=true;
+bucketUploadOverlay.innerHTML='<section class="bucket-upload-panel" role="dialog" aria-modal="true" aria-labelledby="bucket-upload-title"><header><div><h2 id="bucket-upload-title">Upload to folder</h2><p id="bucket-upload-target"></p></div><button type="button" class="bucket-upload-close" aria-label="Close">×</button></header><div class="bucket-drop-zone" tabindex="0"><div class="bucket-drop-icon">↑</div><strong>Drag files or folders here</strong><span>or choose something from your device</span><div class="bucket-upload-buttons"><button type="button" data-pick="files">Choose files</button><button type="button" data-pick="folder">Choose folder</button></div><p class="bucket-upload-status" aria-live="polite">Files will be uploaded into this folder.</p></div></section>';
+document.body.append(bucketUploadOverlay);
+const bucketFilePicker=document.createElement("input");
+bucketFilePicker.type="file";bucketFilePicker.multiple=true;bucketFilePicker.hidden=true;
+const bucketFolderPicker=document.createElement("input");
+bucketFolderPicker.type="file";bucketFolderPicker.multiple=true;bucketFolderPicker.setAttribute("webkitdirectory","");
+bucketFolderPicker.hidden=true;
+document.body.append(bucketFilePicker,bucketFolderPicker);
+let bucketUploadTarget=null,bucketUploadBusy=false;
+function closeBucketUpload(){
+  if(bucketUploadBusy)return;
+  bucketUploadOverlay.hidden=true;
+  bucketUploadTarget=null;
+  bucketFilePicker.value="";
+  bucketFolderPicker.value="";
+}
+function openBucketUpload(folder){
+  bucketUploadTarget=folder;
+  $("bucket-upload-target").textContent="Destination: "+folder.name;
+  bucketUploadOverlay.hidden=false;
+  bucketUploadOverlay.querySelector(".bucket-upload-status").textContent="Drop files or folders here, or choose from your device.";
+}
+bucketUploadOverlay.querySelector(".bucket-upload-close").addEventListener("click",closeBucketUpload);
+bucketUploadOverlay.addEventListener("click",event=>{if(event.target===bucketUploadOverlay)closeBucketUpload();});
+bucketUploadOverlay.querySelectorAll("[data-pick]").forEach(button=>button.addEventListener("click",()=>{
+  (button.dataset.pick==="folder"?bucketFolderPicker:bucketFilePicker).click();
+}));
+const bucketDropZone=bucketUploadOverlay.querySelector(".bucket-drop-zone");
+bucketDropZone.addEventListener("dragover",event=>{event.preventDefault();bucketDropZone.classList.add("drag-active");});
+bucketDropZone.addEventListener("dragleave",event=>{if(!bucketDropZone.contains(event.relatedTarget))bucketDropZone.classList.remove("drag-active");});
+bucketDropZone.addEventListener("drop",async event=>{
+  event.preventDefault();bucketDropZone.classList.remove("drag-active");
+  if(event.dataTransfer?.files?.length)await uploadBucketEntries(await extractBucketEntries(event.dataTransfer),bucketUploadTarget?.id);
+});
+bucketDropZone.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();bucketFilePicker.click();}});
+bucketFilePicker.addEventListener("change",async()=>{
+  const entries=[...bucketFilePicker.files].map(file=>({file,path:file.name}));
+  await uploadBucketEntries(entries,bucketUploadTarget?.id);bucketFilePicker.value="";
+});
+bucketFolderPicker.addEventListener("change",async()=>{
+  const entries=[...bucketFolderPicker.files].map(file=>({file,path:file.webkitRelativePath||file.name}));
+  await uploadBucketEntries(entries,bucketUploadTarget?.id);bucketFolderPicker.value="";
+});
+async function readBucketDirectory(entry,path,output){
+  if(entry.isFile){
+    const file=await new Promise((resolve,reject)=>entry.file(resolve,reject));
+    output.push({file,path:path+entry.name});return;
+  }
+  if(entry.isDirectory){
+    const reader=entry.createReader();
+    while(true){
+      const batch=await new Promise((resolve,reject)=>reader.readEntries(resolve,reject));
+      if(!batch.length)break;
+      for(const child of batch)await readBucketDirectory(child,path+entry.name+"/",output);
+    }
+  }
+}
+async function extractBucketEntries(dataTransfer){
+  const output=[];
+  const entries=[...(dataTransfer.items||[])].filter(item=>item.kind==="file").map(item=>item.webkitGetAsEntry?.()).filter(Boolean);
+  if(entries.length){for(const entry of entries)await readBucketDirectory(entry,"",output);}
+  else for(const file of [...(dataTransfer.files||[])])output.push({file,path:file.name});
+  return output;
+}
+async function uploadBucketEntries(entries,parentId){
+  if(!parentId||!entries.length||bucketUploadBusy)return;
+  bucketUploadBusy=true;
+  const status=bucketUploadOverlay.querySelector(".bucket-upload-status");
+  const folderCache=new Map();
+  let uploaded=0;
+  try{
+    for(const entry of entries){
+      const parts=(entry.path||entry.file.name).split("/").filter(Boolean);
+      if(!parts.length)continue;
+      let parent=parentId;
+      for(let index=0;index<parts.length-1;index++){
+        const cacheKey=parent+":"+parts[index];
+        if(!folderCache.has(cacheKey)){
+          let folder=analyticsBucketItems.find(value=>value.item_type==="folder"&&value.parent_id===parent&&value.name===parts[index]);
+          if(!folder){
+            const result=await bucketAction("create_folder",{parentId:parent,name:parts[index]});
+            folder=result.item;analyticsBucketItems.push(folder);
+          }
+          folderCache.set(cacheKey,folder.id);
+        }
+        parent=folderCache.get(cacheKey);
+      }
+      const name=parts[parts.length-1];
+      status.textContent="Uploading "+(uploaded+1)+" of "+entries.length+": "+name;
+      const created=await bucketAction("create_upload",{parentId:parent,name,contentType:entry.file.type||"application/octet-stream"});
+      try{
+        const response=await fetch(created.uploadUrl,{method:"PUT",headers:{"Content-Type":created.contentType},body:entry.file});
+        if(!response.ok)throw new Error("Upload failed for "+name+" (HTTP "+response.status+").");
+        await bucketAction("finish_upload",{id:created.item.id});
+        analyticsBucketItems.push(created.item);
+      }catch(error){
+        await bucketAction("delete",{id:created.item.id}).catch(()=>{});
+        throw error;
+      }
+      uploaded++;
+    }
+    status.textContent="Uploaded "+uploaded+" item(s) successfully.";
+    renderBucketStructure();updateBucketCounts();
+    setTimeout(()=>{if(!bucketUploadBusy)closeBucketUpload();},900);
+  }catch(error){
+    status.textContent="Upload stopped: "+error.message;
+    renderBucketStructure();updateBucketCounts();
+  }finally{bucketUploadBusy=false;}
+}
 async function loadBuckets(){
   const list=$("bucket-list");
   try{
