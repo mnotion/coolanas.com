@@ -73,6 +73,32 @@ const dropHint = document.getElementById("drop-hint");
 const marquee = document.getElementById("selection-marquee");
 let items = [], ownedItems = [], currentFolderId = null, searchQuery = "", lastItemsLoad = 0;
 let exhibitionRootId = null, exhibitionRecords = [], exhibitionTotalBytes = 0;
+const workspaceCacheKey = "coolanas-bucket-cache:" + user.id;
+const workspaceCacheMaxAge = 10 * 60 * 1000;
+function readWorkspaceCache() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(workspaceCacheKey) || "null");
+    if (!cached || cached.userId !== user.id || !Array.isArray(cached.items)) return null;
+    return cached;
+  } catch {
+    return null;
+  }
+}
+function writeWorkspaceCache() {
+  try {
+    localStorage.setItem(workspaceCacheKey, JSON.stringify({
+      userId: user.id,
+      savedAt: Date.now(),
+      rootId: exhibitionRootId,
+      items: ownedItems,
+      exhibitions: exhibitionRecords,
+      totalBytes: exhibitionTotalBytes,
+      sharedBuckets: sharedBucketRecords
+    }));
+  } catch (error) {
+    console.warn("Could not cache bucket contents:", error.message);
+  }
+}
 let activeSharedBucket = null, sharedBucketRecords = [], currentShareBucket = null;
 const selectedIds = new Set();
 let activeSettingsItem = null;
@@ -795,9 +821,23 @@ function hideUploadProgress() {
   activeUploadController = null;
   uploadCancelled = false;
 }
-async function loadItems() {
-  const data = await filesAction("list");
-  items = data.items || [];
+async function loadItems({force = false} = {}) {
+  const cached = !force ? readWorkspaceCache() : null;
+  const cacheIsFresh = cached && cached.rootId === exhibitionRootId &&
+      Date.now() - Number(cached.savedAt || 0) < workspaceCacheMaxAge;
+  if (cacheIsFresh) {
+    items = cached.items;
+    ownedItems = items;
+    exhibitionRecords = Array.isArray(cached.exhibitions) ? cached.exhibitions : [];
+    exhibitionTotalBytes = Number(cached.totalBytes) || 0;
+    sharedBucketRecords = Array.isArray(cached.sharedBuckets) ? cached.sharedBuckets : [];
+    lastItemsLoad = Number(cached.savedAt) || Date.now();
+  } else {
+    const data = await filesAction("list");
+    items = data.items || [];
+    ownedItems = items;
+    lastItemsLoad = Date.now();
+  }
   await applyPendingToCache();
   ownedItems = items;
   if (activeSharedBucket) {
@@ -812,6 +852,7 @@ async function loadItems() {
   } else
     items = ownedItems;
   lastItemsLoad = Date.now();
+  writeWorkspaceCache();
   const valid = new Set(items.map(item => item.id));
   for (const id of [...selectedIds])
     if (!valid.has(id)) selectedIds.delete(id);
@@ -821,8 +862,8 @@ async function loadItems() {
   scheduleBackgroundPdfPreviews(ownedItems);
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "visible" || Date.now() - lastItemsLoad < 30000) return;
-  loadItems().catch(
+  if (document.visibilityState !== "visible" || Date.now() - lastItemsLoad < 5 * 60 * 1000) return;
+  loadItems({force: true}).catch(
       error => console.warn("Could not refresh files after returning to this tab:", error.message));
 });
 window.addEventListener("coolanas-upload-updated", event => {
@@ -1379,6 +1420,7 @@ document.addEventListener("visibilitychange", () => {
 });
 // Render the current folder and its file cards.
 function renderItems() {
+  writeWorkspaceCache();
   list.replaceChildren();
   const folder = items.find(item => item.id === currentFolderId);
   const isExhibitionsHome = !!exhibitionRootId && currentFolderId === exhibitionRootId;
@@ -1964,6 +2006,7 @@ async function refreshExhibitions() {
   exhibitionRecords = data.exhibitions || [];
   exhibitionTotalBytes = Number(data.totalBytes) || 0;
   await refreshSharedBuckets();
+  writeWorkspaceCache();
   document.getElementById("bucket-title").textContent =
       "Bucket • " + formatStorage(exhibitionTotalBytes);
   const blocked = exhibitionRecords.length >= 2;
@@ -2417,23 +2460,25 @@ document.addEventListener("keydown", event => {
     closeDeleteConfirmation();
   }
 });
-// Finish startup and refresh the workspace.
-let migrated = {migrated: 0, userFolder: ""};
-try {
-  migrated = await filesAction("migrate_prefix");
-} catch (error) {
-  console.warn("Existing file prefix migration could not finish:", error.message);
+// Finish startup: resolve the root before rendering so the internal
+// "exhibitions" folder is never briefly shown as a user bucket.
+const migrationKey = "coolanas-prefix-migrated:" + user.id;
+if (localStorage.getItem(migrationKey) !== "1") {
+  try {
+    await filesAction("migrate_prefix");
+    localStorage.setItem(migrationKey, "1");
+  } catch (error) {
+    console.warn("Existing file prefix migration could not finish:", error.message);
+  }
 }
 let accountStructure = null;
 try {
   accountStructure = await filesAction("ensure_structure");
+  exhibitionRootId = accountStructure?.exhibitionsId || null;
+  currentFolderId = exhibitionRootId;
 } catch (error) {
   alert("Your account folders could not be prepared: " + error.message);
 }
 await loadItems();
-if (accountStructure?.exhibitionsId) {
-  exhibitionRootId = accountStructure.exhibitionsId;
-  currentFolderId = exhibitionRootId;
-  await refreshExhibitions();
-}
+if (exhibitionRootId) await refreshExhibitions();
 flushPendingMutations();
