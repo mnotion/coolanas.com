@@ -864,3 +864,35 @@ html.dark-mode .calendar-subject-card { color:#252525; }
   .calendar-hourly-chart { margin-top:18px; }
 }
 html.dark-mode .calendar-hourly-chart { border-color:#484848; }
+
+
+/* Keep the daily graph in its own card below the subject/task card. */
+.calendar-details {
+  display:block;
+}
+.calendar-hourly-chart {
+  display:block;
+  width:100%;
+  max-width:none;
+  margin:14px 0 0;
+  padding:22px 24px;
+  border:1px solid #e5e5e5;
+  border-radius:12px;
+  background:#fafafa;
+}
+.calendar-hourly-chart h3 {
+  margin:0 0 12px;
+  font-size:17px;
+}
+.calendar-hourly-chart svg {
+  width:100%;
+  max-width:760px;
+  margin:0 auto;
+}
+html.dark-mode .calendar-hourly-chart {
+  background:#2a2a2a;
+  border-color:#444;
+}
+@media(max-width:520px) {
+  .calendar-hourly-chart { padding:16px 12px; }
+}
