@@ -51,7 +51,7 @@ async function removeTask(id){
 async function updateClients(){
   const tasks=await getTasks();
   const clients=await self.clients.matchAll({type:"window",includeUncontrolled:true});
-  for(const client of clients)client.postMessage({type:"COOLANAS_UPLOADS_UPDATED",tasks:tasks.map(({file,...task})=>task)});
+  for(const client of clients)client.postMessage({type:"COOLANAS_UPLOADS_UPDATED"});
 }
 async function invoke(action,task,payload={}){
   const response=await fetch(SUPABASE_URL+"/functions/v1/coolanas-files-b2",{
@@ -69,6 +69,7 @@ async function uploadTask(task){
   const controller=new AbortController();
   activeControllers.set(task.id,controller);
   await patchTask(task.id,{status:"uploading",error:null,startedAt:Date.now()});
+  await updateClients();
   try{
     let current=task;
     if(!current.itemId||!current.uploadUrl){
