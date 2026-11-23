@@ -133,7 +133,9 @@ button {
   justify-content:space-between;
   gap:20px;
   padding:19px 0;
-  border-top:1px solid #eee
+  border-top:1px solid #eee;
+  background:transparent;
+  box-shadow:none
 }
 
 .setting-copy {
@@ -324,7 +326,9 @@ html.dark-mode .topic.active {
 }
 
 html.dark-mode .setting-row {
-  border-color:#3b3b3b
+  border-color:#3b3b3b;
+  background:transparent;
+  box-shadow:none
 }
 
 html.dark-mode .setting-copy p,html.dark-mode .intro,html.dark-mode .help {
