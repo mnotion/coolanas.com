@@ -25,6 +25,7 @@ function applyTheme(mode) {
   $("theme-label").textContent = mode === "dark" ? "On" : "Off";
 }
 applyTheme(window.CoolanasTheme?.get() || "light");
+window.addEventListener("coolanas:themechange", event => applyTheme(event.detail?.mode || "light"));
 $("theme-switch").addEventListener("click", () => {
   const next = document.documentElement.classList.contains("dark-mode") ? "light" : "dark";
   window.CoolanasTheme?.set(next);
