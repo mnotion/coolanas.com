@@ -91,7 +91,7 @@ function writeWorkspaceCache() {
     localStorage.setItem(workspaceCacheKey, JSON.stringify({
       userId: user.id,
       savedAt: workspaceCacheTimestamp || Date.now(),
-      metadataSavedAt: metadataCacheTimestamp || Date.now(),
+      metadataSavedAt: metadataCacheTimestamp,
       rootId: exhibitionRootId,
       items: ownedItems,
       exhibitions: exhibitionRecords,
@@ -1687,6 +1687,7 @@ async function refreshSharedBuckets({force = false} = {}) {
     const result = cacheIsFresh ?
         {buckets: cached.sharedBuckets, sharedByYou: cached.sharedByYou} :
         await filesAction("shared_buckets_list");
+    if (!cacheIsFresh) metadataCacheTimestamp = Date.now();
     sharedBucketRecords = result.buckets || [];
     sharedByYouRecords = result.sharedByYou || [];
     const sharedByYou = sharedByYouRecords;
