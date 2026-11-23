@@ -270,7 +270,9 @@ function setAvatar(url) {
 let customProfilePicture = false;
 async function profileAction(action, payload = {}) {
   const {data, error} =
-      await supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}});
+      await withRequestTimeout(
+          supabase.functions.invoke("coolanas-files-b2", {body: {action, ...payload}}),
+          action.startsWith("subjects_") ? "Subject request" : "Task request");
   if (error) throw new Error(error.message || "Profile picture request failed.");
   if (data?.error) throw new Error(data.error);
   return data;
@@ -763,7 +765,7 @@ try {
     }
     history.replaceState(null, document.title, location.pathname);
     await requireUsername(session);
-    await initialiseProfile(session);
+    void initialiseProfile(session);
   } else {
     const {data: {session: storedSession}, error} = await supabase.auth.getSession();
     if (error) throw error;
@@ -772,10 +774,19 @@ try {
       accountStatus.textContent = "You are not signed in. Return to sign in.";
     } else {
       await requireUsername(session);
-      await initialiseProfile(session);
+      void initialiseProfile(session);
     }
   }
   activeAccountId = session?.user?.id || null;
+function withRequestTimeout(promise, label, timeoutMs = 12000) {
+  let timeoutId;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(label + " timed out. Please retry.")), timeoutMs);
+    })
+  ]).finally(() => clearTimeout(timeoutId));
+}
 } catch (authError) {
   accountStatus.textContent = "Google sign-in could not be completed.";
   accountStatus.textContent =
