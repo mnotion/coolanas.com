@@ -5,6 +5,8 @@
   let userId = null;
   let supabase = null;
   let ready = false;
+  let activeAccessToken = null;
+  let pendingThemeSave = null;
   let clientReadyResolve;
   const clientReady = new Promise(resolve => { clientReadyResolve = resolve; });
   const loads = new Map();
@@ -26,16 +28,50 @@
     if (error || data?.error) throw new Error(data?.error || error?.message || "Could not save settings.");
   };
 
+  const persistTheme = async value => {
+    if (!userId || !supabase) return;
+    pendingThemeSave = value;
+    try { localStorage.setItem("coolanas-theme:" + userId, value); } catch {}
+    try {
+      await save(value);
+      if (pendingThemeSave === value) pendingThemeSave = null;
+    } catch (error) {
+      console.error("Could not save appearance setting; it will retry:", error);
+      setTimeout(() => {
+        if (pendingThemeSave === value) void persistTheme(value);
+      }, 5000);
+    }
+  };
+
   const set = value => {
     const next = value === "dark" ? "dark" : "light";
     apply(next);
-    if (userId) {
-      try { localStorage.setItem("coolanas-theme:" + userId, next); } catch {}
-      save(next).catch(error => {
-        console.error("Could not save appearance setting:", error);
-      });
-    }
+    if (userId) void persistTheme(next);
   };
+
+  async function flushThemeOnExit() {
+    if (!pendingThemeSave || !userId || !activeAccessToken) return;
+    const value = pendingThemeSave;
+    try {
+      await fetch("https://nacwftrsdpglzrhasmit.supabase.co/functions/v1/coolanas-files-b2", {
+        method:"POST",
+        keepalive:true,
+        credentials:"omit",
+        headers:{
+          "Content-Type":"application/json",
+          apikey:"sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF",
+          Authorization:"Bearer " + activeAccessToken
+        },
+        body:JSON.stringify({action:"settings_update",settings:{theme:value}})
+      });
+    } catch (error) {
+      console.warn("Final theme settings sync will retry on next sign-in:",error);
+    }
+  }
+  window.addEventListener("pagehide", () => { void flushThemeOnExit(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) void flushThemeOnExit();
+  });
 
   apply("light");
   window.CoolanasTheme = {
@@ -48,6 +84,7 @@
   async function loadForSession(session) {
     if (!session?.user?.id) return {};
     await clientReady;
+    activeAccessToken = session.access_token;
     const {error: sessionSetError} = await supabase.auth.setSession({
       access_token: session.access_token,
       refresh_token: session.refresh_token
@@ -75,10 +112,15 @@
         throw new Error(data?.error || error?.message || "Could not load account settings.");
       }
       const settings = data?.settings && typeof data.settings === "object" ? data.settings : {};
-      if (settings.theme === "dark" || settings.theme === "light") {
-        apply(settings.theme);
-        try { localStorage.setItem("coolanas-theme:" + nextUserId, settings.theme); } catch {}
-      }
+      const cloudTheme = settings.theme === "dark" || settings.theme === "light"
+        ? settings.theme : null;
+      // On the first cloud bootstrap, migrate the theme previously saved only
+      // on this device. Once settings.json has an explicit theme, the cloud wins.
+      const selectedTheme = data?.created === true || !cloudTheme
+        ? (cachedMode || cloudTheme || "light") : cloudTheme;
+      apply(selectedTheme);
+      try { localStorage.setItem("coolanas-theme:" + nextUserId, selectedTheme); } catch {}
+      if (cloudTheme !== selectedTheme) await persistTheme(selectedTheme);
       ready = true;
       window.dispatchEvent(new CustomEvent("coolanas:settingsready", {detail:{settings, userId:nextUserId}}));
       return settings;
@@ -110,6 +152,9 @@
         {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}
       );
       clientReadyResolve();
+      supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.access_token) activeAccessToken = session.access_token;
+      });
       const {data:{session}, error} = await supabase.auth.getSession();
       if (error) throw error;
       if (session?.user) await loadForSession(session);
