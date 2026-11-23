@@ -1532,7 +1532,7 @@ html.dark-mode {--subject-donut-track:#303936}
   grid-template-columns:minmax(150px,220px) minmax(110px,1fr);
   max-width:560px;
 }
-.calendar-daily-distribution #calendar-subject-distribution-chart {
+.calendar-daily-distribution .subject-distribution-content #calendar-subject-distribution-chart {
   display:block;
   width:100%;
   max-width:220px;
