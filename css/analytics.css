@@ -1667,3 +1667,46 @@ html.dark-mode .calendar-task-list-box {
 @media(max-width:520px) {
   .calendar-task-list-box {min-height:0;padding:10px 12px}
 }
+
+/* Keep the task composer and task list as two independent cards. */
+.calendar-tasks-section {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  align-items:start;
+  gap:20px;
+  width:100%;
+  min-width:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.calendar-tasks-main {
+  box-sizing:border-box;
+  min-width:0;
+  min-height:108px;
+  padding:18px;
+  border:1px solid #e2e5eb;
+  border-radius:12px;
+  background:#fff;
+}
+.calendar-tasks-main h3 {margin:0 0 14px}
+.calendar-tasks-main .calendar-task-add {margin:0}
+.calendar-task-list-box {
+  box-sizing:border-box;
+  min-width:0;
+  min-height:108px;
+  padding:12px 14px;
+  border:1px solid #e2e5eb;
+  border-radius:12px;
+  background:#fff;
+}
+html.dark-mode .calendar-tasks-main,
+html.dark-mode .calendar-task-list-box {
+  background:#252a32;
+  border-color:#424a56;
+}
+@media(max-width:640px) {
+  .calendar-tasks-section {grid-template-columns:minmax(0,1fr);gap:12px}
+  .calendar-tasks-main,.calendar-task-list-box {min-height:0}
+}
