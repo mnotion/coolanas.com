@@ -1710,3 +1710,16 @@ html.dark-mode .calendar-task-list-box {
   .calendar-tasks-section {grid-template-columns:minmax(0,1fr);gap:12px}
   .calendar-tasks-main,.calendar-task-list-box {min-height:0}
 }
+
+/* The selected-day wrapper must not draw a shared card around its child cards. */
+.calendar-details:not(.future-date) {
+  padding:0 0 34px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+html.dark-mode .calendar-details:not(.future-date) {
+  background:transparent;
+  border-color:transparent;
+}
