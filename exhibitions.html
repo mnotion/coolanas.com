@@ -1390,7 +1390,7 @@ let backgroundPdfQueue=[];
 let backgroundPdfWorkers=0;
 let backgroundPdfScheduled=false;
 function scheduleBackgroundPdfPreviews(sourceItems){
-  const pdfs=sourceItems.filter(item=>item.item_type==="file"&&/\\.pdf$/i.test(item.name));
+  const pdfs=sourceItems.filter(item=>item.item_type==="file"&&/\.pdf$/i.test(item.name));
   for(const item of pdfs){
     if(pdfPreviewCache.has(item.id)||pdfPreviewRequests.has(item.id)||backgroundPdfIds.has(item.id))continue;
     backgroundPdfIds.add(item.id);
