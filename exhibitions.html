@@ -1236,6 +1236,43 @@ main.addEventListener("touchcancel",()=>{
 },{passive:true});
 const pdfPreviewCache=new Map();
 const pdfPreviewRequests=new Map();
+const PDF_THUMB_DB="coolanas-pdf-thumbnails";
+const PDF_THUMB_STORE="previews";
+let pdfThumbDbPromise=null;
+function openPdfThumbDb(){
+  if(!("indexedDB" in window))return Promise.resolve(null);
+  if(!pdfThumbDbPromise){
+    pdfThumbDbPromise=new Promise(resolve=>{
+      const request=indexedDB.open(PDF_THUMB_DB,1);
+      request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(PDF_THUMB_STORE))request.result.createObjectStore(PDF_THUMB_STORE,{keyPath:"id"});};
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>resolve(null);
+      request.onblocked=()=>resolve(null);
+    });
+  }
+  return pdfThumbDbPromise;
+}
+function pdfThumbVersion(item){
+  return String(item.updated_at||item.updatedAt||item.storage_path||"")+":"+String(item.size_bytes||item.size||"");
+}
+async function readPdfThumb(item){
+  const db=await openPdfThumbDb();
+  if(!db)return null;
+  return new Promise(resolve=>{
+    const request=db.transaction(PDF_THUMB_STORE,"readonly").objectStore(PDF_THUMB_STORE).get(item.id);
+    request.onsuccess=()=>resolve(request.result?.version===pdfThumbVersion(item)?request.result.dataUrl:null);
+    request.onerror=()=>resolve(null);
+  });
+}
+async function savePdfThumb(item,dataUrl){
+  const db=await openPdfThumbDb();
+  if(!db)return;
+  await new Promise(resolve=>{
+    const tx=db.transaction(PDF_THUMB_STORE,"readwrite");
+    tx.objectStore(PDF_THUMB_STORE).put({id:item.id,version:pdfThumbVersion(item),dataUrl,savedAt:Date.now()});
+    tx.oncomplete=tx.onerror=tx.onabort=()=>resolve();
+  });
+}
 let pdfJsPromise=null;
 function loadPdfJs(){
   if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
@@ -1269,6 +1306,11 @@ async function createPdfThumbnail(item){
   if(pdfPreviewCache.has(item.id))return pdfPreviewCache.get(item.id);
   if(pdfPreviewRequests.has(item.id))return pdfPreviewRequests.get(item.id);
   const request=(async()=>{
+    const persisted=await readPdfThumb(item);
+    if(persisted){
+      pdfPreviewCache.set(item.id,persisted);
+      return persisted;
+    }
     const signed=await filesAction("file_preview",{id:item.id});
     // Give PDF.js the signed URL and let it request only the byte ranges
     // needed for page 1. Streaming and automatic background fetching are
@@ -1298,6 +1340,7 @@ async function createPdfThumbnail(item){
       const dataUrl=canvas.toDataURL("image/jpeg",.82);
       pdfPreviewCache.set(item.id,dataUrl);
       if(pdfPreviewCache.size>120)pdfPreviewCache.delete(pdfPreviewCache.keys().next().value);
+      savePdfThumb(item,dataUrl).catch(error=>console.warn("Could not persist PDF thumbnail:",error.message));
       return dataUrl;
     }finally{await pdf.destroy();}
   })().finally(()=>pdfPreviewRequests.delete(item.id));
