@@ -1385,3 +1385,66 @@ html.dark-mode .bucket-upload-buttons button:hover { background:#414141; }
 @media(prefers-reduced-motion:reduce) {
   .bucket-context-menu,.bucket-upload-overlay,.bucket-upload-panel,.bucket-drop-zone { animation:none;transition:none; }
 }
+
+.study-heatmap {
+  margin-top:28px;
+  padding-top:22px;
+  border-top:1px solid #eee;
+}
+.study-heatmap-heading {
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.study-heatmap-heading strong {font-size:15px;font-weight:700}
+.study-heatmap-heading span {font-size:11px;color:#888}
+.study-heatmap-scroll {
+  max-width:340px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:2px 0 8px;
+  scrollbar-width:thin;
+  scrollbar-color:#c7d5d0 transparent;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.study-heatmap-months,.study-heatmap-grid {
+  display:grid;
+  grid-auto-flow:column;
+  column-gap:4px;
+  width:max-content;
+}
+.study-heatmap-months {height:18px;margin-left:36px;margin-bottom:5px;align-items:end}
+.study-heatmap-month {font-size:10px;color:#888;white-space:nowrap}
+.study-heatmap-body {display:flex;gap:8px;align-items:start}
+.study-heatmap-weekdays {
+  display:grid;
+  grid-template-rows:repeat(7,14px);
+  gap:4px;
+  width:28px;
+  flex:0 0 28px;
+  color:#888;
+  font-size:9px;
+  line-height:14px;
+}
+.study-heatmap-grid {grid-template-rows:repeat(7,14px);row-gap:4px}
+.study-heatmap-cell,.study-heatmap-legend i {
+  display:block;
+  width:14px;
+  height:14px;
+  border-radius:3px;
+  background:#ebedf0;
+}
+.study-heatmap-cell {cursor:default;outline-offset:2px}
+.study-heatmap-cell[data-level='1'],.study-heatmap-legend i[data-level='1'] {background:#c8e8df}
+.study-heatmap-cell[data-level='2'],.study-heatmap-legend i[data-level='2'] {background:#91d5c2}
+.study-heatmap-cell[data-level='3'],.study-heatmap-legend i[data-level='3'] {background:#55b99b}
+.study-heatmap-cell[data-level='4'],.study-heatmap-legend i[data-level='4'] {background:#21866d}
+.study-heatmap-legend {display:flex;align-items:center;gap:5px;margin:10px 0 0 36px;color:#888;font-size:10px}
+.study-heatmap-legend i {width:11px;height:11px;border-radius:2px}
+html.dark-mode .study-heatmap {border-color:#3b3b3b}
+html.dark-mode .study-heatmap-heading span,html.dark-mode .study-heatmap-month,html.dark-mode .study-heatmap-weekdays,html.dark-mode .study-heatmap-legend {color:#aaa}
+html.dark-mode .study-heatmap-cell[data-level='0'],html.dark-mode .study-heatmap-legend i[data-level='0'] {background:#303936}
+@media(max-width:600px) { .study-heatmap-scroll {max-width:100%;} }
