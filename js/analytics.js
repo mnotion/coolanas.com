@@ -58,12 +58,45 @@ function readTimerState() {
   }
   return {elapsed: 0, startedAt: null};
 }
-let cloudTotalMs = 0, cloudAnalyticsLoaded = false;
+let cloudAnalyticsLoaded = false;
+function currentMonthKey(date = new Date()) {
+  return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0");
+}
+function readDailyTotals() {
+  try {
+    const value = JSON.parse(localStorage.getItem("coolanas-study-daily-time-v1") || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+function readDailySubjects() {
+  try {
+    const value = JSON.parse(localStorage.getItem("coolanas-study-daily-subjects-v1") || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+function getCurrentMonthTotal() {
+  const month = currentMonthKey(), totals = readMonthlyTotals();
+  let total = Math.max(0, Number(totals[month]) || 0);
+  const state = readTimerState();
+  if (state.startedAt) {
+    const now = Date.now();
+    let cursor = state.startedAt;
+    while (cursor < now) {
+      const date = new Date(cursor),
+            next = new Date(date.getFullYear(), date.getMonth() + 1, 1).getTime(),
+            end = Math.min(now, next);
+      if (currentMonthKey(date) === month) total += end - cursor;
+      cursor = end;
+    }
+  }
+  return total;
+}
 function renderTimer() {
-  const state = readTimerState(),
-        base = cloudAnalyticsLoaded ? Math.max(state.elapsed, cloudTotalMs) : state.elapsed,
-        total = base + (state.startedAt ? Math.max(0, Date.now() - state.startedAt) : 0);
-  $("total-time").textContent = formatTotalDuration(total);
+  $("total-time").textContent = formatTotalDuration(getCurrentMonthTotal());
 }
 async function loadCloudAnalytics() {
   try {
@@ -105,7 +138,6 @@ async function loadCloudAnalytics() {
       }
     }
     localStorage.setItem("coolanas-study-monthly-time-v1", JSON.stringify(monthly));
-    cloudTotalMs = Math.max(0, Number(data.totalMs) || 0);
     cloudAnalyticsLoaded = true;
     renderTimer();
     renderMonthlyChart();
@@ -294,7 +326,8 @@ calendarDate = new Date(calendarDate.getFullYear(), calendarDate.getMonth(), 1);
 function renderCalendar() {
   const year = calendarDate.getFullYear(), month = calendarDate.getMonth(),
         firstDay = new Date(year, month, 1).getDay(), days = new Date(year, month + 1, 0).getDate(),
-        previousDays = new Date(year, month, 0).getDate();
+        previousDays = new Date(year, month, 0).getDate(),
+        dailyTotals = readDailyTotals(), dailySubjects = readDailySubjects();
   $("calendar-month").textContent =
       calendarDate.toLocaleDateString(undefined, {month: "long", year: "numeric"});
   const grid = $("calendar-grid");
@@ -321,13 +354,35 @@ function renderCalendar() {
       day = index - firstDay + 1;
       date = new Date(year, month, day);
     }
-    const cell = document.createElement("div");
+    const key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") +
+          "-" + String(date.getDate()).padStart(2, "0"),
+          studied = Math.max(0, Number(dailyTotals[key]) || 0),
+          cell = document.createElement("div"),
+          number = document.createElement("span");
     cell.className = "calendar-day" + (muted ? " muted" : "");
+    if (studied > 0) cell.classList.add("has-study");
     if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() &&
-        date.getDate() === today.getDate())
-      cell.classList.add("today");
-    cell.textContent = String(day);
-    cell.setAttribute("aria-label", date.toLocaleDateString(undefined, {dateStyle: "full"}));
+        date.getDate() === today.getDate()) cell.classList.add("today");
+    number.className = "calendar-day-number";
+    number.textContent = String(day);
+    cell.append(number);
+    if (studied > 0) {
+      const time = document.createElement("span");
+      time.className = "calendar-day-time";
+      time.textContent = formatTotalDuration(studied);
+      cell.append(time);
+    }
+    const subjectEntries = Object.entries(dailySubjects[key] || {})
+        .filter(([, duration]) => Number(duration) > 0)
+        .sort((a, b) => Number(b[1]) - Number(a[1]));
+    const subjectLabel = subjectEntries.map(([name, duration]) =>
+      name + ": " + formatDuration(Number(duration))).join(", ");
+    const dateLabel = date.toLocaleDateString(undefined, {dateStyle: "full"});
+    cell.setAttribute("aria-label", dateLabel + (studied > 0 ?
+      ", studied " + formatDuration(studied) + (subjectLabel ? ". " + subjectLabel : "") :
+      ", no study time recorded"));
+    if (studied > 0) cell.title = "Studied " + formatDuration(studied) +
+      (subjectLabel ? "\n" + subjectLabel : "");
     grid.append(cell);
   }
 }
@@ -395,6 +450,7 @@ loadBuckets();
 setInterval(() => {
   renderTimer();
   renderMonthlyChart();
+  renderCalendar();
 }, 15000);
 setInterval(() => {
   void loadCloudAnalytics();
