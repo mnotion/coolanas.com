@@ -1630,3 +1630,15 @@ html.dark-mode .subject-donut-callout-time {fill:#aaa}
 @media(max-width:520px) {
   .calendar-tasks-empty-slot {padding-top:0}
 }
+
+/* Align the first task row with the add-task input/button on the left. */
+.calendar-tasks-empty-slot {
+  padding-top:22px;
+}
+.calendar-tasks-empty-slot .calendar-details-empty {
+  margin-top:20px;
+}
+@media(max-width:520px) {
+  .calendar-tasks-empty-slot {padding-top:0}
+  .calendar-tasks-empty-slot .calendar-details-empty {margin-top:0}
+}
