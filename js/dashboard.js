@@ -396,28 +396,60 @@ function setupStudyStopwatch() {
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
     const pending = (() => {
       try {
-        return JSON.parse(localStorage.getItem(pendingKey) || "[]");
+        const value = JSON.parse(localStorage.getItem(pendingKey) || "[]");
+        return Array.isArray(value) ? value : [];
       } catch {
         return [];
       }
     })();
+    const hourlyKey = "coolanas-study-daily-hours-v1:" + activeAccountId;
+    let allHours = {};
+    try {
+      const value = JSON.parse(localStorage.getItem(hourlyKey) || "{}");
+      if (value && typeof value === "object" && !Array.isArray(value)) allHours = value;
+    } catch {
+    }
+
     let cursor = start;
     while (cursor < end) {
       const date = new Date(cursor),
             next = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime(),
             segmentEnd = Math.min(end, next),
-            dateKey = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0");
+            dateKey = monthKey(cursor) + "-" + String(date.getDate()).padStart(2, "0"),
+            hourlyMs = {};
+      let hourCursor = cursor;
+      while (hourCursor < segmentEnd) {
+        const hourDate = new Date(hourCursor),
+              nextHour = new Date(
+                  hourDate.getFullYear(), hourDate.getMonth(), hourDate.getDate(),
+                  hourDate.getHours() + 1).getTime(),
+              hourEnd = Math.min(segmentEnd, nextHour > hourCursor ? nextHour : segmentEnd),
+              hour = String(hourDate.getHours());
+        hourlyMs[hour] = (hourlyMs[hour] || 0) + Math.round(hourEnd - hourCursor);
+        hourCursor = hourEnd;
+      }
 
+      if (!allHours[dateKey] || typeof allHours[dateKey] !== "object" ||
+          Array.isArray(allHours[dateKey])) allHours[dateKey] = {};
+      for (const [hour, duration] of Object.entries(hourlyMs)) {
+        allHours[dateKey][hour] =
+            (Number(allHours[dateKey][hour]) || 0) + duration;
+      }
       pending.push({
         date: dateKey,
         durationMs: Math.round(segmentEnd - cursor),
+        hourlyMs,
         subject: window.coolanasSubjectState?.selected || "Unassigned",
         eventId: eventPrefix + "-" + crypto.randomUUID()
       });
-
       cursor = segmentEnd;
     }
     savePending(pending);
+    try {
+      localStorage.setItem(hourlyKey, JSON.stringify(allHours));
+    } catch (error) {
+      console.warn("Could not save hourly study time:", error);
+    }
   }
   async function flushPendingAnalytics() {
     let pending;
