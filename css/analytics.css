@@ -1565,3 +1565,19 @@ html.dark-mode .calendar-daily-distribution {
 .subject-donut-callout-time {font-size:11px;fill:#858b96}
 html.dark-mode .subject-donut-callout-name {fill:#f1f1f1}
 html.dark-mode .subject-donut-callout-time {fill:#aaa}
+
+/* Calendar uses the same full-size centred radial distribution as the monthly chart. */
+.calendar-daily-distribution .subject-distribution-content {
+  display:block;
+  width:100%;
+  max-width:none;
+  margin:0 auto;
+}
+.calendar-daily-distribution .subject-distribution-content #calendar-subject-distribution-chart {
+  display:block;
+  width:100%;
+  max-width:560px;
+  height:auto;
+  margin:0 auto;
+  overflow:visible;
+}
