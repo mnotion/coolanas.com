@@ -96,6 +96,12 @@
     html.dark-mode .exhibitions-header h1,html.dark-mode .storage-summary{color:#eee!important}
     html.dark-mode #exhibition-name{background:#303030!important;color:#eee!important;border-color:#555!important}
 
+    .pdf-thumbnail{width:112px;height:112px;flex:none;display:grid;place-items:center;overflow:hidden;border:1px solid #e6e6e6;border-radius:7px;background:#f0f1f3;color:#c23b3b}
+    .pdf-thumbnail img{display:block;width:100%;height:100%;object-fit:contain;background:#fff}
+    .pdf-thumbnail-placeholder{display:grid;place-items:center;width:42px;height:52px;border:1px solid #d8b8b8;border-radius:4px;background:#fff;color:#bd3434;font-size:11px;font-weight:750;letter-spacing:.04em;box-shadow:0 2px 5px rgba(0,0,0,.06)}
+    .pdf-file-card{gap:8px}
+    html.dark-mode .pdf-thumbnail{background:#303030;border-color:#555}
+    html.dark-mode .pdf-thumbnail img{background:#fff}
     .file-card{display:flex;flex-direction:column;align-items:center;gap:10px;width:168px;min-height:176px;padding:18px;border:0;border-radius:12px;background:#fff;color:#222;font:inherit;font-size:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);cursor:pointer;transform:scale(var(--card-scale,1));transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease;transform-origin:center;position:relative;z-index:var(--card-z,1)}
     .file-card:hover,.file-card.is-pointer-hover{background:#fafafa;box-shadow:0 5px 16px rgba(0,0,0,.10);}
     .file-card:focus-visible{outline:2px solid #aaa;outline-offset:3px}
@@ -687,7 +693,20 @@ async function savePendingMutation(mutation){
     const request=store.getAll();
     request.onsuccess=()=>{
       const existing=(request.result||[]).filter(entry=>entry.userId===mutation.userId&&entry.itemId===mutation.itemId);
+      if(mutation.type==="move"){
+        const deletedIds=new Set((request.result||[])
+          .filter(entry=>entry.userId===mutation.userId&&entry.type==="delete")
+          .map(entry=>entry.itemId));
+        mutation.changes.ids=(mutation.changes.ids||[]).filter(id=>!deletedIds.has(id));
+        if(mutation.changes.ids.length)store.put(mutation);
+        return;
+      }
       if(mutation.type==="delete"){
+        for(const entry of request.result||[]){
+          if(entry.userId!==mutation.userId||entry.type!=="move"||!entry.changes?.ids?.includes(mutation.itemId))continue;
+          entry.changes.ids=entry.changes.ids.filter(id=>id!==mutation.itemId);
+          if(entry.changes.ids.length)store.put(entry);else store.delete(entry.id);
+        }
         existing.forEach(entry=>store.delete(entry.id));
         store.put(mutation);
         return;
@@ -730,6 +749,14 @@ async function applyPendingToCache(){
     else if(entry.type==="metadata"){
       const item=items.find(value=>value.id===entry.itemId);
       if(item)Object.assign(item,entry.changes);
+    }else if(entry.type==="move"){
+      for(const id of entry.changes?.ids||[]){
+        const item=items.find(value=>value.id===id);
+        if(item){
+          item.parent_id=entry.changes.targetParentId??null;
+          item.sort_order=Number(entry.changes.sortOrders?.[id])||item.sort_order||0;
+        }
+      }
     }
   }
 }
@@ -759,19 +786,21 @@ async function flushPendingMutations(){
   pendingFlushPromise=(async()=>{
     const pending=(await readPendingMutations()).filter(entry=>entry.userId===user.id).sort((a,b)=>a.createdAt-b.createdAt).slice(0,100);
     if(!pending.length)return;
+    const queuedMoves=pending.filter(entry=>entry.type==="move");
+    const queuedMetadataAndDeletes=pending.filter(entry=>entry.type!=="move");
     let updatedItems=[];
-    if(batchSyncSupported){
+    if(queuedMetadataAndDeletes.length&&batchSyncSupported){
       try{
-        const response=await filesAction("batch",{operations:pending.map(entry=>({type:entry.type,id:entry.itemId,changes:entry.changes}))});
+        const response=await filesAction("batch",{operations:queuedMetadataAndDeletes.map(entry=>({type:entry.type,id:entry.itemId,changes:entry.changes}))});
         updatedItems=response.updatedItems||[];
-        await removePendingMutations(pending.map(entry=>entry.id));
+        await removePendingMutations(queuedMetadataAndDeletes.map(entry=>entry.id));
       }catch(batchError){
         if(batchError.message!=="Unknown action.")throw batchError;
         batchSyncSupported=false;
       }
     }
-    if(!batchSyncSupported){
-      for(const entry of pending){
+    if(queuedMetadataAndDeletes.length&&!batchSyncSupported){
+      for(const entry of queuedMetadataAndDeletes){
         try{
           if(entry.type==="delete")await filesAction("delete",{id:entry.itemId});
           else{
@@ -784,8 +813,15 @@ async function flushPendingMutations(){
         await removePendingMutations([entry.id]);
       }
     }
+    // Moves use the same five-second/exit queue, but need the storage-copy API
+    // rather than the metadata-only batch endpoint.
+    for(const entry of queuedMoves){
+      const ids=Array.isArray(entry.changes?.ids)?entry.changes.ids:[];
+      if(ids.length)await filesAction("move",{ids,targetParentId:entry.changes.targetParentId??null});
+      await removePendingMutations([entry.id]);
+    }
     for(const item of updatedItems)upsertItem(item);
-    for(const entry of pending)if(entry.type==="delete")removeCachedItems([entry.itemId]);
+    for(const entry of queuedMetadataAndDeletes)if(entry.type==="delete")removeCachedItems([entry.itemId]);
     renderItems();
     if(exhibitionRootId)refreshExhibitions().catch(error=>console.warn("Storage usage refresh failed:",error.message));
   })().catch(error=>{
@@ -1198,6 +1234,97 @@ main.addEventListener("touchcancel",()=>{
     finishMarquee();
   }
 },{passive:true});
+const pdfPreviewCache=new Map();
+const pdfPreviewRequests=new Map();
+let pdfJsPromise=null;
+function loadPdfJs(){
+  if(!pdfJsPromise){
+    pdfJsPromise=import("https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.mjs")
+      .then(pdfjs=>{
+        pdfjs.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.worker.mjs";
+        return pdfjs;
+      })
+      .catch(error=>{pdfJsPromise=null;throw error;});
+  }
+  return pdfJsPromise;
+}
+function paintPdfThumbnail(itemId,dataUrl){
+  document.querySelectorAll(".pdf-thumbnail").forEach(container=>{
+    if(container.dataset.pdfId!==itemId)return;
+    const image=document.createElement("img");
+    image.alt="First page preview of PDF";
+    image.src=dataUrl;
+    container.replaceChildren(image);
+    container.classList.remove("pdf-preview-error");
+  });
+}
+async function createPdfThumbnail(item){
+  if(pdfPreviewCache.has(item.id))return pdfPreviewCache.get(item.id);
+  if(pdfPreviewRequests.has(item.id))return pdfPreviewRequests.get(item.id);
+  const request=(async()=>{
+    const signed=await filesAction("file_preview",{id:item.id});
+    const pdfjs=await loadPdfJs();
+    const loading=pdfjs.getDocument({
+      url:signed.downloadUrl,
+      disableAutoFetch:true,
+      disableStream:true,
+      rangeChunkSize:65536
+    });
+    const pdf=await loading.promise;
+    try{
+      const page=await pdf.getPage(1);
+      const original=page.getViewport({scale:1});
+      const viewport=page.getViewport({scale:Math.min(1,138/original.width,138/original.height)});
+      const canvas=document.createElement("canvas");
+      canvas.width=Math.max(1,Math.ceil(viewport.width));
+      canvas.height=Math.max(1,Math.ceil(viewport.height));
+      const context=canvas.getContext("2d",{alpha:false});
+      if(!context)throw new Error("PDF preview canvas is unavailable.");
+      context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
+      await page.render({canvasContext:context,viewport}).promise;
+      const dataUrl=canvas.toDataURL("image/jpeg",.82);
+      pdfPreviewCache.set(item.id,dataUrl);
+      if(pdfPreviewCache.size>120)pdfPreviewCache.delete(pdfPreviewCache.keys().next().value);
+      return dataUrl;
+    }finally{await pdf.destroy();}
+  })().finally(()=>pdfPreviewRequests.delete(item.id));
+  pdfPreviewRequests.set(item.id,request);
+  return request;
+}
+async function renderPdfThumbnail(item,container){
+  try{
+    const dataUrl=await createPdfThumbnail(item);
+    if(container.isConnected)paintPdfThumbnail(item.id,dataUrl);
+  }catch(error){
+    if(container.isConnected){
+      container.classList.add("pdf-preview-error");
+      container.title="PDF preview unavailable";
+      const placeholder=document.createElement("span");
+      placeholder.className="pdf-thumbnail-placeholder";
+      placeholder.textContent="PDF";
+      container.replaceChildren(placeholder);
+    }
+    console.warn("Could not render PDF thumbnail:",item.name,error.message);
+  }
+}
+const pdfPreviewObserver=("IntersectionObserver" in window)
+  ?new IntersectionObserver(entries=>{
+    for(const entry of entries){
+      if(!entry.isIntersecting)continue;
+      const container=entry.target;
+      pdfPreviewObserver.unobserve(container);
+      const item=items.find(value=>value.id===container.dataset.pdfId);
+      if(item)renderPdfThumbnail(item,container);
+    }
+  },{rootMargin:"260px 0px"})
+  :null;
+function queuePdfThumbnail(item,container){
+  container.dataset.pdfId=item.id;
+  if(pdfPreviewCache.has(item.id)){paintPdfThumbnail(item.id,pdfPreviewCache.get(item.id));return;}
+  if(pdfPreviewObserver)pdfPreviewObserver.observe(container);
+  else renderPdfThumbnail(item,container);
+}
+
 function renderItems(){
   list.replaceChildren();
   const folder=items.find(item=>item.id===currentFolderId);
@@ -1222,9 +1349,20 @@ function renderItems(){
     card.dataset.id=item.id;
     card.dataset.type=item.item_type;
     card.setAttribute("role","listitem");
-    card.innerHTML=item.item_type==="folder"?(isBucketCard?bucketSvg:folderSvg):fileSvg;
+    const isPdfFile=item.item_type==="file"&&/\\.pdf$/i.test(item.name);
+    card.innerHTML=item.item_type==="folder"?(isBucketCard?bucketSvg:folderSvg):(isPdfFile?"":fileSvg);
     const icon=card.querySelector("svg");
     if(item.item_type==="folder"&&item.folder_color)icon.style.color=item.folder_color;
+    if(isPdfFile){
+      card.classList.add("pdf-file-card");
+      const thumbnail=document.createElement("div");
+      thumbnail.className="pdf-thumbnail";
+      thumbnail.setAttribute("aria-label","PDF first page preview");
+      const placeholder=document.createElement("span");
+      placeholder.className="pdf-thumbnail-placeholder";placeholder.textContent="PDF";
+      thumbnail.append(placeholder);card.append(thumbnail);
+      queuePdfThumbnail(item,thumbnail);
+    }
     let settings=null;
     if(!isReadOnlyShared){
       settings=document.createElement("button");
@@ -1770,20 +1908,36 @@ async function topLevelIds(ids){
   });
 }
 async function moveItems(ids,targetParentId){
-  const roots=await topLevelIds(ids);
+  const roots=(await topLevelIds(ids)).filter(id=>items.find(entry=>entry.id===id)?.parent_id!==targetParentId);
   if(!roots.length)return;
+  const mutationId=crypto.randomUUID();
+  const mutation={
+    id:mutationId,userId:user.id,type:"move",itemId:"move:"+mutationId,
+    changes:{ids:roots,targetParentId:targetParentId??null,sortOrders:{}},
+    createdAt:Date.now()
+  };
+  let nextSortOrder=Math.max(0,...items.filter(item=>item.parent_id===targetParentId).map(item=>Number(item.sort_order)||0));
+  for(const id of roots)mutation.changes.sortOrders[id]=nextSortOrder+=10;
   try{
-    await filesAction("move",{ids:roots,targetParentId});
-    let nextSortOrder=Math.max(0,...items.filter(item=>item.parent_id===targetParentId).map(item=>Number(item.sort_order)||0));
-    for(const id of roots){
+    await savePendingMutation(mutation);
+    const queuedIds=mutation.changes.ids;
+    if(!queuedIds.length)return;
+    for(const id of queuedIds){
       const item=items.find(entry=>entry.id===id);
-      if(!item||item.parent_id===targetParentId)continue;
-      item.parent_id=targetParentId;
-      item.sort_order=nextSortOrder+=10;
+      if(item){item.parent_id=targetParentId??null;item.sort_order=mutation.changes.sortOrders[id];}
     }
     clearSelection();
     renderItems();
-  }catch(error){alert("Could not move the selected items. "+error.message);}
+  }catch(error){
+    try{
+      await filesAction("move",{ids:roots,targetParentId});
+      for(const id of roots){
+        const item=items.find(entry=>entry.id===id);
+        if(item){item.parent_id=targetParentId??null;item.sort_order=mutation.changes.sortOrders[id];}
+      }
+      clearSelection();renderItems();
+    }catch(remoteError){alert("Could not move the selected items. "+remoteError.message);}
+  }
 }
 async function reorderBefore(ids,targetId){
   const target=items.find(item=>item.id===targetId);
