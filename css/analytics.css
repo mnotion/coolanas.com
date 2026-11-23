@@ -1448,3 +1448,42 @@ html.dark-mode .study-heatmap {border-color:#3b3b3b}
 html.dark-mode .study-heatmap-heading span,html.dark-mode .study-heatmap-month,html.dark-mode .study-heatmap-weekdays,html.dark-mode .study-heatmap-legend {color:#aaa}
 html.dark-mode .study-heatmap-cell[data-level='0'],html.dark-mode .study-heatmap-legend i[data-level='0'] {background:#303936}
 @media(max-width:600px) { .study-heatmap-scroll {max-width:100%;} }
+
+/* Shared-with-me bucket structures in Analytics. */
+.bucket-section-divider {
+  border:0;
+  border-top:1px solid #dedede;
+  margin:30px 0 22px;
+}
+.shared-bucket-section-title {
+  margin:0 0 16px;
+  font-size:18px;
+  font-weight:700;
+}
+.shared-bucket-tree-container {
+  width:100%;
+  max-width:none;
+  min-height:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+.shared-bucket-structure {
+  min-width:0;
+}
+.shared-bucket-owner-heading {
+  margin:0 0 9px;
+  color:#b8860b;
+  font-size:15px;
+  font-weight:750;
+}
+.shared-bucket-tree-card {
+  min-height:80px;
+}
+html.dark-mode .bucket-section-divider {
+  border-top-color:#444;
+}
+html.dark-mode .shared-bucket-owner-heading {
+  color:#e2b84b;
+}
