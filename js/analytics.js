@@ -129,10 +129,20 @@ async function loadCloudAnalytics() {
     const {data, error} =
         await supabase.functions.invoke("coolanas-files-b2", {body: {action: "analytics_get"}});
     if (error || data?.error) throw error || new Error(data.error);
-    const daily = data.daily && typeof data.daily === "object" && !Array.isArray(data.daily) ?
-        data.daily :
-        {};
-    const dailySubjects = data.dailySubjects && typeof data.dailySubjects === "object" && !Array.isArray(data.dailySubjects) ? data.dailySubjects : {};
+    const cloudDaily = data.daily && typeof data.daily === "object" && !Array.isArray(data.daily) ? data.daily : {};
+    const localDaily = readDailyTotals();
+    const daily = {...cloudDaily};
+    for (const [date, value] of Object.entries(localDaily))
+      daily[date] = Math.max(0, Number(daily[date]) || 0, Number(value) || 0);
+    const cloudSubjects = data.dailySubjects && typeof data.dailySubjects === "object" && !Array.isArray(data.dailySubjects) ? data.dailySubjects : {};
+    const localSubjects = readDailySubjects();
+    const dailySubjects = {...cloudSubjects};
+    for (const [date, subjects] of Object.entries(localSubjects)) {
+      if (!subjects || typeof subjects !== "object" || Array.isArray(subjects)) continue;
+      if (!dailySubjects[date] || typeof dailySubjects[date] !== "object" || Array.isArray(dailySubjects[date])) dailySubjects[date] = {};
+      for (const [subject, value] of Object.entries(subjects))
+        dailySubjects[date][subject] = Math.max(0, Number(dailySubjects[date][subject]) || 0, Number(value) || 0);
+    }
     const dailyHours = data.dailyHours && typeof data.dailyHours === "object" && !Array.isArray(data.dailyHours) ? data.dailyHours : {};
     localStorage.setItem(accountKey("coolanas-study-daily-time-v1"), JSON.stringify(daily));
     localStorage.setItem(accountKey("coolanas-study-daily-subjects-v1"), JSON.stringify(dailySubjects));
@@ -224,7 +234,10 @@ function renderStudyHeatmap(totals, now) {
     cell.style.gridRow = String(weekday + 1);
     grid.append(cell);
   });
-  if (!scroller.dataset.initialized) { scroller.scrollLeft = 0; scroller.dataset.initialized = "true"; }
+  if (!scroller.dataset.initialized) {
+    scroller.dataset.initialized = "true";
+    requestAnimationFrame(() => { scroller.scrollLeft = scroller.scrollWidth; });
+  }
 }
 function formatDistributionDuration(ms) {
   const minutes=Math.ceil(Math.max(0,Number(ms)||0)/60000);
