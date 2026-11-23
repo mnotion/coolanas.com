@@ -35,6 +35,7 @@ function applyFilesTheme(mode) {
   filesThemeToggle.textContent = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
 }
 applyFilesTheme(window.CoolanasTheme?.get() || "light");
+window.addEventListener("coolanas:themechange", event => applyFilesTheme(event.detail?.mode || "light"));
 filesThemeToggle.addEventListener("click", () => {
   const mode = document.documentElement.classList.contains("dark-mode") ? "light" : "dark";
   window.CoolanasTheme?.set(mode);
