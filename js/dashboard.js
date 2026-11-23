@@ -435,13 +435,20 @@ function setupStudyStopwatch() {
         allHours[dateKey][hour] =
             (Number(allHours[dateKey][hour]) || 0) + duration;
       }
-      pending.push({
-        date: dateKey,
-        durationMs: Math.round(segmentEnd - cursor),
-        hourlyMs,
-        subject: window.coolanasSubjectState?.selected || "Unassigned",
-        eventId: eventPrefix + "-" + crypto.randomUUID()
-      });
+      const subject = window.coolanasSubjectState?.selected || "Unassigned";
+      const durationMs = Math.round(segmentEnd - cursor);
+      pending.push({date: dateKey, durationMs, hourlyMs, subject, eventId: eventPrefix + "-" + crypto.randomUUID()});
+      const subjectsKey = "coolanas-study-daily-subjects-v1:" + activeAccountId;
+      let dailySubjects = {};
+      try {
+        const saved = JSON.parse(localStorage.getItem(subjectsKey) || "{}");
+        if (saved && typeof saved === "object" && !Array.isArray(saved)) dailySubjects = saved;
+      } catch {}
+      if (!dailySubjects[dateKey] || typeof dailySubjects[dateKey] !== "object" || Array.isArray(dailySubjects[dateKey]))
+        dailySubjects[dateKey] = {};
+      dailySubjects[dateKey][subject] = (Number(dailySubjects[dateKey][subject]) || 0) + durationMs;
+      try { localStorage.setItem(subjectsKey, JSON.stringify(dailySubjects)); }
+      catch (error) { console.warn("Could not save local subject study time:", error); }
       cursor = segmentEnd;
     }
     savePending(pending);
