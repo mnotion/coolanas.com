@@ -1271,10 +1271,6 @@ html.dark-mode,html.dark-mode body {
   color-scheme:dark
 }
 
-html.dark-mode body:has(.bottom-nav:hover),html.dark-mode body:has(.bottom-nav:focus-within) {
-  background:#191919!important
-}
-
 html.dark-mode .profile-drawer,html.dark-mode .panel,html.dark-mode .subject-context-menu,html.dark-mode .task-placeholder,html.dark-mode .upload-card {
   background:rgba(35,35,35,.97)!important;
   color:#eee!important;
@@ -1998,4 +1994,23 @@ html.dark-mode .mail-notification-actions button.secondary {
       .profile-button,.mail-button,.bottom-nav {
     animation:none
   }
+}
+
+/* Keep the dashboard canvas stable when the floating navigation is hovered. */
+html.dark-mode body:has(.bottom-nav:hover),
+html.dark-mode body:has(.bottom-nav:focus-within) {
+  background:var(--theme-page, #17191d)!important;
+}
+/* Preserve subject swatches and the selected subject's own colour in dark mode. */
+html.dark-mode .study-subject {
+  background:var(--subject-colour, var(--subject-color, #343b46))!important;
+  color:inherit;
+}
+html.dark-mode .subject-menu-colours {
+  background:var(--theme-surface-raised)!important;
+}
+html.dark-mode .subject-menu-colours .subject-colour,
+html.dark-mode .subject-menu-colours button[data-colour],
+html.dark-mode .subject-menu-colours button[style*="background"] {
+  background:var(--swatch, var(--colour, inherit))!important;
 }
