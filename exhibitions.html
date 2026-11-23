@@ -1851,26 +1851,23 @@ async function saveFile(file,parentId,name=file.name,signal){
 async function uploadEntries(entries,parentId=currentFolderId){
   if(activeSharedBucket){alert("Shared buckets are read-only.");return;}
   if(!entries.length)return;
+  if(!window.CoolanasUploads)throw new Error("Background upload manager is not available. Refresh the page and retry.");
   clearSelection();
-  uploadTitle.textContent="Uploading files";
-  activeUploadController=new AbortController();
-  const signal=activeUploadController.signal;
+  uploadTitle.textContent="Preparing background uploads";
+  activeUploadController=null;
   uploadMinimised=false;uploadCancelled=false;uploadMini.hidden=true;
-  let done=0,processed=0,skipped=0;
-  const failedUploads=[];
+  let processed=0,skipped=0;
   setUploadProgress(0,entries.length,"Preparing "+entries.length+" item(s)…");
   const folderIds=new Map();
   try{
     const prepared=[];
     const plannedFolderFiles=new Set();
     for(const entry of entries){
-      if(signal.aborted)throw new DOMException("Upload cancelled","AbortError");
       const displayName=entry.path||entry.file.name;
       const parts=(entry.path||entry.file.name).split("/").filter(Boolean);
       if(!parts.length)continue;
       let parent=parentId;
       for(let index=0;index<parts.length-1;index++){
-        if(signal.aborted)throw new DOMException("Upload cancelled","AbortError");
         const key=(parent||"root")+":"+parts.slice(0,index+1).join("/");
         if(!folderIds.has(key)){
           let folder=items.find(item=>item.item_type==="folder"&&item.parent_id===parent&&item.name===parts[index]);
@@ -1888,34 +1885,27 @@ async function uploadEntries(entries,parentId=currentFolderId){
         skipped++;processed++;setUploadProgress(processed,entries.length,"Skipped existing file "+fileName);continue;
       }
       if(isFolderImport)plannedFolderFiles.add(plannedKey);
-      prepared.push({entry,parent,fileName,displayName});
+      prepared.push({file:entry.file,fileName,parentId:parent});
     }
-    let nextUpload=0;
-    async function uploadWorker(){
-      while(!signal.aborted){
-        const index=nextUpload++;
-        if(index>=prepared.length)return;
-        const task=prepared[index];
-        setUploadProgress(processed,entries.length,task.displayName);
-        try{await saveFile(task.entry.file,task.parent,task.fileName,signal);done++;}
-        catch(error){if(error.name==="AbortError"||signal.aborted)return;failedUploads.push(task.displayName+": "+error.message);}
-        processed++;
-        setUploadProgress(processed,entries.length,"Processed "+processed+" of "+entries.length+" · uploaded "+done);
-      }
+    if(!prepared.length){
+      hideUploadProgress();
+      if(skipped)alert(skipped+" existing file(s) skipped.");
+      return;
     }
-    await Promise.all(Array.from({length:Math.min(3,prepared.length)},()=>uploadWorker()));
+    setUploadProgress(processed,entries.length,"Saving "+prepared.length+" file(s) for background upload…");
+    const {data:{session},error:authError}=await supabase.auth.getSession();
+    if(authError||!session?.access_token)throw new Error("Your sign-in session could not be verified. Please sign in again.");
+    await window.CoolanasUploads.enqueue(prepared,{accessToken:session.access_token});
+    uploadOverlay.hidden=true;
+    uploadMini.hidden=true;
+    activeUploadController=null;
     renderItems();
     if(currentFolderId!==exhibitionRootId)refreshExhibitions().catch(error=>console.warn("Storage usage refresh failed:",error.message));
-    if(failedUploads.length){
-      const shownFailures=failedUploads.slice(0,8).join("\n");
-      const remaining=failedUploads.length>8?"\n…and "+(failedUploads.length-8)+" more failed file(s).":"";
-      alert("Upload finished: "+done+" of "+entries.length+" files uploaded; "+skipped+" existing file(s) skipped. Failed files:\n"+shownFailures+remaining+"\nFiles that uploaded successfully are saved.");
-    }
-    if(signal.aborted){await loadItems().catch(()=>{});}
+    if(skipped)alert(skipped+" existing file(s) were skipped. The remaining "+prepared.length+" file(s) will continue uploading in the background.");
   }catch(error){
-    await loadItems().catch(()=>{});
-    if(!signal.aborted)alert("Upload stopped after "+processed+" of "+entries.length+" files. "+error.message+" Files that uploaded successfully are saved.");
-  }finally{hideUploadProgress();}
+    hideUploadProgress();
+    alert("Could not queue the uploads: "+error.message+" No background upload was started.");
+  }
 }
 const picker=document.getElementById("file-picker");
 const folderPicker=document.getElementById("folder-picker");
