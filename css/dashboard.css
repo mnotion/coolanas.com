@@ -1281,13 +1281,13 @@ html.dark-mode .profile-drawer strong,html.dark-mode .panel-heading h2,html.dark
   color:#eee!important
 }
 
-html.dark-mode .menu-item,html.dark-mode .study-stopwatch-actions button,html.dark-mode .subject-menu-colours button {
+html.dark-mode .menu-item,html.dark-mode .study-stopwatch-actions button {
   background:#292929!important;
   color:#eee!important;
   border-color:#555!important
 }
 
-html.dark-mode .study-subject,html.dark-mode .study-subject-add,html.dark-mode .study-subject-input,html.dark-mode input {
+html.dark-mode .study-subject-add,html.dark-mode .study-subject-input,html.dark-mode input {
   background:#292929!important;
   color:#eee!important;
   border-color:#555!important
@@ -2001,16 +2001,7 @@ html.dark-mode body:has(.bottom-nav:hover),
 html.dark-mode body:has(.bottom-nav:focus-within) {
   background:var(--theme-page, #17191d)!important;
 }
-/* Preserve subject swatches and the selected subject's own colour in dark mode. */
-html.dark-mode .study-subject {
-  background:var(--subject-colour, var(--subject-color, #343b46))!important;
-  color:inherit;
-}
+/* Preserve each subject's inline colour and the colour-picker swatches. */
 html.dark-mode .subject-menu-colours {
   background:var(--theme-surface-raised)!important;
-}
-html.dark-mode .subject-menu-colours .subject-colour,
-html.dark-mode .subject-menu-colours button[data-colour],
-html.dark-mode .subject-menu-colours button[style*="background"] {
-  background:var(--swatch, var(--colour, inherit))!important;
 }
