@@ -123,13 +123,11 @@ async function loadCloudAnalytics() {
     const daily = data.daily && typeof data.daily === "object" && !Array.isArray(data.daily) ?
         data.daily :
         {};
-    const dailySubjects = data.dailySubjects && typeof data.dailySubjects === "object" &&
-            !Array.isArray(data.dailySubjects) ?
-        data.dailySubjects :
-        {};
-
+    const dailySubjects = data.dailySubjects && typeof data.dailySubjects === "object" && !Array.isArray(data.dailySubjects) ? data.dailySubjects : {};
+    const dailyHours = data.dailyHours && typeof data.dailyHours === "object" && !Array.isArray(data.dailyHours) ? data.dailyHours : {};
     localStorage.setItem("coolanas-study-daily-time-v1", JSON.stringify(daily));
     localStorage.setItem("coolanas-study-daily-subjects-v1", JSON.stringify(dailySubjects));
+    localStorage.setItem("coolanas-study-daily-hours-v1", JSON.stringify(dailyHours));
     const monthly = {};
     for (const [date, duration] of Object.entries(daily)) {
       if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
