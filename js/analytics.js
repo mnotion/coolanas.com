@@ -185,7 +185,11 @@ function renderStudyHeatmap(totals, now) {
   start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
   const dates = [];
   for (let cursor = new Date(start); cursor < end; cursor.setDate(cursor.getDate() + 1)) dates.push(new Date(cursor));
-  const maxDay = Math.max(1, ...Object.values(totals).map(value => Math.max(0, Number(value) || 0)));
+  const maxDay = Math.max(1, ...dates.map(date => {
+    const key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") +
+        "-" + String(date.getDate()).padStart(2, "0");
+    return Math.max(0, Number(totals[key]) || 0);
+  }));
   const weekCount = Math.ceil(dates.length / 7);
   grid.style.gridTemplateColumns = "repeat(" + weekCount + ", 14px)";
   months.style.gridTemplateColumns = "repeat(" + weekCount + ", 14px)";
