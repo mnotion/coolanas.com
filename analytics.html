@@ -26,9 +26,12 @@
         </div>
       </section>
       <section class="section" id="section-calendar">
-        <h2>Calendar</h2>
-        <div class="calendar-toolbar"><div class="calendar-month" id="calendar-month"></div><div class="calendar-controls"><button type="button" id="calendar-prev" aria-label="Previous month">‹</button><button type="button" id="calendar-next" aria-label="Next month">›</button></div></div>
+        <div class="calendar-toolbar"><div class="calendar-month" id="calendar-month"></div></div>
         <div class="calendar-grid" id="calendar-grid" aria-label="Monthly calendar"></div>
+        <section class="calendar-details" id="calendar-details" aria-live="polite" hidden>
+          <div class="calendar-details-heading"><div><div class="calendar-details-date" id="calendar-details-date"></div><div class="calendar-details-total" id="calendar-details-total"></div></div><button type="button" id="calendar-details-close" aria-label="Close day details">×</button></div>
+          <div class="calendar-details-content" id="calendar-details-content"></div>
+        </section>
       </section>
       <section class="section" id="section-buckets">
         <h2>Buckets</h2><p class="intro">An overview of the files and folders in your Bucket.</p>
