@@ -744,7 +744,7 @@ function renderCalendarDetails() {
   tasksTitle.textContent = "Tasks";
   tasksMain.append(tasksTitle);
   const tasksEmpty = document.createElement("div");
-  tasksEmpty.className = "calendar-tasks-empty-slot";
+  tasksEmpty.className = "calendar-tasks-empty-slot calendar-task-list-box";
   const dayTasks = calendarTasks.filter(task => task.dueDate === key || task.completedAt === key || (!task.dueDate && key === todayKey));
   if (key >= todayKey) {
     const form = document.createElement("form");
