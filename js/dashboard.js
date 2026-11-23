@@ -400,7 +400,7 @@ function setupStudyStopwatch() {
       } catch {
         return [];
       }
-    };
+    })();
     let cursor = start;
     while (cursor < end) {
       const date = new Date(cursor),
@@ -588,9 +588,9 @@ function setupStudyStopwatch() {
     void flushPendingAnalytics();
   }, 30000);
   setInterval(render, 250);
-})();
+};
 // Subjects are account-synced in stats/subjects.json.
-(function setupSubjects() {
+function setupSubjects() {
   const container = document.getElementById("study-subjects");
   const add = document.getElementById("study-subject-add");
   const input = document.getElementById("study-subject-input");
@@ -819,9 +819,9 @@ function setupStudyStopwatch() {
       timerButton.disabled = true;
       timerButton.title = "Subjects unavailable";
     }
-  };
+  })();
   container.classList.add("loading");
-})();
+};
 // Personal task list and drag-to-reorder behavior.
 const taskItemsEl = document.getElementById("task-items");
 const taskAddForm = document.getElementById("task-add-form");
