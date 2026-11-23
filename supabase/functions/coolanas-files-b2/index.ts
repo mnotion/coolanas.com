@@ -877,6 +877,28 @@ Deno.serve(async (req) => {
       return json(200, { downloadUrl: url });
     }
 
+    if (action === "rename") {
+      const id = cleanId(body.id);
+      const name = cleanName(body.name);
+      if (!id || !name) return json(400, { error: "A valid item name is required." });
+      const { data: item, error: itemError } = await supabase.from("coolanas_files")
+        .select("id, owner_id, parent_id, item_type")
+        .eq("id", id).eq("owner_id", user.id).single();
+      if (itemError || !item) return json(404, { error: "Item not found." });
+      let duplicateQuery = supabase.from("coolanas_files").select("id")
+        .eq("owner_id", user.id).eq("parent_id", item.parent_id).eq("name", name).neq("id", id);
+      duplicateQuery = item.parent_id
+        ? duplicateQuery.eq("parent_id", item.parent_id)
+        : duplicateQuery.is("parent_id", null);
+      const { data: duplicate, error: duplicateError } = await duplicateQuery.limit(1).maybeSingle();
+      if (duplicateError) return json(400, { error: duplicateError.message });
+      if (duplicate) return json(409, { error: "An item with that name already exists in this folder." });
+      const { data, error } = await supabase.from("coolanas_files").update({ name })
+        .eq("id", id).eq("owner_id", user.id).select("*").single();
+      if (error || !data) return json(400, { error: error?.message ?? "Could not rename item." });
+      return json(200, { item: data });
+    }
+
     if (action === "update_metadata") {
       const id = cleanId(body.id);
       if (!id) return json(400, { error: "Invalid item." });
