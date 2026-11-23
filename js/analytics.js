@@ -25,6 +25,10 @@ if (sessionError || !session?.user) {
   location.replace("/index.html");
   throw new Error("Sign in required.");
 }
+const accountKey = key => key + ":" + session.user.id;
+// Legacy unscoped pending records have no verifiable owner; never sync them.
+localStorage.removeItem(accountKey("coolanas-study-pending-analytics-v1"));
+
 for (const button of document.querySelectorAll(".topic"))
   button.addEventListener("click", () => {
     for (const item of document.querySelectorAll(".topic")) {
@@ -48,7 +52,7 @@ function formatTotalDuration(ms) {
 }
 function readTimerState() {
   try {
-    const saved = JSON.parse(localStorage.getItem("coolanas-study-stopwatch-v1") || "null");
+    const saved = JSON.parse(localStorage.getItem(accountKey("coolanas-study-stopwatch-v1")) || "null");
     if (saved && typeof saved.elapsed === "number")
       return {
         elapsed: Math.max(0, saved.elapsed),
@@ -64,7 +68,7 @@ function currentMonthKey(date = new Date()) {
 }
 function readDailyTotals() {
   try {
-    const value = JSON.parse(localStorage.getItem("coolanas-study-daily-time-v1") || "{}");
+    const value = JSON.parse(localStorage.getItem(accountKey("coolanas-study-daily-time-v1")) || "{}");
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
   } catch {
     return {};
@@ -72,7 +76,7 @@ function readDailyTotals() {
 }
 function readDailySubjects() {
   try {
-    const value = JSON.parse(localStorage.getItem("coolanas-study-daily-subjects-v1") || "{}");
+    const value = JSON.parse(localStorage.getItem(accountKey("coolanas-study-daily-subjects-v1")) || "{}");
     return value && typeof value === "object" && !Array.isArray(value) ? value : {};
   } catch {
     return {};
@@ -102,7 +106,7 @@ async function loadCloudAnalytics() {
   try {
     let pending = [];
     try {
-      pending = JSON.parse(localStorage.getItem("coolanas-study-pending-analytics-v1") || "[]");
+      pending = JSON.parse(localStorage.getItem(accountKey("coolanas-study-pending-analytics-v1")) || "[]");
     } catch {
     }
     if (Array.isArray(pending) && pending.length) {
@@ -115,7 +119,7 @@ async function loadCloudAnalytics() {
           break;
         }
       }
-      localStorage.setItem("coolanas-study-pending-analytics-v1", JSON.stringify(remaining));
+      localStorage.setItem(accountKey("coolanas-study-pending-analytics-v1"), JSON.stringify(remaining));
     }
     const {data, error} =
         await supabase.functions.invoke("coolanas-files-b2", {body: {action: "analytics_get"}});
@@ -125,9 +129,9 @@ async function loadCloudAnalytics() {
         {};
     const dailySubjects = data.dailySubjects && typeof data.dailySubjects === "object" && !Array.isArray(data.dailySubjects) ? data.dailySubjects : {};
     const dailyHours = data.dailyHours && typeof data.dailyHours === "object" && !Array.isArray(data.dailyHours) ? data.dailyHours : {};
-    localStorage.setItem("coolanas-study-daily-time-v1", JSON.stringify(daily));
-    localStorage.setItem("coolanas-study-daily-subjects-v1", JSON.stringify(dailySubjects));
-    localStorage.setItem("coolanas-study-daily-hours-v1", JSON.stringify(dailyHours));
+    localStorage.setItem(accountKey("coolanas-study-daily-time-v1"), JSON.stringify(daily));
+    localStorage.setItem(accountKey("coolanas-study-daily-subjects-v1"), JSON.stringify(dailySubjects));
+    localStorage.setItem(accountKey("coolanas-study-daily-hours-v1"), JSON.stringify(dailyHours));
     const monthly = {};
     for (const [date, duration] of Object.entries(daily)) {
       if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -135,7 +139,7 @@ async function loadCloudAnalytics() {
         monthly[key] = (Number(monthly[key]) || 0) + Math.max(0, Number(duration) || 0);
       }
     }
-    localStorage.setItem("coolanas-study-monthly-time-v1", JSON.stringify(monthly));
+    localStorage.setItem(accountKey("coolanas-study-monthly-time-v1"), JSON.stringify(monthly));
     cloudAnalyticsLoaded = true;
     renderTimer();
     renderMonthlyChart();
@@ -145,7 +149,7 @@ async function loadCloudAnalytics() {
 }
 function readMonthlyTotals() {
   try {
-    const value = JSON.parse(localStorage.getItem("coolanas-study-monthly-time-v1") || "{}");
+    const value = JSON.parse(localStorage.getItem(accountKey("coolanas-study-monthly-time-v1")) || "{}");
     return value && typeof value === "object" && !Array.isArray(value) ? {...value} : {};
   } catch {
     return {};
@@ -165,7 +169,7 @@ function addIntervalToTotals(totals, start, end) {
   }
 }
 function renderMonthlyChart() {
-  const dailyKey = "coolanas-study-daily-time-v1";
+  const dailyKey = accountKey("coolanas-study-daily-time-v1");
   let totals = {}, subjectsByDay = {};
   try {
     totals = JSON.parse(localStorage.getItem(dailyKey) || "{}") || {};
@@ -173,7 +177,7 @@ function renderMonthlyChart() {
   }
   try {
     subjectsByDay =
-        JSON.parse(localStorage.getItem("coolanas-study-daily-subjects-v1") || "{}") || {};
+        JSON.parse(localStorage.getItem(accountKey("coolanas-study-daily-subjects-v1")) || "{}") || {};
   } catch {
   }
   const tooltip = $("chart-tooltip"), state = readTimerState(), now = new Date(),
@@ -371,7 +375,7 @@ function renderCalendarHourlyGraph(panel, dateKey) {
   svg.setAttribute("role", "img");
   svg.setAttribute("aria-label", "Hourly study time from midnight to midnight");
   let allHours = {};
-  try { allHours = JSON.parse(localStorage.getItem("coolanas-study-daily-hours-v1") || "{}") || {}; } catch {}
+  try { allHours = JSON.parse(localStorage.getItem(accountKey("coolanas-study-daily-hours-v1")) || "{}") || {}; } catch {}
   const dayHours = allHours[dateKey] || {};
   const values = [];
   for (let hour = 0; hour < 24; hour++) values.push(Math.max(0, Number(dayHours[hour]) || 0) / 3600000);
