@@ -435,9 +435,7 @@ function renderMonthlyChart() {
   if(overviewDays)overviewDays.textContent=studiedDays+" / "+days;
   if(overviewAverage)overviewAverage.textContent=formatCalendarTime(dailyAverage);
   if(overviewBest){
-    overviewBest.textContent=bestValue>0
-      ? formatCalendarTime(bestValue)+" · "+new Date(year,month,bestIndex+1).toLocaleDateString(undefined,{day:"numeric",month:"short"})
-      : "—";
+    overviewBest.textContent=bestValue>0 ? formatCalendarTime(bestValue) : "—";
   }
   const svg = $("monthly-time-chart");
   svg.replaceChildren();
