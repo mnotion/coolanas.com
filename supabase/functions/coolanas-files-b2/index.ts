@@ -102,6 +102,71 @@ Deno.serve(async (req) => {
     const action = body?.action;
     const profilePictureKey = prefix + "/assets/settings/profile-picture.png";
 
+    if (action === "analytics_get") {
+      const key = prefix + "/stats/analytics.json";
+      try {
+        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        const raw = await object.Body?.transformToString();
+        const saved = raw ? JSON.parse(raw) : {};
+        const daily: Record<string, number> = {};
+        if (saved?.daily && typeof saved.daily === "object" && !Array.isArray(saved.daily)) {
+          for (const [date, value] of Object.entries(saved.daily)) {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(value) && Number(value) >= 0) {
+              daily[date] = Number(value);
+            }
+          }
+        }
+        const dailySubjects = saved?.dailySubjects && typeof saved.dailySubjects === "object" && !Array.isArray(saved.dailySubjects) ? saved.dailySubjects : {};
+        const totalMs = Object.values(daily).reduce((sum, value) => sum + value, 0);
+        return json(200, { success: true, daily, dailySubjects, totalMs });
+      } catch (error) {
+        const status = (error as any)?.$metadata?.httpStatusCode;
+        const name = (error as any)?.name ?? "";
+        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
+        return json(200, { success: true, daily: {}, totalMs: 0 });
+      }
+    }
+
+    if (action === "analytics_record") {
+      const date = body?.date;
+      const durationMs = body?.durationMs;
+      const eventId = body?.eventId;
+      const subject = typeof body?.subject === "string" && body.subject.trim() ? body.subject.trim().slice(0, 80) : "Unassigned";
+      if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+          !Number.isSafeInteger(durationMs) || durationMs <= 0 || durationMs > 604800000 ||
+          typeof eventId !== "string" || !/^[A-Za-z0-9_-]{8,100}$/.test(eventId)) {
+        return json(400, { error: "Invalid study-time record." });
+      }
+      const key = prefix + "/stats/analytics.json";
+      let saved: any = { version: 1, daily: {}, events: {} };
+      try {
+        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+        const raw = await object.Body?.transformToString();
+        if (raw) saved = JSON.parse(raw);
+      } catch (error) {
+        const status = (error as any)?.$metadata?.httpStatusCode;
+        const name = (error as any)?.name ?? "";
+        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
+      }
+      if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
+      if (!saved.daily || typeof saved.daily !== "object" || Array.isArray(saved.daily)) saved.daily = {};
+      if (!saved.dailySubjects || typeof saved.dailySubjects !== "object" || Array.isArray(saved.dailySubjects)) saved.dailySubjects = {};
+      if (!saved.events || typeof saved.events !== "object" || Array.isArray(saved.events)) saved.events = {};
+      if (saved.events[eventId] !== true) {
+        saved.daily[date] = Math.max(0, Number(saved.daily[date]) || 0) + durationMs;
+        if (!saved.dailySubjects[date] || typeof saved.dailySubjects[date] !== "object" || Array.isArray(saved.dailySubjects[date])) saved.dailySubjects[date] = {};
+        saved.dailySubjects[date][subject] = Math.max(0, Number(saved.dailySubjects[date][subject]) || 0) + durationMs;
+        saved.events[eventId] = true;
+      }
+      const totalMs = Object.values(saved.daily).reduce((sum: number, value: unknown) =>
+        sum + (Number.isFinite(value) ? Math.max(0, Number(value)) : 0), 0);
+      const payload = JSON.stringify({ version: 2, daily: saved.daily, dailySubjects: saved.dailySubjects, events: saved.events, updatedAt: new Date().toISOString() });
+      await s3.send(new PutObjectCommand({
+        Bucket: bucket, Key: key, Body: payload, ContentType: "application/json; charset=utf-8",
+      }));
+      return json(200, { success: true, daily: saved.daily, dailySubjects: saved.dailySubjects, totalMs });
+    }
+
     if (action === "profile_picture_get") {
       for (const key of [prefix + "/assets/settings/profile-picture.gif", profilePictureKey]) {
         try {
