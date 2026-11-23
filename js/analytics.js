@@ -737,7 +737,7 @@ function renderCalendarDetails() {
   }
   subjectsSection.append(subjectCards);
   const tasksSection = document.createElement("section");
-  tasksSection.className = "calendar-detail-section calendar-tasks-section";
+  tasksSection.className = "calendar-tasks-section";
   const tasksMain = document.createElement("div");
   tasksMain.className = "calendar-tasks-main";
   const tasksTitle = document.createElement("h3");
