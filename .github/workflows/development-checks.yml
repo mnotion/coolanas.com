@@ -17,6 +17,10 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - name: Check dashboard JavaScript syntax
+        run: node --check --input-type=module < js/dashboard.js
+      - name: Check analytics JavaScript syntax
+        run: node --check --input-type=module < js/analytics.js
       - name: Check exhibitions page JavaScript syntax
         run: node --check --input-type=module < js/exhibitions.js
       - name: Check Coolanas Mail JavaScript syntax
