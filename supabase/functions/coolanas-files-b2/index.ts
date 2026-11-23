@@ -102,6 +102,35 @@ Deno.serve(async (req) => {
     const action = body?.action;
     const profilePictureKey = prefix + "/assets/settings/profile-picture.png";
 
+    const withAnalyticsWriteLock = async (
+      work: () => Promise<Response>
+    ): Promise<Response> => {
+      const lockToken = crypto.randomUUID();
+      let acquired = false;
+      for (let attempt = 0; attempt < 25; attempt++) {
+        const {data, error} = await supabase.rpc("coolanas_try_analytics_sync_lock", {
+          p_token: lockToken, p_ttl_seconds: 30
+        });
+        if (error) throw error;
+        if (data === true) {
+          acquired = true;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 120));
+      }
+      if (!acquired) {
+        return json(503, { error: "Analytics is syncing from another device. Please retry in a few seconds." });
+      }
+      try {
+        return await work();
+      } finally {
+        const {error} = await supabase.rpc("coolanas_release_analytics_sync_lock", {
+          p_token: lockToken
+        });
+        if (error) console.warn("Could not release analytics sync lock:", error.message);
+      }
+    };
+
     if (action === "settings_get") {
       const key = prefix + "/stats/settings.json";
       try {
@@ -197,6 +226,7 @@ Deno.serve(async (req) => {
           typeof eventId !== "string" || !/^[A-Za-z0-9_-]{8,100}$/.test(eventId)) {
         return json(400, { error: "Invalid study-time record." });
       }
+      return await withAnalyticsWriteLock(async () => {
       const key = prefix + "/stats/analytics.json";
       let saved: any = { version: 1, daily: {}, events: {} };
       try {
@@ -234,6 +264,7 @@ Deno.serve(async (req) => {
         Bucket: bucket, Key: key, Body: payload, ContentType: "application/json; charset=utf-8",
       }));
       return json(200, { success: true, daily: saved.daily, dailySubjects: saved.dailySubjects, totalMs });
+      });
     }
 
     if (action === "analytics_sync") {
@@ -249,6 +280,7 @@ Deno.serve(async (req) => {
         const parsed = new Date(value + "T00:00:00.000Z");
         return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
       };
+      return await withAnalyticsWriteLock(async () => {
       const key = prefix + "/stats/analytics.json";
       let saved: any = { version: 4, daily: {}, dailySubjects: {}, dailyHours: {}, events: {} };
       try {
@@ -360,6 +392,7 @@ Deno.serve(async (req) => {
         success: true, accepted, duplicates, daily: saved.daily,
         dailySubjects: saved.dailySubjects, dailyHours: saved.dailyHours,
         totalMs, updatedAt
+      });
       });
     }
 
