@@ -1444,7 +1444,7 @@ html.dark-mode .bucket-upload-buttons button:hover { background:#414141; }
 .study-heatmap-cell[data-level='4'],.study-heatmap-legend i[data-level='4'] {background:#21866d}
 .study-heatmap-legend {display:flex;align-items:center;gap:5px;margin:10px 0 0 36px;color:#888;font-size:10px}
 .study-heatmap-legend i {width:11px;height:11px;border-radius:2px}
-html.dark-mode .study-heatmap {border-color:#3b3b3b}
+html.dark-mode .study-heatmap,html.dark-mode .study-insights-row {border-color:#3b3b3b}
 html.dark-mode .study-heatmap-heading span,html.dark-mode .study-heatmap-month,html.dark-mode .study-heatmap-weekdays,html.dark-mode .study-heatmap-legend {color:#aaa}
 html.dark-mode .study-heatmap-cell[data-level='0'],html.dark-mode .study-heatmap-legend i[data-level='0'] {background:#303936}
 @media(max-width:600px) { .study-heatmap-scroll {max-width:100%;} }
@@ -1489,9 +1489,9 @@ html.dark-mode .shared-bucket-owner-heading {
 }
 
 /* Monthly subject distribution beside the study heatmap. */
-.study-insights-row {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.9fr);gap:28px;align-items:start;margin-top:22px}
-.study-insights-row .study-heatmap {min-width:0;margin-top:0}
-.subject-distribution {min-width:0;padding:22px 0 0;margin-top:28px}
+.study-insights-row {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.9fr);gap:28px;align-items:start;margin-top:28px;padding-top:22px;border-top:1px solid #eee}
+.study-insights-row .study-heatmap {min-width:0;margin:0;padding:0;border:0}
+.subject-distribution {min-width:0;margin:0;padding:0}
 .subject-distribution-heading {display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:12px}
 .subject-distribution-heading strong {font-size:15px;font-weight:700}
 .subject-distribution-heading span {font-size:11px;color:#888}
