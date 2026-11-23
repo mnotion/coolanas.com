@@ -48,6 +48,11 @@
   async function loadForSession(session) {
     if (!session?.user?.id) return {};
     await clientReady;
+    const {error: sessionSetError} = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token
+    });
+    if (sessionSetError) throw sessionSetError;
     const nextUserId = session.user.id;
     if (userId !== nextUserId) {
       userId = nextUserId;
