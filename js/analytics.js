@@ -317,11 +317,17 @@ function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month, opti
     ring.addEventListener("pointerleave",hideDistributionTooltip);
     const x1=280+Math.cos(midAngle)*92,y1=195+Math.sin(midAngle)*92,
           x2=280+Math.cos(midAngle)*132,y2=195+Math.sin(midAngle)*132,
-          rightSide=Math.cos(midAngle)>=0,x3=x2+(rightSide?24:-24);
-    callouts.push({subject,duration,colour,x1,y1,x2,y2,x3,rightSide});
+          topSlice=Math.sin(midAngle)<-0.72;
+    callouts.push({subject,duration,colour,x1,y1,x2,y2,x3:x2,rightSide:Math.cos(midAngle)>=0,topSlice});
     offset+=fraction*circumference;
   });
-  // Spread labels vertically on each side so nearby slices do not produce overlapping callouts.
+  // Tiny slices near 12 o'clock cluster together; alternate their callouts left/right.
+  const topItems=callouts.filter(item=>item.topSlice).sort((a,b)=>a.x1-b.x1);
+  topItems.forEach((item,index)=>{
+    item.rightSide=index%2===1;
+    item.x3=item.x2+(item.rightSide?62:-62);
+  });
+  // Keep the remaining labels on their natural side and spread labels vertically.
   for(const side of [false,true]){
     const sideItems=callouts.filter(item=>item.rightSide===side).sort((a,b)=>a.y2-b.y2);
     const minY=35,maxY=355,separation=48;
