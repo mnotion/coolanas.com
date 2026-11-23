@@ -863,7 +863,18 @@ function renderTasks() {
     taskItemsEl.appendChild(empty);
     return;
   }
-  tasks.forEach(task => {
+  const todayKey = new Date().getFullYear() + "-" +
+      String(new Date().getMonth() + 1).padStart(2, "0") + "-" +
+      String(new Date().getDate()).padStart(2, "0");
+  const visibleTasks = tasks.filter(task => !task.dueDate || task.dueDate <= todayKey);
+  if (!visibleTasks.length) {
+    const empty = document.createElement("div");
+    empty.className = "task-empty";
+    empty.textContent = tasks.length ? "No tasks scheduled for today yet." : "No tasks yet. Add one above.";
+    taskItemsEl.appendChild(empty);
+    return;
+  }
+  visibleTasks.forEach(task => {
     const row = document.createElement("div");
     row.className = "task-row" + (task.completed ? " completed" : "");
     row.dataset.taskId = task.id;
@@ -899,6 +910,10 @@ function renderTasks() {
     completeInput.addEventListener("change", async () => {
       const previous = task.completed;
       task.completed = completeInput.checked;
+      if (task.completed) task.completedAt = new Date().getFullYear() + "-" +
+          String(new Date().getMonth() + 1).padStart(2, "0") + "-" +
+          String(new Date().getDate()).padStart(2, "0");
+      else delete task.completedAt;
       row.classList.toggle("completed", task.completed);
       complete.title = task.completed ? "Mark as incomplete" : "Mark as completed";
       completeInput.setAttribute("aria-label", complete.title);
