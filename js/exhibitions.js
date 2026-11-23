@@ -10,6 +10,7 @@ if (sessionError || !session) {
   location.replace("index.html");
   throw new Error("Sign-in required");
 }
+await window.CoolanasTheme?.loadForSession(session);
 const user = session.user;
 const filesFunction = "coolanas-files-b2";
 const bucketSvg =
