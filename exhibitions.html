@@ -1238,13 +1238,20 @@ const pdfPreviewCache=new Map();
 const pdfPreviewRequests=new Map();
 let pdfJsPromise=null;
 function loadPdfJs(){
+  if(window.pdfjsLib)return Promise.resolve(window.pdfjsLib);
   if(!pdfJsPromise){
-    pdfJsPromise=import("https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.mjs")
-      .then(pdfjs=>{
-        pdfjs.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@6.5.438/build/pdf.worker.mjs";
-        return pdfjs;
-      })
-      .catch(error=>{pdfJsPromise=null;throw error;});
+    pdfJsPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement("script");
+      script.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.async=true;
+      script.onload=()=>{
+        if(!window.pdfjsLib){reject(new Error("PDF.js loaded without its rendering API."));return;}
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        resolve(window.pdfjsLib);
+      };
+      script.onerror=()=>reject(new Error("Could not load the PDF rendering library."));
+      document.head.append(script);
+    }).catch(error=>{pdfJsPromise=null;throw error;});
   }
   return pdfJsPromise;
 }
@@ -1270,7 +1277,7 @@ async function createPdfThumbnail(item){
     const pdfBytes=new Uint8Array(await response.arrayBuffer());
     if(!pdfBytes.length)throw new Error("The PDF file is empty.");
     const pdfjs=await loadPdfJs();
-    const loading=pdfjs.getDocument({data:pdfBytes,isEvalSupported:false});
+    const loading=pdfjs.getDocument({data:pdfBytes, isEvalSupported:false, useWorkerFetch:false});
     const pdf=await loading.promise;
     try{
       const page=await pdf.getPage(1);
@@ -1308,22 +1315,24 @@ async function renderPdfThumbnail(item,container){
     console.warn("Could not render PDF thumbnail:",item.name,error.message);
   }
 }
-const pdfPreviewObserver=("IntersectionObserver" in window)
-  ?new IntersectionObserver(entries=>{
-    for(const entry of entries){
-      if(!entry.isIntersecting)continue;
-      const container=entry.target;
-      pdfPreviewObserver.unobserve(container);
-      const item=items.find(value=>value.id===container.dataset.pdfId);
-      if(item)renderPdfThumbnail(item,container);
-    }
-  },{rootMargin:"260px 0px"})
-  :null;
+const pdfPreviewQueue=[];
+let activePdfPreviews=0;
+function pumpPdfPreviewQueue(){
+  while(activePdfPreviews<3&&pdfPreviewQueue.length){
+    const job=pdfPreviewQueue.shift();
+    activePdfPreviews++;
+    renderPdfThumbnail(job.item,job.container).finally(()=>{
+      activePdfPreviews--;
+      pumpPdfPreviewQueue();
+    });
+  }
+}
 function queuePdfThumbnail(item,container){
   container.dataset.pdfId=item.id;
   if(pdfPreviewCache.has(item.id)){paintPdfThumbnail(item.id,pdfPreviewCache.get(item.id));return;}
-  if(pdfPreviewObserver)pdfPreviewObserver.observe(container);
-  else renderPdfThumbnail(item,container);
+  if(pdfPreviewRequests.has(item.id))return;
+  pdfPreviewQueue.push({item,container});
+  pumpPdfPreviewQueue();
 }
 
 function renderItems(){
