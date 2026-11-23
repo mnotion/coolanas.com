@@ -894,24 +894,6 @@ document.addEventListener("visibilitychange", () => {
   checkForWorkspaceChanges().catch(
       error => console.warn("Could not check for bucket changes after returning to this tab:", error.message));
 });
-let uploadQueueWasActive = false;
-window.addEventListener("coolanas-upload-updated", event => {
-  const tasks = event.detail || [];
-  const queueIsActive =
-      tasks.some(task => task.status === "pending" || task.status === "uploading");
-  if (queueIsActive) {
-    uploadQueueWasActive = true;
-    return;
-  }
-  // upload-manager.js emits this event every second. Refresh once, only on the
-  // transition from an active queue to a finished queue, never on every poll.
-  if (!uploadQueueWasActive) return;
-  uploadQueueWasActive = false;
-  if (activeSharedBucket) return;
-  loadItems({force: true})
-      .then(() => refreshExhibitions({force: true}))
-      .catch(error => console.warn("Could not refresh after background uploads:", error.message));
-});
 function upsertItem(item) {
   if (!item || typeof item.id !== "string") return null;
   const existing = items.find(entry => entry.id === item.id);
