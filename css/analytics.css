@@ -1122,3 +1122,37 @@ html.dark-mode .tree-container .tree-toggle:checked ~ .tree-label .folder-open-i
 @media(max-width:520px) {
   .tree-container { padding:16px; }
 }
+
+
+/* Use each bucket's own saved colour for its selector and structure card. */
+.bucket-structure-choice {
+  background:color-mix(in srgb,var(--bucket-colour) 22%,white);
+  border-color:color-mix(in srgb,var(--bucket-colour) 62%,#d4d4d8);
+  color:#18181b;
+}
+.bucket-structure-choice:hover {
+  background:color-mix(in srgb,var(--bucket-colour) 32%,white);
+}
+.bucket-structure-choice.selected {
+  background:color-mix(in srgb,var(--bucket-colour) 38%,white);
+  border-color:var(--bucket-colour);
+  color:#18181b;
+}
+.tree-container {
+  background:color-mix(in srgb,var(--bucket-colour,#e5e7eb) 17%,white);
+  border-color:color-mix(in srgb,var(--bucket-colour,#e5e7eb) 58%,#e4e4e7);
+}
+html.dark-mode .bucket-structure-choice {
+  background:color-mix(in srgb,var(--bucket-colour) 35%,#242424);
+  border-color:color-mix(in srgb,var(--bucket-colour) 70%,#555);
+  color:#f4f4f5;
+}
+html.dark-mode .bucket-structure-choice.selected {
+  background:color-mix(in srgb,var(--bucket-colour) 48%,#242424);
+  border-color:var(--bucket-colour);
+  color:#fff;
+}
+html.dark-mode .tree-container {
+  background:color-mix(in srgb,var(--bucket-colour,#555) 25%,#242424);
+  border-color:color-mix(in srgb,var(--bucket-colour,#555) 58%,#444);
+}
