@@ -724,3 +724,29 @@ html.dark-mode .calendar-detail-row { border-color:#444; }
   .calendar-day-time { font-size:9px; }
   .calendar-details { padding:14px; }
 }
+
+/* Calendar layout refinements. */
+.calendar-day {
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:10px 4px;
+}
+.calendar-day-number { width:100%; text-align:center; }
+.calendar-day-time { width:100%; text-align:center; font-size:11px; }
+.calendar-day-spacer { min-height:58px; }
+.calendar-details-heading { display:block; }
+.calendar-details-date { font-size:18px; font-weight:700; }
+.calendar-details-total { margin-top:5px; font-size:16px; }
+.calendar-details-content {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:24px;
+  margin-top:16px;
+}
+.calendar-detail-section { min-width:0; }
+.calendar-detail-section h3 { margin:0 0 10px; font-size:14px; }
+@media(max-width:520px) {
+  .calendar-details-content { grid-template-columns:1fr; gap:18px; }
+  .calendar-day-spacer { min-height:48px; }
+}
