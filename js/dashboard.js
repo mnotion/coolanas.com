@@ -226,15 +226,17 @@ const drawerAvatarFallback = document.getElementById("drawer-avatar-fallback");
 const removePfpButton = document.getElementById("remove-pfp");
 const themeToggle = document.getElementById("theme-toggle");
 function applyTheme(mode) {
-  window.CoolanasTheme?.set(mode);
+  window.CoolanasTheme?.apply(mode);
   document.documentElement.classList.toggle("dark-mode", mode === "dark");
   document.documentElement.dataset.theme = mode;
   themeToggle.textContent = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
 }
 applyTheme(window.CoolanasTheme?.get() || "light");
-themeToggle.addEventListener(
-    "click",
-    () => applyTheme(document.documentElement.classList.contains("dark-mode") ? "light" : "dark"));
+themeToggle.addEventListener("click", () => {
+  const next = document.documentElement.classList.contains("dark-mode") ? "light" : "dark";
+  window.CoolanasTheme?.set(next);
+  applyTheme(next);
+});
 window.addEventListener("storage", event => {
   if (event.key === "coolanas-theme") applyTheme(event.newValue === "dark" ? "dark" : "light");
 });
