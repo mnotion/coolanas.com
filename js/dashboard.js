@@ -459,62 +459,126 @@ function setupStudyStopwatch() {
       console.warn("Could not save hourly study time:", error);
     }
   }
-  async function flushPendingAnalytics() {
-    let pending;
-    try {
-      pending = JSON.parse(localStorage.getItem(pendingKey) || "[]");
-    } catch {
-      pending = [];
-    }
-    if (!Array.isArray(pending) || !pending.length) return;
-    const remaining = [];
-    for (let index = 0; index < pending.length; index++) {
-      const record = pending[index];
+  const migrationKey = "coolanas-analytics-cloud-reconciled-v1:" + activeAccountId;
+  let analyticsFlushPromise = null;
+  function readLocalAnalyticsSnapshot() {
+    const readObject = key => {
       try {
-        const {data, error} = await supabase.functions.invoke(
-            "coolanas-files-b2", {body: {action: "analytics_record", ...record}});
-        if (error || data?.error) throw error || new Error(data.error);
-      } catch (error) {
-        console.warn("Study-time cloud sync deferred:", error);
-        remaining.push(...pending.slice(index));
-        break;
+        const value = JSON.parse(localStorage.getItem(key) || "{}");
+        return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      } catch { return {}; }
+    };
+    return {
+      daily:readDaily(),
+      dailySubjects:readObject("coolanas-study-daily-subjects-v1:" + activeAccountId),
+      dailyHours:readObject("coolanas-study-daily-hours-v1:" + activeAccountId)
+    };
+  }
+  function readPendingAnalytics() {
+    try {
+      const value = JSON.parse(localStorage.getItem(pendingKey) || "[]");
+      return Array.isArray(value) ? value : [];
+    } catch { return []; }
+  }
+  async function postAnalyticsSync(payload, {keepalive = false} = {}) {
+    const body = JSON.stringify({action:"analytics_sync", ...payload});
+    if (keepalive) {
+      const token = activeSession?.access_token;
+      if (!token) throw new Error("No active sign-in token is available for the exit sync.");
+      const response = await fetch(SUPABASE_URL + "/functions/v1/coolanas-files-b2", {
+        method:"POST",
+        keepalive:true,
+        credentials:"omit",
+        headers:{
+          "Content-Type":"application/json",
+          apikey:SUPABASE_PUBLISHABLE_KEY,
+          Authorization:"Bearer " + token
+        },
+        body
+      });
+      let data = {};
+      try { data = await response.json(); } catch {}
+      if (!response.ok || data?.error)
+        throw new Error(data?.error || "Cloud analytics sync failed (HTTP " + response.status + ").");
+      return data;
+    }
+    const {data,error} = await supabase.functions.invoke("coolanas-files-b2", {
+      body:{action:"analytics_sync", ...payload}
+    });
+    if (error || data?.error) throw new Error(data?.error || error?.message || "Cloud analytics sync failed.");
+    return data;
+  }
+  async function flushPendingAnalytics({keepalive = false, includeSnapshot = false} = {}) {
+    const run = async () => {
+      let remaining = readPendingAnalytics();
+      let snapshotPending = includeSnapshot &&
+        localStorage.getItem(migrationKey) !== "1";
+      let sentAny = false;
+      do {
+        const batch = remaining.slice(0, keepalive ? 20 : 100);
+        if (!batch.length && !snapshotPending) break;
+        const payload = {records:batch};
+        if (snapshotPending) payload.snapshot = readLocalAnalyticsSnapshot();
+        const result = await postAnalyticsSync(payload, {keepalive});
+        sentAny = true;
+        const sentIds = new Set(batch.map(record => record.eventId));
+        const latestPending = readPendingAnalytics();
+        savePending(latestPending.filter(record => !sentIds.has(record.eventId)));
+        if (snapshotPending) {
+          localStorage.setItem(migrationKey, "1");
+          snapshotPending = false;
+        }
+        remaining = readPendingAnalytics();
+        if (keepalive) break;
+      } while (remaining.length);
+      return {success:true,sentAny,remaining:readPendingAnalytics().length};
+    };
+    // Exit requests use fetch(..., {keepalive:true}) even while a normal sync is
+    // in progress. Event IDs make a repeated exit request idempotent on the server.
+    if (keepalive) {
+      try { return await run(); }
+      catch (error) {
+        console.warn("Final analytics sync will retry next time:", error);
+        return {success:false,error};
       }
     }
-    savePending(remaining);
+    if (analyticsFlushPromise) return analyticsFlushPromise;
+    analyticsFlushPromise = run().catch(error => {
+      console.warn("Study-time cloud sync deferred:", error);
+      return {success:false,error};
+    }).finally(() => { analyticsFlushPromise = null; });
+    return analyticsFlushPromise;
   }
   async function bootstrapCloudAnalytics() {
     try {
-      const {data, error} =
-          await supabase.functions.invoke("coolanas-files-b2", {body: {action: "analytics_get"}});
-      if (error || data?.error) throw error || new Error(data.error);
-      const remote = data.daily && typeof data.daily === "object" ? data.daily : {};
-      if (!Object.keys(remote).length) {
-        const local = readDaily();
-        for (const [date, durationMs] of Object.entries(local)) {
-          if (/^\\d{4}-\\d{2}-\\d{2}$/.test(date) && Number(durationMs) > 0) {
-            const pending = (() => {
-              try {
-                return JSON.parse(localStorage.getItem(pendingKey) || "[]");
-              } catch {
-                return [];
-              }
-            })();
-            if (!pending.some(item => item.date === date))
-              pending.push(
-                  {date, durationMs: Math.round(Number(durationMs)), eventId: "legacy-" + date});
-            savePending(pending);
-          }
+      await flushPendingAnalytics({
+        includeSnapshot:localStorage.getItem(migrationKey) !== "1"
+      });
+      const {data,error} = await supabase.functions.invoke("coolanas-files-b2", {
+        body:{action:"analytics_get"}
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Could not fetch cloud analytics.");
+      const daily = data.daily && typeof data.daily === "object" && !Array.isArray(data.daily) ? data.daily : {};
+      const dailySubjects = data.dailySubjects && typeof data.dailySubjects === "object" &&
+        !Array.isArray(data.dailySubjects) ? data.dailySubjects : {};
+      const dailyHours = data.dailyHours && typeof data.dailyHours === "object" &&
+        !Array.isArray(data.dailyHours) ? data.dailyHours : {};
+      localStorage.setItem(dailyKey, JSON.stringify(daily));
+      localStorage.setItem("coolanas-study-daily-subjects-v1:" + activeAccountId, JSON.stringify(dailySubjects));
+      localStorage.setItem("coolanas-study-daily-hours-v1:" + activeAccountId, JSON.stringify(dailyHours));
+      const monthly = {};
+      for (const [date,duration] of Object.entries(daily)) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          const month = date.slice(0,7);
+          monthly[month] = (Number(monthly[month]) || 0) + Math.max(0,Number(duration) || 0);
         }
-        await flushPendingAnalytics();
-      } else {
-        localStorage.setItem(dailyKey, JSON.stringify(remote));
       }
-      await flushPendingAnalytics();
+      localStorage.setItem(monthlyKey, JSON.stringify(monthly));
     } catch (error) {
-      console.warn("Could not load account study analytics:", error);
+      console.warn("Could not load/sync account study analytics:", error);
     }
   }
-  function addIntervalToMonthly(start, end) {
+  function addIntervalToMonthly(start, end, {flush = true} = {}) {
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
     const totals = readMonthly();
     let cursor = start;
@@ -548,7 +612,7 @@ function setupStudyStopwatch() {
       console.warn("Could not save daily study time:", error);
     }
     queueInterval(start, end);
-    void flushPendingAnalytics();
+    if (flush) void flushPendingAnalytics();
   }
   const elapsedNow = () =>
       state.elapsed + (state.startedAt ? Math.max(0, Date.now() - state.startedAt) : 0);
@@ -618,15 +682,29 @@ function setupStudyStopwatch() {
   });
   render();
   void bootstrapCloudAnalytics();
-  setInterval(() => {
+  function checkpointAndSync({keepalive = false} = {}) {
     if (state.startedAt && cloudCheckpointAt) {
       const checkpoint = Date.now();
-      addIntervalToMonthly(cloudCheckpointAt, checkpoint);
-      cloudCheckpointAt = checkpoint;
-      save();
+      if (checkpoint > cloudCheckpointAt) {
+        addIntervalToMonthly(cloudCheckpointAt, checkpoint, {flush:false});
+        cloudCheckpointAt = checkpoint;
+        save();
+      }
     }
-    void flushPendingAnalytics();
-  }, 30000);
+    void flushPendingAnalytics({keepalive});
+  }
+  // Sync every five seconds while active; checkpoint immediately when the
+  // tab/app is backgrounded or closed, using a keepalive request.
+  setInterval(() => checkpointAndSync(), 5000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) checkpointAndSync({keepalive:true});
+    else {
+      void flushPendingAnalytics();
+      void bootstrapCloudAnalytics();
+    }
+  });
+  window.addEventListener("pagehide", () => checkpointAndSync({keepalive:true}));
+  window.addEventListener("online", () => void flushPendingAnalytics());
   setInterval(render, 250);
 };
 // Subjects are account-synced in stats/subjects.json.
@@ -1341,7 +1419,7 @@ document.getElementById("change-account").addEventListener("click", async () => 
 document.addEventListener("keydown", event => {
   if (event.key === "Escape") closeProfileDrawer();
 });
-let activeAccountId = null;
+let activeAccountId = null, activeSession = null;
 try {
   let session;
   if (isAuthCallback) {
@@ -1354,6 +1432,7 @@ try {
     history.replaceState(null, document.title, location.pathname);
     await window.CoolanasTheme?.loadForSession(session);
     await requireUsername(session);
+    activeSession = session;
     activeAccountId = session.user.id;
     setupSubjects();
     setupStudyStopwatch();
@@ -1368,6 +1447,7 @@ try {
       accountStatus.textContent = "You are not signed in. Return to sign in.";
     } else {
       await requireUsername(session);
+      activeSession = session;
       activeAccountId = session.user.id;
       setupSubjects();
       setupStudyStopwatch();
@@ -1382,6 +1462,7 @@ try {
 }
 if (activeAccountId) localStorage.removeItem("coolanas-study-pending-analytics-v1");
 supabase.auth.onAuthStateChange((_event, nextSession) => {
+  activeSession = nextSession;
   if ((nextSession?.user?.id || null) !== activeAccountId) location.reload();
 });
 
