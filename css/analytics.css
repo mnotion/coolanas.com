@@ -968,3 +968,9 @@ html.dark-mode .calendar-task-remove:hover { background:#4a2929; color:#ff9999; 
 .calendar-details.future-date .calendar-task-add {
   width:100%;
 }
+
+
+/* Add breathing room below the selected day's subjects and tasks. */
+.calendar-details:not(.future-date) {
+  padding-bottom:34px;
+}
