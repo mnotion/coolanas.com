@@ -1298,6 +1298,7 @@ try {
     const {data: {session: storedSession}, error} = await supabase.auth.getSession();
     if (error) throw error;
     session = storedSession;
+    if (session) await window.CoolanasTheme?.loadForSession(session);
     if (!session) {
       accountStatus.textContent = "You are not signed in.";
       accountStatus.textContent = "You are not signed in. Return to sign in.";
