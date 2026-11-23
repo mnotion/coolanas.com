@@ -1552,3 +1552,16 @@ html.dark-mode .calendar-daily-distribution {
     gap:8px;
   }
 }
+
+/* Centered donut with radial subject callouts. */
+.subject-distribution-content {display:block;width:100%}
+.subject-distribution-content svg,
+#subject-distribution-chart,
+.calendar-daily-distribution #calendar-subject-distribution-chart {
+  display:block;width:100%;max-width:560px;height:auto;margin:0 auto;overflow:visible
+}
+.subject-distribution-legend {display:none!important}
+.subject-donut-callout-name {font-size:13px;font-weight:650;fill:var(--text-color,#222)}
+.subject-donut-callout-time {font-size:11px;fill:#858b96}
+html.dark-mode .subject-donut-callout-name {fill:#f1f1f1}
+html.dark-mode .subject-donut-callout-time {fill:#aaa}
