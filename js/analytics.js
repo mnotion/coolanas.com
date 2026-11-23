@@ -298,8 +298,54 @@ function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month, opti
     const sub=make("text",{x:280,y:210,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent=options.emptyLabel || "this month";
     return;
   }
-  const circumference=2*Math.PI*78,gap=4;
   const palette=["#8fc36a","#39a99a","#e28d83","#e9a443","#8580c9","#54a5d8","#e76b50","#b37be0","#6b9d91","#c5a05c"];
+  if(!options.svgId){
+    svg.setAttribute("viewBox","0 0 220 220");
+    svg.setAttribute("preserveAspectRatio","xMidYMid meet");
+    svg.append(make("circle",{cx:110,cy:110,r:72,fill:"none",stroke:"var(--subject-donut-track,#eceff1)","stroke-width":22}));
+    if(!total){
+      const empty=make("text",{x:110,y:106,"text-anchor":"middle","class":"subject-donut-empty"});empty.textContent="No study data";
+      const sub=make("text",{x:110,y:122,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent=options.emptyLabel || "this month";
+      return;
+    }
+    const circumference=2*Math.PI*72,gap=2,usedColours=new Map();
+    let offset=0;
+    entries.forEach(([subject,duration],index)=>{
+      const fraction=duration/total,baseColour=calendarSubjectColours[subject]||palette[index%palette.length];
+      const key=baseColour.toLowerCase(),shadeIndex=usedColours.get(key)||0;
+      usedColours.set(key,shadeIndex+1);
+      const colour=shadeIndex===0?baseColour:distributionShade(baseColour,shadeIndex%2===1?-0.24:0.22);
+      const segmentLength=Math.max(0,fraction*circumference-gap);
+      const ring=make("circle",{cx:110,cy:110,r:72,fill:"none",stroke:colour,"stroke-width":22,
+        "stroke-dasharray":segmentLength+" "+(circumference-segmentLength),"stroke-dashoffset":-offset,
+        transform:"rotate(-90 110 110)","stroke-linecap":"butt",
+        "aria-label":subject+": "+(fraction*100).toFixed(1)+" percent"});
+      ring.addEventListener("pointerenter",event=>showDistributionTooltip(event,subject,duration));
+      ring.addEventListener("pointermove",event=>showDistributionTooltip(event,subject,duration));
+      ring.addEventListener("pointerleave",hideDistributionTooltip);
+      offset+=fraction*circumference;
+      const item=document.createElement("div");item.className="subject-distribution-item";
+      const swatch=document.createElement("span");swatch.className="subject-distribution-swatch";swatch.style.backgroundColor=colour;
+      const name=document.createElement("span");name.className="subject-distribution-name";name.textContent=subject;
+      const time=document.createElement("strong");time.textContent=formatDistributionDuration(duration);
+      const share=document.createElement("small");share.textContent=(fraction*100).toFixed(1)+"%";
+      item.append(swatch,name,time,share);
+      item.addEventListener("pointerenter",event=>showDistributionTooltip(event,subject,duration));
+      item.addEventListener("pointermove",event=>showDistributionTooltip(event,subject,duration));
+      item.addEventListener("pointerleave",hideDistributionTooltip);
+      legend.append(item);
+    });
+    return;
+  }
+  svg.setAttribute("viewBox","0 0 560 390");
+  svg.setAttribute("preserveAspectRatio","xMidYMid meet");
+  svg.append(make("circle",{cx:280,cy:195,r:78,fill:"none",stroke:"var(--subject-donut-track,#eceff1)","stroke-width":24}));
+  if(!total){
+    const empty=make("text",{x:280,y:190,"text-anchor":"middle","class":"subject-donut-empty"});empty.textContent="No study data";
+    const sub=make("text",{x:280,y:210,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent=options.emptyLabel || "this month";
+    return;
+  }
+  const circumference=2*Math.PI*78,gap=4;
   const usedColours=new Map(), callouts=[];
   let offset=0;
   entries.forEach(([subject,duration],index)=>{
