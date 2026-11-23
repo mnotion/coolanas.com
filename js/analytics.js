@@ -105,61 +105,83 @@ function getCurrentMonthTotal() {
 }
 function renderTimer() {
 }
-async function loadCloudAnalytics() {
-  try {
-    let pending = [];
+let cloudAnalyticsLoadPromise = null;
+function readLocalAnalyticsSnapshot() {
+  const readObject = key => {
     try {
-      pending = JSON.parse(localStorage.getItem(accountKey("coolanas-study-pending-analytics-v1")) || "[]");
-    } catch {
-    }
-    if (Array.isArray(pending) && pending.length) {
-      const remaining = [];
-      for (let index = 0; index < pending.length; index++) {
-        const {data, error} = await supabase.functions.invoke(
-            "coolanas-files-b2", {body: {action: "analytics_record", ...pending[index]}});
-        if (error || data?.error) {
-          remaining.push(...pending.slice(index));
-          break;
+      const value = JSON.parse(localStorage.getItem(accountKey(key)) || "{}");
+      return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    } catch { return {}; }
+  };
+  return {
+    daily:readDailyTotals(),
+    dailySubjects:readDailySubjects(),
+    dailyHours:readObject("coolanas-study-daily-hours-v1")
+  };
+}
+function readPendingAnalytics() {
+  try {
+    const value = JSON.parse(localStorage.getItem(accountKey("coolanas-study-pending-analytics-v1")) || "[]");
+    return Array.isArray(value) ? value : [];
+  } catch { return []; }
+}
+async function loadCloudAnalytics() {
+  if (cloudAnalyticsLoadPromise) return cloudAnalyticsLoadPromise;
+  cloudAnalyticsLoadPromise = (async () => {
+    const pendingKey = accountKey("coolanas-study-pending-analytics-v1");
+    const migrationKey = accountKey("coolanas-analytics-cloud-reconciled-v1");
+    let pending = readPendingAnalytics();
+    let snapshotPending = localStorage.getItem(migrationKey) !== "1";
+    try {
+      while (pending.length || snapshotPending) {
+        const batch = pending.slice(0,100);
+        const payload = {action:"analytics_sync",records:batch};
+        if (snapshotPending) payload.snapshot = readLocalAnalyticsSnapshot();
+        const {data,error} = await supabase.functions.invoke("coolanas-files-b2",{body:payload});
+        if (error || data?.error)
+          throw new Error(data?.error || error?.message || "Could not sync pending analytics.");
+        const sentIds = new Set(batch.map(record => record.eventId));
+        const latestPending = readPendingAnalytics();
+        localStorage.setItem(pendingKey,JSON.stringify(latestPending.filter(record => !sentIds.has(record.eventId))));
+        if (snapshotPending) {
+          localStorage.setItem(migrationKey,"1");
+          snapshotPending = false;
+        }
+        pending = readPendingAnalytics();
+      }
+
+      const {data,error} = await supabase.functions.invoke("coolanas-files-b2", {
+        body:{action:"analytics_get"}
+      });
+      if (error || data?.error)
+        throw new Error(data?.error || error?.message || "Could not fetch cloud analytics.");
+      // Backblaze stats/analytics.json is authoritative. Browser storage is only
+      // a temporary sync queue and a cache of the data returned by this request.
+      const daily = data.daily && typeof data.daily === "object" && !Array.isArray(data.daily) ? data.daily : {};
+      const dailySubjects = data.dailySubjects && typeof data.dailySubjects === "object" &&
+        !Array.isArray(data.dailySubjects) ? data.dailySubjects : {};
+      const dailyHours = data.dailyHours && typeof data.dailyHours === "object" &&
+        !Array.isArray(data.dailyHours) ? data.dailyHours : {};
+      localStorage.setItem(accountKey("coolanas-study-daily-time-v1"),JSON.stringify(daily));
+      localStorage.setItem(accountKey("coolanas-study-daily-subjects-v1"),JSON.stringify(dailySubjects));
+      localStorage.setItem(accountKey("coolanas-study-daily-hours-v1"),JSON.stringify(dailyHours));
+      const monthly = {};
+      for (const [date,duration] of Object.entries(daily)) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          const key = date.slice(0,7);
+          monthly[key] = (Number(monthly[key]) || 0) + Math.max(0,Number(duration) || 0);
         }
       }
-      localStorage.setItem(accountKey("coolanas-study-pending-analytics-v1"), JSON.stringify(remaining));
+      localStorage.setItem(accountKey("coolanas-study-monthly-time-v1"),JSON.stringify(monthly));
+      cloudAnalyticsLoaded = true;
+      renderTimer();
+      renderMonthlyChart();
+      if (selectedCalendarDate) renderCalendarDetails();
+    } catch (error) {
+      console.warn("Could not load/sync saved account analytics:",error);
     }
-    const {data, error} =
-        await supabase.functions.invoke("coolanas-files-b2", {body: {action: "analytics_get"}});
-    if (error || data?.error) throw error || new Error(data.error);
-    const cloudDaily = data.daily && typeof data.daily === "object" && !Array.isArray(data.daily) ? data.daily : {};
-    const localDaily = readDailyTotals();
-    const daily = {...cloudDaily};
-    for (const [date, value] of Object.entries(localDaily))
-      daily[date] = Math.max(0, Number(daily[date]) || 0, Number(value) || 0);
-    const cloudSubjects = data.dailySubjects && typeof data.dailySubjects === "object" && !Array.isArray(data.dailySubjects) ? data.dailySubjects : {};
-    const localSubjects = readDailySubjects();
-    const dailySubjects = {...cloudSubjects};
-    for (const [date, subjects] of Object.entries(localSubjects)) {
-      if (!subjects || typeof subjects !== "object" || Array.isArray(subjects)) continue;
-      if (!dailySubjects[date] || typeof dailySubjects[date] !== "object" || Array.isArray(dailySubjects[date])) dailySubjects[date] = {};
-      for (const [subject, value] of Object.entries(subjects))
-        dailySubjects[date][subject] = Math.max(0, Number(dailySubjects[date][subject]) || 0, Number(value) || 0);
-    }
-    const dailyHours = data.dailyHours && typeof data.dailyHours === "object" && !Array.isArray(data.dailyHours) ? data.dailyHours : {};
-    localStorage.setItem(accountKey("coolanas-study-daily-time-v1"), JSON.stringify(daily));
-    localStorage.setItem(accountKey("coolanas-study-daily-subjects-v1"), JSON.stringify(dailySubjects));
-    localStorage.setItem(accountKey("coolanas-study-daily-hours-v1"), JSON.stringify(dailyHours));
-    const monthly = {};
-    for (const [date, duration] of Object.entries(daily)) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        const key = date.slice(0, 7);
-        monthly[key] = (Number(monthly[key]) || 0) + Math.max(0, Number(duration) || 0);
-      }
-    }
-    localStorage.setItem(accountKey("coolanas-study-monthly-time-v1"), JSON.stringify(monthly));
-    cloudAnalyticsLoaded = true;
-    renderTimer();
-    renderMonthlyChart();
-    if (selectedCalendarDate) renderCalendarDetails();
-  } catch (error) {
-    console.warn("Could not load saved account analytics:", error);
-  }
+  })().finally(() => { cloudAnalyticsLoadPromise = null; });
+  return cloudAnalyticsLoadPromise;
 }
 function readMonthlyTotals() {
   try {
@@ -1846,5 +1868,5 @@ setInterval(() => {
 }, 15000);
 setInterval(() => {
   void loadCloudAnalytics();
-}, 60000);
+}, 5000);
 setInterval(loadBuckets, 60000);
