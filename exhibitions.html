@@ -1349,7 +1349,7 @@ function renderItems(){
     card.dataset.id=item.id;
     card.dataset.type=item.item_type;
     card.setAttribute("role","listitem");
-    const isPdfFile=item.item_type==="file"&&/\\.pdf$/i.test(item.name);
+    const isPdfFile=item.item_type==="file"&&/\.pdf$/i.test(item.name);
     card.innerHTML=item.item_type==="folder"?(isBucketCard?bucketSvg:folderSvg):(isPdfFile?"":fileSvg);
     const icon=card.querySelector("svg");
     if(item.item_type==="folder"&&item.folder_color)icon.style.color=item.folder_color;
