@@ -898,9 +898,6 @@ Deno.serve(async (req) => {
       }
 
       const movedIds: string[] = [];
-      const oldKeys: string[] = [];
-      const newKeys: string[] = [];
-      const parentPaths = new Map<string, string>();
       const movingSet = new Set<string>();
       const childrenByParent = new Map<string, any[]>();
       for (const row of rows) {
