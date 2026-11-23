@@ -129,6 +129,21 @@ let previousTouchTap = null;
 let touchTapCandidate = null;
 let activeTouchMarqueeId = null;
 let marqueeStart = null;
+// The previous uploader depended on background service-worker support and IndexedDB File cloning.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (const registration of registrations) {
+      const workers = [registration.active,registration.waiting,registration.installing].filter(Boolean);
+      if (workers.some(worker => {
+        try { return new URL(worker.scriptURL).pathname === "/upload-sw.js"; }
+        catch { return false; }
+      })) {
+        registration.unregister().catch(error =>
+          console.warn("Could not retire the old upload worker:",error.message));
+      }
+    }
+  }).catch(error => console.warn("Could not inspect upload workers:",error.message));
+}
 // Authenticated requests to the Coolanas backend.
 async function filesAction(action, payload = {}) {
   const retryableStatuses = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -2153,31 +2168,63 @@ function retryDelay(response, attempt) {
   }
   return Math.min(1000 * 2 ** (attempt - 1) + Math.random() * 250, 15000);
 }
+async function waitForUploadRetry(delay, signal) {
+  await new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException("Upload cancelled", "AbortError"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("Upload cancelled", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, delay);
+    signal?.addEventListener("abort", onAbort, {once:true});
+  });
+}
 async function uploadToBackblaze(uploadUrl, contentType, file, signal) {
   const maxAttempts = 5;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const response = await fetch(
-        uploadUrl, {method: "PUT", headers: {"Content-Type": contentType}, body: file, signal});
+    if (signal?.aborted) throw new DOMException("Upload cancelled", "AbortError");
+    let response;
+    try {
+      response = await fetch(uploadUrl, {
+        method:"PUT",
+        headers:{"Content-Type":contentType || "application/octet-stream"},
+        body:file,
+        signal,
+        cache:"no-store",
+        credentials:"omit",
+        mode:"cors"
+      });
+    } catch (error) {
+      if (signal?.aborted || error?.name === "AbortError") throw error;
+      if (attempt === maxAttempts) {
+        throw new Error(
+          "Could not connect to Backblaze after " + maxAttempts +
+          " attempts. Check this device's connection and browser settings. (" +
+          (error?.message || error?.name || "Network error") + ")");
+      }
+      await waitForUploadRetry(Math.min(1000 * 2 ** (attempt - 1), 12000), signal);
+      continue;
+    }
     if (response.ok) return;
     if (!retryableUploadStatuses.has(response.status) || attempt === maxAttempts) {
       if (response.status === 503)
-        throw new Error(
-            "Backblaze is temporarily unavailable (HTTP 503) after " + attempt +
-            " attempts. Please try the upload again.");
+        throw new Error("Backblaze is temporarily unavailable (HTTP 503). Please retry shortly.");
       if (response.status === 429)
+        throw new Error("Backblaze is rate-limiting this upload (HTTP 429). Please retry shortly.");
+      if (response.status === 403)
         throw new Error(
-            "Backblaze asked us to slow down (HTTP 429) after " + attempt +
-            " attempts. Please try the upload again.");
+          "Backblaze denied this upload (HTTP 403). The signed request or bucket permissions need attention.");
       throw new Error("Backblaze rejected this file (HTTP " + response.status + ").");
     }
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(resolve, retryDelay(response, attempt));
-      signal?.addEventListener("abort", () => {
-        clearTimeout(timer);
-        reject(new DOMException("Upload cancelled", "AbortError"));
-      }, {once: true});
-    });
+    await waitForUploadRetry(retryDelay(response, attempt), signal);
   }
+  throw new Error("Upload failed. Please retry.");
 }
 async function saveFile(file, parentId, name = file.name, signal) {
   const created = await filesAction(
@@ -2200,21 +2247,22 @@ async function uploadEntries(entries, parentId = currentFolderId) {
     return;
   }
   if (!entries.length) return;
-  if (!window.CoolanasUploads)
-    throw new Error("Background upload manager is not available. Refresh the page and retry.");
   clearSelection();
-  uploadTitle.textContent = "Preparing background uploads";
-  activeUploadController = null;
+  uploadTitle.textContent = "Uploading files";
+  activeUploadController = new AbortController();
   uploadMinimised = false;
   uploadCancelled = false;
   uploadMini.hidden = true;
-  let processed = 0, skipped = 0;
+  let processed = 0, skipped = 0, completed = 0;
+  const failed = [];
+  const signal = activeUploadController.signal;
   setUploadProgress(0, entries.length, "Preparing " + entries.length + " item(s)…");
   const folderIds = new Map();
   try {
     const prepared = [];
     const plannedFolderFiles = new Set();
     for (const entry of entries) {
+      if (signal.aborted) throw new DOMException("Upload cancelled", "AbortError");
       const displayName = entry.path || entry.file.name;
       const parts = (entry.path || entry.file.name).split("/").filter(Boolean);
       if (!parts.length) continue;
@@ -2226,8 +2274,8 @@ async function uploadEntries(entries, parentId = currentFolderId) {
               item => item.item_type === "folder" && item.parent_id === parent &&
                   item.name === parts[index]);
           if (!folder) {
-            const response =
-                await filesAction("create_folder", {parentId: parent, name: parts[index]});
+            const response = await filesAction(
+                "create_folder", {parentId:parent,name:parts[index]});
             folder = response.item;
             upsertItem(folder);
           }
@@ -2238,45 +2286,68 @@ async function uploadEntries(entries, parentId = currentFolderId) {
       const fileName = parts[parts.length - 1], isFolderImport = displayName.includes("/");
       const plannedKey = (parent || "root") + ":" + fileName;
       if (isFolderImport &&
-          (items.some(
-               item => item.item_type === "file" && item.parent_id === parent &&
-                   item.name === fileName) ||
-           plannedFolderFiles.has(plannedKey))) {
+          (items.some(item => item.item_type === "file" && item.parent_id === parent &&
+              item.name === fileName) || plannedFolderFiles.has(plannedKey))) {
         skipped++;
         processed++;
         setUploadProgress(processed, entries.length, "Skipped existing file " + fileName);
         continue;
       }
       if (isFolderImport) plannedFolderFiles.add(plannedKey);
-      prepared.push({file: entry.file, fileName, parentId: parent});
+      prepared.push({file:entry.file,fileName,parentId:parent});
     }
     if (!prepared.length) {
       hideUploadProgress();
       if (skipped) alert(skipped + " existing file(s) skipped.");
       return;
     }
-    setUploadProgress(
-        processed, entries.length, "Saving " + prepared.length + " file(s) for background upload…");
-    const {data: {session}, error: authError} = await supabase.auth.getSession();
-    if (authError || !session?.access_token)
-      throw new Error("Your sign-in session could not be verified. Please sign in again.");
-    await window.CoolanasUploads.enqueue(
-        prepared, {accessToken: session.access_token, userId: session.user.id});
-    uploadOverlay.hidden = true;
-    uploadMini.hidden = true;
-    activeUploadController = null;
+
+    for (let index = 0; index < prepared.length; index++) {
+      if (signal.aborted) break;
+      const task = prepared[index];
+      setUploadProgress(
+          processed, entries.length,
+          "Uploading " + (index + 1) + " of " + prepared.length + " · " + task.fileName);
+      try {
+        await saveFile(task.file, task.parentId, task.fileName, signal);
+        completed++;
+      } catch (error) {
+        if (signal.aborted || error?.name === "AbortError") break;
+        failed.push({name:task.fileName,error:error?.message || "Upload failed."});
+      }
+      processed++;
+      setUploadProgress(
+          processed, entries.length,
+          failed.length ? completed + " uploaded · " + failed.length + " failed" :
+            completed + " of " + prepared.length + " uploaded");
+    }
+
     renderItems();
-    if (currentFolderId !== exhibitionRootId)
+    if (currentFolderId !== exhibitionRootId) {
       refreshExhibitions().catch(
           error => console.warn("Storage usage refresh failed:", error.message));
-    if (skipped)
-      alert(
-          skipped + " existing file(s) were skipped. The remaining " + prepared.length +
-          " file(s) will continue uploading in the background.");
-
+    }
+    if (signal.aborted) {
+      alert(completed + " file(s) uploaded. The remaining files were cancelled.");
+    } else if (failed.length) {
+      const examples = failed.slice(0, 4)
+          .map(item => item.name + ": " + item.error).join("\n");
+      alert(completed + " of " + prepared.length + " file(s) uploaded. " + failed.length +
+          " failed.\n\n" + examples +
+          (failed.length > 4 ? "\nAnd " + (failed.length - 4) + " more." : "") +
+          "\n\nSelect the failed files and retry.");
+    } else {
+      alert(completed + " file(s) uploaded successfully." +
+          (skipped ? " " + skipped + " existing file(s) were skipped." : ""));
+    }
   } catch (error) {
+    if (error?.name === "AbortError" || signal.aborted) {
+      alert(completed + " file(s) uploaded. The remaining files were cancelled.");
+    } else {
+      alert("Could not upload the files: " + (error?.message || error?.name || "Unknown upload error"));
+    }
+  } finally {
     hideUploadProgress();
-    alert("Could not queue the uploads: " + error.message + " No background upload was started.");
   }
 }
 const picker = document.getElementById("file-picker");
