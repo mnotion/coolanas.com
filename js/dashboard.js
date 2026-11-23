@@ -1288,6 +1288,7 @@ try {
           "Google returned without an active Coolanas session. Return to sign-in and try again.");
     }
     history.replaceState(null, document.title, location.pathname);
+    await window.CoolanasTheme?.loadForSession(session);
     await requireUsername(session);
     activeAccountId = session.user.id;
     setupSubjects();
