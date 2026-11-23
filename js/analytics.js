@@ -26,6 +26,9 @@ if (sessionError || !session?.user) {
   throw new Error("Sign in required.");
 }
 const accountKey = key => key + ":" + session.user.id;
+supabase.auth.onAuthStateChange((_event, nextSession) => {
+  if ((nextSession?.user?.id || null) !== session.user.id) location.reload();
+});
 // Legacy unscoped pending records have no verifiable owner; never sync them.
 localStorage.removeItem("coolanas-study-pending-analytics-v1");
 
