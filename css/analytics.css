@@ -750,3 +750,40 @@ html.dark-mode .calendar-detail-row { border-color:#444; }
   .calendar-details-content { grid-template-columns:1fr; gap:18px; }
   .calendar-day-spacer { min-height:48px; }
 }
+
+/* Blue study-time intensity and daily task controls. */
+.calendar-day.has-study {
+  border-color:#c5d9fb;
+  background:#f0f6ff;
+}
+.calendar-day.has-study[style*="--study-level: 1"] { background:#eaf2ff; border-color:#c9dcfb; }
+.calendar-day.has-study[style*="--study-level: 2"] { background:#d9e8ff; border-color:#b6d0fa; }
+.calendar-day.has-study[style*="--study-level: 3"] { background:#bfd7ff; border-color:#9dbef4; }
+.calendar-day.has-study[style*="--study-level: 4"] { background:#9fc2f7; border-color:#7fa9e9; }
+.calendar-day-time { color:#2468c9; }
+.calendar-details-heading { position:relative; padding-right:42px; }
+.calendar-details-heading > button {
+  position:absolute; top:0; right:0; margin:0;
+}
+.calendar-details-total:empty { display:none; }
+.calendar-task-row {
+  display:flex; align-items:center; gap:9px; padding:7px 0;
+  font-size:13px; border-bottom:1px solid #e7eaf0;
+}
+.calendar-task-row input { accent-color:#3478db; }
+.calendar-task-row.completed span { color:#9299a5; text-decoration:line-through; }
+.calendar-task-add { display:flex; gap:8px; margin-top:12px; }
+.calendar-task-add input {
+  flex:1; min-width:0; padding:9px 11px; border:1px solid #d9dee8;
+  border-radius:8px; background:#fff; color:inherit; font:inherit; font-size:13px;
+}
+.calendar-task-add button {
+  border:0; border-radius:8px; padding:8px 14px; background:#3478db;
+  color:#fff; font:inherit; cursor:pointer;
+}
+html.dark-mode .calendar-day.has-study[style*="--study-level: 1"] { background:#24344c; border-color:#354e70; }
+html.dark-mode .calendar-day.has-study[style*="--study-level: 2"] { background:#29466d; border-color:#3b6192; }
+html.dark-mode .calendar-day.has-study[style*="--study-level: 3"] { background:#315987; border-color:#4776ad; }
+html.dark-mode .calendar-day.has-study[style*="--study-level: 4"] { background:#3b6ca3; border-color:#5689c4; }
+html.dark-mode .calendar-day-time { color:#8db9ff; }
+html.dark-mode .calendar-task-add input { background:#292d35; border-color:#454c58; }
