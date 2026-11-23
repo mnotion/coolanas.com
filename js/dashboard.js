@@ -690,8 +690,12 @@ function setupStudyStopwatch() {
         save();
       }
     }
-    void flushPendingAnalytics({keepalive});
+    return flushPendingAnalytics({keepalive});
   }
+  window.CoolanasAnalyticsSync = {
+    checkpointAndFlush:() => checkpointAndSync(),
+    flush:() => flushPendingAnalytics()
+  };
   // Sync every five seconds while active; checkpoint immediately when the
   // tab/app is backgrounded or closed, using a keepalive request.
   setInterval(() => checkpointAndSync(), 5000);
@@ -1395,6 +1399,8 @@ removePfpButton.addEventListener("click", async () => {
   }
 });
 async function leaveAccount() {
+  // Complete the final five-second analytics checkpoint before invalidating auth.
+  await window.CoolanasAnalyticsSync?.checkpointAndFlush();
   const {error} = await supabase.auth.signOut({scope: "local"});
   if (error) throw error;
   location.assign("/index.html");
