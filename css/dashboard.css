@@ -1996,11 +1996,6 @@ html.dark-mode .mail-notification-actions button.secondary {
   }
 }
 
-/* Keep the dashboard canvas stable when the floating navigation is hovered. */
-html.dark-mode body:has(.bottom-nav:hover),
-html.dark-mode body:has(.bottom-nav:focus-within) {
-  background:var(--theme-page, #17191d)!important;
-}
 /* Preserve each subject's inline colour and the colour-picker swatches. */
 html.dark-mode .subject-menu-colours {
   background:var(--theme-surface-raised)!important;
