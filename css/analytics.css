@@ -1920,3 +1920,35 @@ body > .layout > .content {
 body > .layout .section.active {
   overflow:visible !important;
 }
+
+
+/* Previous-day task history: one centred list, with an explicit edit mode. */
+.calendar-tasks-section.past-day-tasks {display:block;max-width:720px;margin:0 auto}
+.calendar-past-tasks-heading {display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px}
+.calendar-past-tasks-heading h3 {margin:0}
+.calendar-past-task-list {width:100%;max-width:720px;margin:0 auto;min-height:76px}
+.calendar-task-modify,.calendar-task-save,.calendar-task-lock,.calendar-task-cancel {
+  border:1px solid #dce1e8;border-radius:8px;padding:8px 13px;background:#fff;color:inherit;font:inherit;font-size:12px;font-weight:600;cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease,opacity .18s ease;
+}
+.calendar-task-modify:hover,.calendar-task-save:hover,.calendar-task-lock:hover,.calendar-task-cancel:hover {background:#f2f5f9}
+.calendar-task-edit-actions {display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:14px}
+.calendar-task-save {background:#eef4ff;border-color:#cbdcf9;color:#245eaf}
+.calendar-task-lock {background:#eaf7f1;border-color:#b9e3d0;color:#207b5d}
+.calendar-task-cancel {background:transparent}
+.calendar-task-modify:active,.calendar-task-save:active,.calendar-task-lock:active,.calendar-task-cancel:active {transform:scale(.97)}
+.calendar-task-completed-mark {flex:0 0 20px;color:#25956f;font-weight:800;text-align:center}
+.calendar-task-locked-status {display:inline-flex;margin-top:12px;padding:4px 8px;border-radius:6px;background:#eaf7f1;color:#258765;font-size:11px;font-weight:650}
+.calendar-task-save-error {margin:8px 0 0;color:#b33;font-size:12px}
+html.dark-mode .calendar-task-modify,
+html.dark-mode .calendar-task-save,
+html.dark-mode .calendar-task-lock,
+html.dark-mode .calendar-task-cancel {background:#292e37;border-color:#48515f;color:#e7ebf1}
+html.dark-mode .calendar-task-save {background:#26364c;border-color:#3b5d87;color:#b9d4ff}
+html.dark-mode .calendar-task-lock,
+html.dark-mode .calendar-task-locked-status {background:#193c31;border-color:#2b6e56;color:#8de0bb}
+@media(max-width:520px) {
+  .calendar-past-tasks-heading {align-items:center}
+  .calendar-past-task-list {width:100%}
+  .calendar-task-edit-actions > button {flex:1}
+}
