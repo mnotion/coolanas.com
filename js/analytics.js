@@ -14,14 +14,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 });
 
 const $ = id => document.getElementById(id);
-function applyTheme() {
-  document.documentElement.classList.toggle(
-      "dark-mode", localStorage.getItem("coolanas-theme") === "dark");
+function applyTheme(mode = window.CoolanasTheme?.get() || "light") {
+  window.CoolanasTheme?.apply(mode);
+  document.documentElement.classList.toggle("dark-mode", mode === "dark");
+  document.documentElement.dataset.theme = mode;
 }
 applyTheme();
-window.addEventListener("storage", event => {
-  if (event.key === "coolanas-theme") applyTheme();
-});
 const {data: {session}, error: sessionError} = await supabase.auth.getSession();
 if (sessionError || !session?.user) {
   location.replace("/index.html");
