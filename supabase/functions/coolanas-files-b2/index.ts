@@ -886,7 +886,7 @@ Deno.serve(async (req) => {
         .eq("id", id).eq("owner_id", user.id).single();
       if (itemError || !item) return json(404, { error: "Item not found." });
       let duplicateQuery = supabase.from("coolanas_files").select("id")
-        .eq("owner_id", user.id).eq("parent_id", item.parent_id).eq("name", name).neq("id", id);
+        .eq("owner_id", user.id).eq("name", name).neq("id", id);
       duplicateQuery = item.parent_id
         ? duplicateQuery.eq("parent_id", item.parent_id)
         : duplicateQuery.is("parent_id", null);
