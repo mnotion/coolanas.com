@@ -867,9 +867,12 @@ $("bucket-structure-picker").addEventListener("click",event=>{
 async function loadBuckets(){
   const list=$("bucket-list");
   try{
-    const {data:structure,error:structureError}=await supabase.functions.invoke(
-      "coolanas-files-b2",{body:{action:"ensure_structure"}});
-    if(structureError||structure?.error)throw new Error(structure?.error||structureError.message);
+    if(!analyticsBucketRootId){
+      const {data:structure,error:structureError}=await supabase.functions.invoke(
+        "coolanas-files-b2",{body:{action:"ensure_structure"}});
+      if(structureError||structure?.error)throw new Error(structure?.error||structureError.message);
+      analyticsBucketRootId=structure?.exhibitionsId||null;
+    }
     const {data,error}=await supabase.functions.invoke(
       "coolanas-files-b2",{body:{action:"list"}});
     if(error||data?.error)throw new Error(data?.error||error.message);
