@@ -653,7 +653,7 @@ Deno.serve(async (req) => {
         totalBytes += sizeBytes;
         exhibitions.push({ ...row, sizeBytes });
       }
-      return json(200, { exhibitions, totalBytes, count: exhibitions.length, maxExhibitions: 2 });
+      return json(200, { exhibitions, totalBytes, count: exhibitions.length, maxExhibitions: 3 });
     }
 
     if (action === "create_exhibition") {
@@ -666,7 +666,7 @@ Deno.serve(async (req) => {
       const { data: existing, error: countError } = await supabase.from("coolanas_files")
         .select("id, name").eq("owner_id", user.id).eq("parent_id", root.id).eq("item_type", "folder");
       if (countError) throw countError;
-      if ((existing ?? []).length >= 2) return json(409, { error: "You can create a maximum of 2 exhibitions." });
+      if ((existing ?? []).length >= 3) return json(409, { error: "You can create a maximum of 3 buckets." });
       if ((existing ?? []).some((item: any) => item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
         return json(409, { error: "An exhibition with that name already exists." });
       }
