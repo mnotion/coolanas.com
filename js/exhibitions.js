@@ -37,10 +37,7 @@ function applyFilesTheme(mode) {
 applyFilesTheme(window.CoolanasTheme?.get() || "light");
 filesThemeToggle.addEventListener("click", () => {
   const mode = document.documentElement.classList.contains("dark-mode") ? "light" : "dark";
-  try {
-    localStorage.setItem("coolanas-theme", mode);
-  } catch {
-  }
+  window.CoolanasTheme?.set(mode);
   applyFilesTheme(mode);
 });
 window.addEventListener("storage", event => {
