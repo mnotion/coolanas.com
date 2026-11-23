@@ -372,29 +372,44 @@ function renderCalendarHourlyGraph(panel, dateKey) {
   title.textContent = "Study throughout the day";
   const description = document.createElement("p");
   description.className = "calendar-hourly-description";
-  description.textContent = "Hours studied in each hour of the day";
+  description.textContent = "Study time recorded in each hour";
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 720 270");
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Hourly study time from midnight to midnight");
+  svg.setAttribute("aria-label", "Study time, including minutes, in each hour from midnight to midnight");
   let allHours = {};
-  try { allHours = JSON.parse(localStorage.getItem(accountKey("coolanas-study-daily-hours-v1")) || "{}") || {}; } catch {}
-  const dayHours = allHours[dateKey] || {};
+  try {
+    const saved = JSON.parse(localStorage.getItem(accountKey("coolanas-study-daily-hours-v1")) || "{}");
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) allHours = saved;
+  } catch {
+  }
+  const dayHours = allHours[dateKey] && typeof allHours[dateKey] === "object" ?
+      allHours[dateKey] : {};
   const values = [];
-  for (let hour = 0; hour < 24; hour++) values.push(Math.max(0, Number(dayHours[hour]) || 0) / 3600000);
-  const max = Math.max(1, Math.ceil(Math.max.apply(null, values)));
+  for (let hour = 0; hour < 24; hour++)
+    values.push(Math.max(0, Number(dayHours[hour]) || 0));
+  const halfHour = 30 * 60 * 1000,
+        max = Math.max(halfHour, Math.ceil(Math.max(...values) / halfHour) * halfHour);
   const left = 48, right = 700, top = 18, bottom = 218;
+  function formatHourlyDuration(ms) {
+    const minutes = Math.round(ms / 60000), hours = Math.floor(minutes / 60),
+          remainder = minutes % 60;
+    if (!minutes) return "0m";
+    if (!hours) return minutes + "m";
+    return remainder ? hours + "h " + remainder + "m" : hours + "h";
+  }
   function add(tag, attrs) {
     const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
     Object.keys(attrs).forEach(name => node.setAttribute(name, String(attrs[name])));
     svg.append(node);
     return node;
   }
-  for (let tick = 0; tick <= max; tick++) {
-    const y = bottom - tick / max * (bottom - top);
+  for (let tick = 0; tick <= max / halfHour; tick++) {
+    const duration = tick * halfHour,
+          y = bottom - duration / max * (bottom - top);
     add("line", {x1:left,y1:y,x2:right,y2:y,stroke:"#e5e7eb","stroke-width":1});
     const label = add("text", {x:left-10,y:y+4,"text-anchor":"end",fill:"#858b96","font-size":11});
-    label.textContent = tick + "h";
+    label.textContent = formatHourlyDuration(duration);
   }
   const coords = [];
   for (let hour = 0; hour < 24; hour++) {
@@ -402,7 +417,15 @@ function renderCalendarHourlyGraph(panel, dateKey) {
   }
   add("polyline", {points:coords.map(point => point.join(",")).join(" "),fill:"none",stroke:"#397fe0","stroke-width":3,"stroke-linecap":"round","stroke-linejoin":"round"});
   coords.forEach((point, hour) => {
-    add("circle", {cx:point[0],cy:point[1],r:values[hour] > 0 ? 5 : 2.5,fill:values[hour] > 0 ? "#397fe0" : "#aab4c2",stroke:"#fff","stroke-width":1.5});
+    const dot = add("circle", {
+      cx:point[0],cy:point[1],r:values[hour] > 0 ? 5 : 2.5,
+      fill:values[hour] > 0 ? "#397fe0" : "#aab4c2",stroke:"#fff","stroke-width":1.5,
+      "aria-label":hour + ":00 — " + formatHourlyDuration(values[hour])
+    });
+    const dotTitle = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    dotTitle.textContent = hour + ":00–" + String((hour + 1) % 24).padStart(2, "0") +
+        ":00 · " + formatHourlyDuration(values[hour]);
+    dot.append(dotTitle);
     if (hour % 2 === 0) {
       const label = add("text", {x:point[0],y:bottom+22,"text-anchor":"middle",fill:"#858b96","font-size":10});
       label.textContent = String(hour);
