@@ -772,9 +772,12 @@ Deno.serve(async (req) => {
 
     if (action === "tasks_get") {
       const { data, error } = await supabase.from("coolanas_dashboard_data")
-        .select("tasks").eq("user_id", userId).maybeSingle();
+        .select("tasks, task_days").eq("user_id", userId).maybeSingle();
       if (error) throw error;
-      return json(200, { tasks: Array.isArray(data?.tasks) ? data.tasks : [] });
+      return json(200, {
+        tasks: Array.isArray(data?.tasks) ? data.tasks : [],
+        taskDays: Array.isArray(data?.task_days) ? data.task_days : []
+      });
     }
 
     if (action === "tasks_save") {
@@ -792,9 +795,9 @@ Deno.serve(async (req) => {
         seen.add(task.id);
         tasks.push({
           id: task.id, text: task.text.trim(), completed: task.completed === true,
-          ...(typeof task.dueDate === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(task.dueDate) ?
+          ...(typeof task.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate) ?
             { dueDate: task.dueDate } : {}),
-          ...(typeof task.completedAt === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(task.completedAt) ?
+          ...(typeof task.completedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(task.completedAt) ?
             { completedAt: task.completedAt } : {}),
         });
       }
@@ -804,6 +807,51 @@ Deno.serve(async (req) => {
       );
       if (error) throw error;
       return json(200, { success: true, count: tasks.length });
+    }
+
+    if (action === "tasks_day_save") {
+      const date = typeof body.date === "string" ? body.date : "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+          new Date(date + "T00:00:00.000Z").toISOString().slice(0, 10) !== date ||
+          !Array.isArray(body.tasks) || body.tasks.length > 100) {
+        return json(400, { error: "A valid date and a list of at most 100 tasks are required." });
+      }
+      const seen = new Set<string>();
+      const dayTasks = [];
+      for (const task of body.tasks) {
+        if (!task || typeof task.id !== "string" || !/^[0-9a-f-]{36}$/i.test(task.id) ||
+            typeof task.text !== "string" || !task.text.trim() ||
+            task.text.length > 180 || seen.has(task.id)) {
+          return json(400, { error: "One or more day tasks are invalid." });
+        }
+        seen.add(task.id);
+        dayTasks.push({
+          id: task.id,
+          text: task.text.trim(),
+          completed: task.completed === true
+        });
+      }
+      const { data: existing, error: readError } = await supabase
+        .from("coolanas_dashboard_data").select("task_days")
+        .eq("user_id", userId).maybeSingle();
+      if (readError) throw readError;
+      const taskDays = Array.isArray(existing?.task_days) ? existing.task_days : [];
+      const snapshot = {
+        date,
+        locked: body.locked === true,
+        updatedAt: new Date().toISOString(),
+        tasks: dayTasks
+      };
+      const index = taskDays.findIndex((day: any) => day?.date === date);
+      if (index >= 0) taskDays[index] = snapshot;
+      else taskDays.push(snapshot);
+      taskDays.sort((left: any, right: any) => String(left.date).localeCompare(String(right.date)));
+      const { error } = await supabase.from("coolanas_dashboard_data").upsert(
+        { user_id: userId, task_days: taskDays, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+      if (error) throw error;
+      return json(200, { success: true, snapshot });
     }
 
     if (action === "list") {
