@@ -1062,7 +1062,7 @@ function renderCalendarDetails() {
     } else {
       const empty = document.createElement("p");
       empty.className = "calendar-details-empty";
-      empty.textContent = calendarTasksLoaded ? "No tasks for this day yet." : "Tasks could not be loaded.";
+      empty.textContent = !calendarTasksLoaded ? "Tasks could not be loaded." : (key > todayKey ? "No tasks planned for this day yet." : "No tasks for this day yet.");
       tasksEmpty.append(empty);
     }
     if (daySnapshot?.locked) {
