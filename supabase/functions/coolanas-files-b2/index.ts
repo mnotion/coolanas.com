@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
         if (hourlyMs) {
           if (!saved.dailyHours[date] || typeof saved.dailyHours[date] !== "object" || Array.isArray(saved.dailyHours[date])) saved.dailyHours[date] = {};
           for (const [hour, value] of Object.entries(hourlyMs)) {
-            if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) && Number.isSafeInteger(value) && Number(value) > 0) {
+            if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) && typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
               saved.dailyHours[date][hour] = Math.max(0, Number(saved.dailyHours[date][hour]) || 0) + Number(value);
             }
           }
