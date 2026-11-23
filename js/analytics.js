@@ -370,9 +370,6 @@ function renderCalendarHourlyGraph(panel, dateKey) {
   chart.className = "calendar-hourly-chart";
   const title = document.createElement("h3");
   title.textContent = "Study throughout the day";
-  const description = document.createElement("p");
-  description.className = "calendar-hourly-description";
-  description.textContent = "Study time recorded in each hour";
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 720 270");
   svg.setAttribute("role", "img");
@@ -433,13 +430,7 @@ function renderCalendarHourlyGraph(panel, dateKey) {
   });
   const xLabel = add("text", {x:374,y:260,"text-anchor":"middle",fill:"#858b96","font-size":11});
   xLabel.textContent = "Time of day (24-hour clock)";
-  chart.append(title, description, svg);
-  if (!Object.prototype.hasOwnProperty.call(allHours, dateKey)) {
-    const note = document.createElement("p");
-    note.className = "calendar-hourly-note";
-    note.textContent = "Hourly breakdown is available for study sessions recorded after this update.";
-    chart.append(note);
-  }
+  chart.append(title, svg);
   panel.append(chart);
 }
 function renderCalendarDetails() {
@@ -542,8 +533,9 @@ function renderCalendarDetails() {
     empty.textContent = calendarTasksLoaded ? "No tasks for this day yet." : "Tasks could not be loaded.";
     tasksSection.append(empty);
   }
-  content.append(subjectsSection, tasksSection);
-  renderCalendarHourlyGraph(panel, key);
+  if (key <= todayKey) content.append(subjectsSection);
+  content.append(tasksSection);
+  if (key <= todayKey) renderCalendarHourlyGraph(panel, key);
   panel.hidden = false;
 }
 async function saveCalendarTasks() {
