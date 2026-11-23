@@ -78,6 +78,7 @@ const workspaceCacheMaxAge = 10 * 60 * 1000;
 let workspaceCacheTimestamp = 0;
 let metadataCacheTimestamp = 0;
 let renderedSharedBucketsSignature = "";
+let sharedFolderCache = {};
 function readWorkspaceCache() {
   try {
     const cached = JSON.parse(localStorage.getItem(workspaceCacheKey) || "null");
@@ -98,7 +99,8 @@ function writeWorkspaceCache() {
       exhibitions: exhibitionRecords,
       totalBytes: exhibitionTotalBytes,
       sharedBuckets: sharedBucketRecords,
-      sharedByYou: sharedByYouRecords
+      sharedByYou: sharedByYouRecords,
+      sharedFolderCache
     }));
   } catch (error) {
     console.warn("Could not cache bucket contents:", error.message);
@@ -1629,23 +1631,32 @@ function openFolder(id) {
   renderItems();
 }
 async function openSharedBucket(bucket) {
+  activeSharedBucket = {
+    id: bucket.id,
+    name: bucket.name,
+    ownerUsername: bucket.ownerUsername || "Coolanas user",
+    permission: bucket.permission || "view_download"
+  };
+  currentFolderId = bucket.id;
+  searchQuery = "";
+  clearSelection();
+  const cachedItems = sharedFolderCache[bucket.id]?.items;
+  items = Array.isArray(cachedItems) ? cachedItems : [];
+  renderItems();
   try {
     const result = await filesAction("shared_bucket_open", {bucketId: bucket.id});
-    activeSharedBucket = {
-      id: bucket.id,
-      name: bucket.name,
-      ownerUsername: bucket.ownerUsername || "Coolanas user",
-      permission: result.permission || bucket.permission || "view_download"
-    };
-
-    items = result.items || [];
-    currentFolderId = bucket.id;
-    searchQuery = "";
-    clearSelection();
-    renderItems();
+    const nextItems = result.items || [];
+    activeSharedBucket.permission = result.permission || activeSharedBucket.permission;
+    if (JSON.stringify(nextItems) !== JSON.stringify(items)) {
+      items = nextItems;
+      renderItems();
+    }
+    sharedFolderCache[bucket.id] = {items: nextItems, savedAt: Date.now()};
+    writeWorkspaceCache();
   } catch (error) {
-    document.getElementById("shared-buckets-feedback").textContent =
-        error.message || "Could not open shared bucket.";
+    if (!cachedItems?.length)
+      document.getElementById("shared-buckets-feedback").textContent =
+          error.message || "Could not open shared bucket.";
   }
 }
 document.getElementById("back-folder").addEventListener("click", () => {
@@ -2035,8 +2046,12 @@ document.addEventListener("click", event => {
     closeBucketSharePanel();
 });
 // Load the current workspace contents.
-async function refreshExhibitions({force = false} = {}) {
+async function refreshExhibitions({force = false, silent = false} = {}) {
   const cached = readWorkspaceCache();
+  const previousSignature = JSON.stringify({
+    exhibitions: exhibitionRecords, totalBytes: exhibitionTotalBytes,
+    shared: sharedBucketRecords, sharedByYou: sharedByYouRecords
+  });
   const cacheIsFresh = !force && cached && cached.rootId === exhibitionRootId &&
       Array.isArray(cached.exhibitions);
   if (cacheIsFresh) {
@@ -2044,23 +2059,27 @@ async function refreshExhibitions({force = false} = {}) {
     exhibitionTotalBytes = Number(cached.totalBytes) || 0;
     sharedBucketRecords = Array.isArray(cached.sharedBuckets) ? cached.sharedBuckets : [];
     sharedByYouRecords = Array.isArray(cached.sharedByYou) ? cached.sharedByYou : [];
-    metadataCacheTimestamp = Number(cached.metadataSavedAt) || Date.now();
-    await refreshSharedBuckets();
+    metadataCacheTimestamp = Number(cached.metadataSavedAt) || 0;
+    await refreshSharedBuckets({cacheOnly: true, silent});
   } else {
     const data = await filesAction("exhibitions_list");
     exhibitionRecords = data.exhibitions || [];
     exhibitionTotalBytes = Number(data.totalBytes) || 0;
-    await refreshSharedBuckets({force: true});
+    await refreshSharedBuckets({force: true, silent});
     workspaceCacheTimestamp = Date.now();
     metadataCacheTimestamp = workspaceCacheTimestamp;
   }
+  const nextSignature = JSON.stringify({
+    exhibitions: exhibitionRecords, totalBytes: exhibitionTotalBytes,
+    shared: sharedBucketRecords, sharedByYou: sharedByYouRecords
+  });
   writeWorkspaceCache();
-  document.getElementById("bucket-title").textContent =
-      "Bucket • " + formatStorage(exhibitionTotalBytes);
-  const blocked = exhibitionRecords.length >= 2;
-  document.getElementById("exhibition-create-form").hidden = blocked;
-  // Refreshing the owner's bucket summary must not re-render a friend's open folder.
-  if (!activeSharedBucket) renderItems();
+  if (previousSignature !== nextSignature || !silent) {
+    document.getElementById("bucket-title").textContent =
+        "Bucket • " + formatStorage(exhibitionTotalBytes);
+    document.getElementById("exhibition-create-form").hidden = exhibitionRecords.length >= 2;
+    if (!activeSharedBucket && previousSignature !== nextSignature) renderItems();
+  }
 }
 document.getElementById("exhibition-create-form").addEventListener("submit", async (event) => {
   event.preventDefault();
