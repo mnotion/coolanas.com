@@ -54,6 +54,7 @@
     const userId=currentUserId();
     if(!userId){panel.classList.remove("visible");return;}
     const tasks=(await getTasks()).filter(t=>t.ownerId===userId);
+    window.dispatchEvent(new CustomEvent("coolanas-upload-updated",{detail:tasks}));
     const active=tasks.filter(t=>t.status==="pending"||t.status==="uploading");
     const failed=tasks.filter(t=>t.status==="failed");
     const completed=tasks.filter(t=>t.status==="complete");
