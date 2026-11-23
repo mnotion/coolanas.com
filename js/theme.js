@@ -53,19 +53,36 @@
       const {data:{session}, error:sessionError} = await supabase.auth.getSession();
       if (sessionError || !session?.user) return;
       userId = session.user.id;
-      const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {
-        body:{action:"settings_get"}
-      });
-      if (error || data?.error) throw new Error(data?.error || error?.message || "Could not load settings.");
-      const stored = data?.settings?.theme;
-      let initial = stored === "dark" ? "dark" : "light";
+      let cachedMode = null;
       try {
         const cached = localStorage.getItem("coolanas-theme:" + userId);
-        if (stored !== "dark" && stored !== "light" && (cached === "dark" || cached === "light")) initial = cached;
+        if (cached === "dark" || cached === "light") cachedMode = cached;
       } catch {}
-      apply(initial);
+
+      // Apply the account-scoped local preference immediately. This also keeps
+      // the UI consistent while the B2 settings endpoint is being deployed.
+      if (cachedMode) apply(cachedMode);
+
+      let settings = {};
+      try {
+        const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {
+          body:{action:"settings_get"}
+        });
+        if (error || data?.error) throw new Error(data?.error || error?.message || "Could not load settings.");
+        settings = data?.settings && typeof data.settings === "object" ? data.settings : {};
+        const stored = settings.theme;
+        if (stored === "dark" || stored === "light") {
+          apply(stored);
+          try { localStorage.setItem("coolanas-theme:" + userId, stored); } catch {}
+        }
+      } catch (error) {
+        // The previous deployed Edge Function may not yet expose settings_get.
+        // Keep the user's local preference rather than silently reverting to light.
+        console.warn("Cloud settings unavailable; using this account's local theme preference:", error);
+        if (!cachedMode) apply("light");
+      }
       ready = true;
-      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {detail:{settings:data.settings || {}}}));
+      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {detail:{settings}}));
       window.addEventListener("storage", event => {
         if (event.key === "coolanas-theme:" + userId && (event.newValue === "dark" || event.newValue === "light")) apply(event.newValue);
       });
