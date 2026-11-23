@@ -431,11 +431,11 @@ function renderCalendarHourlyGraph(panel, dateKey) {
   const xLabel = add("text", {x:374,y:260,"text-anchor":"middle",fill:"#858b96","font-size":11});
   xLabel.textContent = "Time of day (24-hour clock)";
   chart.append(title, svg);
-  panel.append(chart);
+  panel.insertAdjacentElement("afterend", chart);
 }
 function renderCalendarDetails() {
   const panel = $("calendar-details");
-  panel.querySelector(".calendar-hourly-chart")?.remove();
+  document.querySelector(".calendar-hourly-chart")?.remove();
   if (!selectedCalendarDate) {
     panel.hidden = true;
     return;
