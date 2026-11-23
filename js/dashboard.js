@@ -511,7 +511,7 @@ function setupStudyStopwatch() {
   async function flushPendingAnalytics({keepalive = false, includeSnapshot = false} = {}) {
     const run = async () => {
       let remaining = readPendingAnalytics();
-      let snapshotPending = localStorage.getItem(migrationKey) !== "1";
+      let snapshotPending = !keepalive && localStorage.getItem(migrationKey) !== "1";
       let sentAny = false;
       do {
         const batch = remaining.slice(0, keepalive ? 20 : 100);
