@@ -812,8 +812,7 @@ function bucketDescendantIds(bucketId){
   return descendants;
 }
 function renderBucketStructure(){
-  const picker=$("bucket-structure-picker"),tree=$("bucket-tree");
-  picker.replaceChildren();
+  const tree=$("bucket-tree");
   tree.replaceChildren();
   const buckets=analyticsBucketItems.filter(item=>item.item_type==="folder"&&item.parent_id===analyticsBucketRootId);
   if(!buckets.length){
@@ -821,49 +820,32 @@ function renderBucketStructure(){
     empty.className="empty";
     empty.textContent="You have not created any buckets yet.";
     tree.append(empty);
-    tree.style.removeProperty("--bucket-colour");
     return;
   }
-  if(!buckets.some(item=>item.id===selectedAnalyticsBucketId))
-    selectedAnalyticsBucketId=buckets[0].id;
+  const grid=document.createElement("div");
+  grid.className="bucket-tree-grid";
   for(const bucket of buckets){
-    const button=document.createElement("button");
-    button.type="button";
-    button.className="bucket-structure-choice"+(bucket.id===selectedAnalyticsBucketId?" selected":"");
-    button.dataset.bucketId=bucket.id;
-    button.style.setProperty("--bucket-colour",bucket.folder_color||"#e5e7eb");
-    const swatch=document.createElement("span");
-    swatch.className="bucket-structure-swatch";
-    swatch.style.backgroundColor=bucket.folder_color||"#a1a1aa";
-    const name=document.createElement("span");
-    name.textContent=bucket.name;
-    button.append(swatch,name);
-    button.setAttribute("aria-pressed",String(bucket.id===selectedAnalyticsBucketId));
-    picker.append(button);
+    const descendants=bucketDescendantIds(bucket.id);
+    const childrenByParent=new Map();
+    for(const item of analyticsBucketItems){
+      if(!descendants.has(item.id)||item.parent_id==null) continue;
+      if(!childrenByParent.has(item.parent_id)) childrenByParent.set(item.parent_id,[]);
+      childrenByParent.get(item.parent_id).push(item);
+    }
+    for(const children of childrenByParent.values()){
+      children.sort((left,right)=>(left.item_type==="folder"?0:1)-(right.item_type==="folder"?0:1)||
+        Number(left.sort_order||0)-Number(right.sort_order||0)||left.name.localeCompare(right.name));
+    }
+    const card=document.createElement("div");
+    card.className="bucket-tree-card";
+    card.style.setProperty("--bucket-colour",bucket.folder_color||"#e5e7eb");
+    const rootList=document.createElement("ul");
+    rootList.append(renderBucketTreeNode(bucket,childrenByParent));
+    card.append(rootList);
+    grid.append(card);
   }
-  const selected=buckets.find(item=>item.id===selectedAnalyticsBucketId);
-  tree.style.setProperty("--bucket-colour",selected.folder_color||"#e5e7eb");
-  const descendants=bucketDescendantIds(selected.id);
-  const childrenByParent=new Map();
-  for(const item of analyticsBucketItems){
-    if(!descendants.has(item.id)||item.parent_id==null) continue;
-    if(!childrenByParent.has(item.parent_id)) childrenByParent.set(item.parent_id,[]);
-    childrenByParent.get(item.parent_id).push(item);
-  }
-  for(const children of childrenByParent.values()){
-    children.sort((left,right)=>(left.item_type==="folder"?0:1)-(right.item_type==="folder"?0:1)||
-      Number(left.sort_order||0)-Number(right.sort_order||0)||left.name.localeCompare(right.name));
-  }
-  const rootList=document.createElement("ul");
-  rootList.append(renderBucketTreeNode(selected,childrenByParent));
-  tree.append(rootList);
+  tree.append(grid);
 }
-$("bucket-structure-picker").addEventListener("click",event=>{
-  const choice=event.target.closest("button[data-bucket-id]");
-  if(!choice)return;
-  selectedAnalyticsBucketId=choice.dataset.bucketId;
-  renderBucketStructure();
-});
 async function loadBuckets(){
   const list=$("bucket-list");
   try{
