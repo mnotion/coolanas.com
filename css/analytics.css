@@ -808,3 +808,20 @@ html.dark-mode .calendar-subject-card { color:#252525; }
 /* Swipe month navigation: the incoming month slides into place. */
 .calendar-grid { overflow:hidden; }
 .calendar-month { will-change:transform,opacity; }
+
+
+/* Selected day: information panel beside the 24-hour study graph. */
+.calendar-details { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); column-gap:28px; align-items:start; }
+.calendar-details-heading { grid-column:1 / -1; }
+.calendar-details-content { display:block; grid-column:1; min-width:0; }
+.calendar-hourly-chart { grid-column:2; grid-row:2; min-width:0; padding-left:22px; border-left:1px solid #dedede; }
+.calendar-hourly-chart h3 { margin:0 0 5px; font-size:15px; }
+.calendar-hourly-description,.calendar-hourly-note { color:#858b96; font-size:12px; line-height:1.5; }
+.calendar-hourly-description { margin:0 0 10px; }
+.calendar-hourly-note { margin:8px 0 0; }
+.calendar-hourly-chart svg { display:block; width:100%; height:auto; overflow:visible; }
+@media(max-width:600px) {
+ .calendar-details { grid-template-columns:minmax(0,1fr); row-gap:20px; }
+ .calendar-details-heading,.calendar-details-content,.calendar-hourly-chart { grid-column:1; }
+ .calendar-hourly-chart { grid-row:auto; padding:18px 0 0; border-left:0; border-top:1px solid #dedede; }
+}
