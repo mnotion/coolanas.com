@@ -1820,3 +1820,19 @@ html.dark-mode body > .topbar {
   background:#202124;
   border-bottom-color:#3b3b3b;
 }
+
+/* Subtle depth for the standalone analytics cards. */
+.calendar-card,
+.calendar-tasks-main,
+.calendar-task-list-box,
+.calendar-hourly-chart,
+.calendar-daily-distribution {
+  box-shadow:0 3px 12px rgba(25,35,55,.065);
+}
+html.dark-mode .calendar-card,
+html.dark-mode .calendar-tasks-main,
+html.dark-mode .calendar-task-list-box,
+html.dark-mode .calendar-hourly-chart,
+html.dark-mode .calendar-daily-distribution {
+  box-shadow:0 3px 12px rgba(0,0,0,.22);
+}
