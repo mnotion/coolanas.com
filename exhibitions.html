@@ -958,6 +958,9 @@ async function loadItems(){
   const valid=new Set(items.map(item=>item.id));
   for(const id of [...selectedIds])if(!valid.has(id))selectedIds.delete(id);
   renderItems();
+  // Warm every owned PDF preview in the background, without waiting for its
+  // folder to be opened. Existing IndexedDB previews are instant cache hits.
+  scheduleBackgroundPdfPreviews(ownedItems);
 }
 document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState!=="visible"||Date.now()-lastItemsLoad<30000)return;
@@ -1382,6 +1385,43 @@ function queuePdfThumbnail(item,container){
   pdfPreviewQueue.push({item,container});
   pumpPdfPreviewQueue();
 }
+const backgroundPdfIds=new Set();
+let backgroundPdfQueue=[];
+let backgroundPdfWorkers=0;
+let backgroundPdfScheduled=false;
+function scheduleBackgroundPdfPreviews(sourceItems){
+  const pdfs=sourceItems.filter(item=>item.item_type==="file"&&/\\.pdf$/i.test(item.name));
+  for(const item of pdfs){
+    if(pdfPreviewCache.has(item.id)||pdfPreviewRequests.has(item.id)||backgroundPdfIds.has(item.id))continue;
+    backgroundPdfIds.add(item.id);
+    backgroundPdfQueue.push(item);
+  }
+  if(backgroundPdfQueue.length&&!backgroundPdfScheduled){
+    backgroundPdfScheduled=true;
+    const start=()=>{backgroundPdfScheduled=false;pumpBackgroundPdfPreviews();};
+    if("requestIdleCallback" in window)requestIdleCallback(start,{timeout:2500});
+    else setTimeout(start,1200);
+  }
+}
+function pumpBackgroundPdfPreviews(){
+  if(document.visibilityState==="hidden")return;
+  while(backgroundPdfWorkers<2&&backgroundPdfQueue.length){
+    const item=backgroundPdfQueue.shift();
+    backgroundPdfWorkers++;
+    createPdfThumbnail(item).catch(error=>{
+      console.warn("Background PDF preview failed:",item.name,error.message);
+    }).finally(()=>{
+      backgroundPdfWorkers--;
+      backgroundPdfIds.delete(item.id);
+      if(backgroundPdfQueue.length){
+        setTimeout(pumpBackgroundPdfPreviews,350);
+      }
+    });
+  }
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible"&&backgroundPdfQueue.length)pumpBackgroundPdfPreviews();
+});
 
 function renderItems(){
   list.replaceChildren();
