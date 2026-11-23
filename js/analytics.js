@@ -195,7 +195,7 @@ function renderStudyHeatmap(totals, now) {
           key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") +
         "-" + String(date.getDate()).padStart(2, "0");
     const monthKey = date.getFullYear() + "-" + date.getMonth();
-    if (weekday === 0 && !monthSeen.has(monthKey)) {
+    if ((date.getDate() === 1 || index === 0) && !monthSeen.has(monthKey)) {
       monthSeen.add(monthKey);
       const label = document.createElement("span");
       label.className = "study-heatmap-month";
