@@ -158,6 +158,7 @@ async function loadCloudAnalytics() {
     cloudAnalyticsLoaded = true;
     renderTimer();
     renderMonthlyChart();
+    if (selectedCalendarDate) renderCalendarDetails();
   } catch (error) {
     console.warn("Could not load saved account analytics:", error);
   }
@@ -272,14 +273,16 @@ function hideDistributionTooltip() {
   const tooltip=$("subject-distribution-tooltip");
   if(tooltip)tooltip.hidden=true;
 }
-function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month) {
-  const svg=$("subject-distribution-chart"), legend=$("subject-distribution-legend"), monthLabel=$("subject-distribution-month");
+function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month, options = {}) {
+  const svg=$(options.svgId || "subject-distribution-chart"),
+        legend=$(options.legendId || "subject-distribution-legend"),
+        monthLabel=$(options.labelId || "subject-distribution-month");
   if(!svg||!legend||!monthLabel)return;
   svg.replaceChildren(); legend.replaceChildren();
-  monthLabel.textContent=new Date(year,month,1).toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  monthLabel.textContent=options.label || new Date(year,month,1).toLocaleDateString(undefined,{month:"long",year:"numeric"});
   const totals=new Map();
   for(const [date,entries] of Object.entries(subjectsByDay||{})){
-    if(!date.startsWith(monthPrefix)||!entries||typeof entries!=="object")continue;
+    if((options.exactDate ? date!==monthPrefix : !date.startsWith(monthPrefix))||!entries||typeof entries!=="object")continue;
     for(const [subject,duration] of Object.entries(entries)){
       const amount=Math.max(0,Number(duration)||0);
       if(amount)totals.set(subject,(totals.get(subject)||0)+amount);
@@ -291,7 +294,7 @@ function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month) {
   svg.append(make("circle",{cx:110,cy:110,r:76,fill:"none",stroke:"var(--subject-donut-track,#eceff1)","stroke-width":24}));
   if(!total){
     const empty=make("text",{x:110,y:106,"text-anchor":"middle","class":"subject-donut-empty"});empty.textContent="No study data";
-    const sub=make("text",{x:110,y:126,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent="this month";
+    const sub=make("text",{x:110,y:126,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent=options.emptyLabel || "this month";
     svg.append(empty,sub);
     const note=document.createElement("p");note.className="subject-distribution-empty";note.textContent="Subject breakdown will appear here as you study.";legend.append(note);return;
   }
@@ -773,7 +776,41 @@ function renderCalendarDetails() {
   }
   if (key <= todayKey) content.append(subjectsSection);
   content.append(tasksSection);
-  if (key <= todayKey) renderCalendarHourlyGraph(panel, key);
+  if (key <= todayKey) {
+    renderCalendarHourlyGraph(panel, key);
+    const dailyDistribution=document.createElement("section");
+    dailyDistribution.className="calendar-daily-distribution subject-distribution";
+    dailyDistribution.setAttribute("aria-labelledby","calendar-subject-distribution-title");
+    const distributionHeading=document.createElement("div");
+    distributionHeading.className="subject-distribution-heading";
+    const distributionTitle=document.createElement("strong");
+    distributionTitle.id="calendar-subject-distribution-title";
+    distributionTitle.textContent="Distribution";
+    const distributionDate=document.createElement("span");
+    distributionDate.id="calendar-subject-distribution-date";
+    distributionHeading.append(distributionTitle,distributionDate);
+    const distributionContent=document.createElement("div");
+    distributionContent.className="subject-distribution-content";
+    const distributionSvg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+    distributionSvg.id="calendar-subject-distribution-chart";
+    distributionSvg.setAttribute("viewBox","0 0 220 220");
+    distributionSvg.setAttribute("role","img");
+    distributionSvg.setAttribute("aria-label","Subject study time distribution for this day");
+    const distributionLegend=document.createElement("div");
+    distributionLegend.id="calendar-subject-distribution-legend";
+    distributionLegend.className="subject-distribution-legend";
+    distributionContent.append(distributionSvg,distributionLegend);
+    dailyDistribution.append(distributionHeading,distributionContent);
+    document.querySelector(".calendar-hourly-chart")?.insertAdjacentElement("afterend",dailyDistribution);
+    renderSubjectDistribution(dailySubjects,key,selectedCalendarDate.getFullYear(),selectedCalendarDate.getMonth(),{
+      exactDate:true,
+      label:selectedCalendarDate.toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}),
+      emptyLabel:"this day",
+      svgId:"calendar-subject-distribution-chart",
+      legendId:"calendar-subject-distribution-legend",
+      labelId:"calendar-subject-distribution-date"
+    });
+  }
   panel.hidden = false;
 }
 function removeCalendarTask(task) {
