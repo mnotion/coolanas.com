@@ -5,11 +5,10 @@ const googleButton = document.getElementById("google-login");
 const status = document.getElementById("login-status");
 const themeToggle = document.getElementById("theme-toggle");
 const themeIcon = document.getElementById("theme-icon");
-const savedTheme = localStorage.getItem("coolanas-theme");
-const initialTheme =
-    savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+const initialTheme = window.CoolanasTheme?.get() || "light";
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
+  document.documentElement.classList.toggle("dark-mode", theme === "dark");
   const dark = theme === "dark";
   themeIcon.textContent = dark ? "☀" : "☾";
   themeToggle.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
@@ -17,9 +16,10 @@ function applyTheme(theme) {
   document.querySelector("meta[name=\"theme-color\"]").content = dark ? "#111111" : "#ffffff";
 }
 applyTheme(initialTheme);
+window.addEventListener("storage", event => { if (event.key === "coolanas-theme") applyTheme(event.newValue === "dark" ? "dark" : "light"); });
 themeToggle.addEventListener("click", () => {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  localStorage.setItem("coolanas-theme", next);
+  window.CoolanasTheme?.set(next);
   applyTheme(next);
 });
 const greetings = [
