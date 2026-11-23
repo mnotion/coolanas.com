@@ -576,6 +576,9 @@ function formatSubjectTime(ms) {
   return hours ? hours + "h " + remainder + "m" : minutes + "m";
 }
 let calendarTasks = [];
+let calendarTaskDays = [];
+let calendarTaskEditingDate = null;
+let calendarTaskEditBuffer = [];
 let calendarTasksLoaded = false;
 let calendarTaskSyncTimer = null;
 let calendarTaskSyncInFlight = false;
@@ -648,20 +651,37 @@ async function loadCalendarTasks() {
       if (Array.isArray(cached)) {
         calendarTasks = cached;
         calendarTasksLoaded = true;
-        return;
       }
     } catch {}
   }
   try {
     const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {body:{action:"tasks_get"}});
     if (error || data?.error) throw new Error(data?.error || error.message);
-    calendarTasks = Array.isArray(data?.tasks) ? data.tasks : [];
+    if (localStorage.getItem(calendarTasksPendingKey) !== "1")
+      calendarTasks = Array.isArray(data?.tasks) ? data.tasks : [];
+    calendarTaskDays = Array.isArray(data?.taskDays) ? data.taskDays : [];
     calendarTasksLoaded = true;
     localStorage.setItem(calendarTasksCacheKey, JSON.stringify(calendarTasks));
   } catch (error) {
     console.warn("Could not load calendar tasks:", error);
-    calendarTasksLoaded = false;
+    calendarTasksLoaded = calendarTasksLoaded || false;
   }
+}
+async function saveCalendarDaySnapshot(date, tasks, locked = false) {
+  const cleanTasks = tasks.map(task => ({
+    id:task.id || crypto.randomUUID(),
+    text:String(task.text || "").trim(),
+    completed:task.completed === true
+  })).filter(task => task.text);
+  const {data,error} = await supabase.functions.invoke("coolanas-files-b2", {
+    body:{action:"tasks_day_save",date,tasks:cleanTasks,locked}
+  });
+  if (error || data?.error) throw new Error(data?.error || error.message || "Could not save this day's tasks.");
+  const index = calendarTaskDays.findIndex(day => day?.date === date);
+  if (index >= 0) calendarTaskDays[index] = data.snapshot;
+  else calendarTaskDays.push(data.snapshot);
+  calendarTaskDays.sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  return data.snapshot;
 }
 function renderCalendarHourlyGraph(panel, dateKey) {
   const chart = document.createElement("section");
@@ -792,73 +812,256 @@ function renderCalendarDetails() {
   subjectsSection.append(subjectCards);
   const tasksSection = document.createElement("section");
   tasksSection.className = "calendar-tasks-section";
-  const tasksMain = document.createElement("div");
-  tasksMain.className = "calendar-tasks-main";
-  const tasksTitle = document.createElement("h3");
-  tasksTitle.textContent = "Tasks";
-  tasksMain.append(tasksTitle);
-  const tasksEmpty = document.createElement("div");
-  tasksEmpty.className = "calendar-tasks-empty-slot calendar-task-list-box";
-  const dayTasks = calendarTasks.filter(task => task.dueDate === key || task.completedAt === key || (!task.dueDate && key === todayKey));
-  if (key >= todayKey) {
-    const form = document.createElement("form");
-    form.className = "calendar-task-add";
-    const input = document.createElement("input");
-    input.type = "text";
-    input.maxLength = 180;
-    input.placeholder = "Add a task for this day…";
-    input.setAttribute("aria-label", "New task for this day");
-    const add = document.createElement("button");
-    add.type = "submit";
-    add.textContent = "Add";
-    form.append(input, add);
-    form.addEventListener("submit", event => {
-      event.preventDefault();
-      const value = input.value.trim();
-      if (!value) return;
-      if (calendarTasks.length >= 100) {
-        input.setCustomValidity("You can have up to 100 tasks.");
-        input.reportValidity();
-        return;
-      }
-      calendarTasks.push({id:crypto.randomUUID(),text:value,completed:false,dueDate:key});
-      input.value = "";
-      input.setCustomValidity("");
-      queueCalendarTasksSync();
+  const daySnapshot = calendarTaskDays.find(day => day?.date === key) || null;
+  const isPastDate = key < todayKey;
+  const isEditingPastDate = isPastDate && calendarTaskEditingDate === key;
+
+  if (isPastDate) {
+    tasksSection.classList.add("past-day-tasks");
+    const headingRow = document.createElement("div");
+    headingRow.className = "calendar-past-tasks-heading";
+    const tasksTitle = document.createElement("h3");
+    tasksTitle.textContent = "Tasks";
+    headingRow.append(tasksTitle);
+    const taskList = document.createElement("div");
+    taskList.className = "calendar-task-list-box calendar-past-task-list";
+    const dateLabel = key === yesterdayKey ? "yesterday" :
+      selectedCalendarDate.toLocaleDateString(undefined,{month:"long",day:"numeric"});
+    const sourceTasks = daySnapshot?.tasks || calendarTasks
+      .filter(task => task.completedAt === key)
+      .map(task => ({id:task.id,text:task.text,completed:true}));
+
+    const modifyButton = document.createElement("button");
+    modifyButton.type = "button";
+    modifyButton.className = "calendar-task-modify";
+    modifyButton.textContent = isEditingPastDate ? "Editing" : "Modify";
+    modifyButton.disabled = isEditingPastDate;
+    modifyButton.addEventListener("click", () => {
+      calendarTaskEditingDate = key;
+      calendarTaskEditBuffer = sourceTasks.map(task => ({
+        id:task.id || crypto.randomUUID(),text:task.text,completed:task.completed === true
+      }));
       renderCalendarDetails();
     });
-    tasksMain.append(form);
-  }
-  if (dayTasks.length) {
-    for (const task of dayTasks) {
-      const row = document.createElement("div");
-      row.className = "calendar-task-row" + (task.completed ? " completed" : "");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = task.completed === true;
-      checkbox.disabled = key > todayKey;
-      checkbox.setAttribute("aria-label", "Mark " + task.text + " as completed");
-      checkbox.addEventListener("change", () => updateCalendarTask(task, checkbox.checked));
-      const label = document.createElement("span");
-      label.className = "calendar-task-label";
-      label.textContent = task.text;
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "calendar-task-remove";
-      remove.textContent = "×";
-      remove.title = "Remove task";
-      remove.setAttribute("aria-label", "Remove task: " + task.text);
-      remove.addEventListener("click", () => removeCalendarTask(task));
-      row.append(checkbox, label, remove);
-      tasksEmpty.append(row);
+    headingRow.append(modifyButton);
+    tasksSection.append(headingRow);
+
+    if (isEditingPastDate) {
+      const editForm = document.createElement("form");
+      editForm.className = "calendar-task-add";
+      const editInput = document.createElement("input");
+      editInput.type = "text";
+      editInput.maxLength = 180;
+      editInput.placeholder = "Add a task for this day…";
+      editInput.setAttribute("aria-label","New task for this day");
+      const addTask = document.createElement("button");
+      addTask.type = "submit";
+      addTask.textContent = "Add";
+      editForm.append(editInput,addTask);
+      editForm.addEventListener("submit",event => {
+        event.preventDefault();
+        const value = editInput.value.trim();
+        if (!value) return;
+        if (calendarTaskEditBuffer.length >= 100) {
+          editInput.setCustomValidity("You can have up to 100 tasks.");
+          editInput.reportValidity();
+          return;
+        }
+        calendarTaskEditBuffer.push({id:crypto.randomUUID(),text:value,completed:false});
+        renderCalendarDetails();
+      });
+      taskList.append(editForm);
+      if (calendarTaskEditBuffer.length) {
+        for (const task of calendarTaskEditBuffer) {
+          const row = document.createElement("div");
+          row.className = "calendar-task-row" + (task.completed ? " completed" : "");
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = task.completed === true;
+          checkbox.setAttribute("aria-label","Mark " + task.text + " as completed");
+          checkbox.addEventListener("change",() => {
+            task.completed = checkbox.checked;
+            renderCalendarDetails();
+          });
+          const label = document.createElement("span");
+          label.className = "calendar-task-label";
+          label.textContent = task.text;
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "calendar-task-remove";
+          remove.textContent = "×";
+          remove.title = "Remove task";
+          remove.setAttribute("aria-label","Remove task: " + task.text);
+          remove.addEventListener("click",() => {
+            calendarTaskEditBuffer = calendarTaskEditBuffer.filter(item => item.id !== task.id);
+            renderCalendarDetails();
+          });
+          row.append(checkbox,label,remove);
+          taskList.append(row);
+        }
+      } else {
+        const empty = document.createElement("p");
+        empty.className = "calendar-details-empty";
+        empty.textContent = "No tasks added for this day.";
+        taskList.append(empty);
+      }
+      const actions = document.createElement("div");
+      actions.className = "calendar-task-edit-actions";
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "calendar-task-cancel";
+      cancel.textContent = "Cancel";
+      cancel.addEventListener("click",() => {
+        calendarTaskEditingDate = null;
+        calendarTaskEditBuffer = [];
+        renderCalendarDetails();
+      });
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "calendar-task-save";
+      save.textContent = "Save changes";
+      save.addEventListener("click",async () => {
+        save.disabled = true;
+        try {
+          await saveCalendarDaySnapshot(key,calendarTaskEditBuffer,false);
+          calendarTaskEditingDate = null;
+          calendarTaskEditBuffer = [];
+          renderCalendarDetails();
+        } catch (error) {
+          save.disabled = false;
+          taskList.querySelector(".calendar-task-save-error")?.remove();
+          const message = document.createElement("p");
+          message.className = "calendar-task-save-error";
+          message.textContent = error.message;
+          actions.before(message);
+        }
+      });
+      const lock = document.createElement("button");
+      lock.type = "button";
+      lock.className = "calendar-task-lock";
+      lock.textContent = "Lock day";
+      lock.addEventListener("click",async () => {
+        lock.disabled = true;
+        try {
+          await saveCalendarDaySnapshot(key,calendarTaskEditBuffer,true);
+          calendarTaskEditingDate = null;
+          calendarTaskEditBuffer = [];
+          renderCalendarDetails();
+        } catch (error) {
+          lock.disabled = false;
+          const message = document.createElement("p");
+          message.className = "calendar-task-save-error";
+          message.textContent = error.message;
+          actions.before(message);
+        }
+      });
+      actions.append(cancel,save,lock);
+      taskList.append(actions);
+    } else {
+      const completedTasks = sourceTasks.filter(task => task.completed === true);
+      if (completedTasks.length) {
+        for (const task of completedTasks) {
+          const row = document.createElement("div");
+          row.className = "calendar-task-row completed";
+          const mark = document.createElement("span");
+          mark.className = "calendar-task-completed-mark";
+          mark.textContent = "✓";
+          const label = document.createElement("span");
+          label.className = "calendar-task-label";
+          label.textContent = task.text;
+          row.append(mark,label);
+          taskList.append(row);
+        }
+      } else {
+        const empty = document.createElement("p");
+        empty.className = "calendar-details-empty";
+        empty.textContent = "No tasks completed " + dateLabel + ".";
+        taskList.append(empty);
+      }
+      if (daySnapshot?.locked) {
+        const status = document.createElement("span");
+        status.className = "calendar-task-locked-status";
+        status.textContent = "Day locked";
+        taskList.append(status);
+      }
     }
+    tasksSection.append(taskList);
   } else {
-    const empty = document.createElement("p");
-    empty.className = "calendar-details-empty";
-    empty.textContent = calendarTasksLoaded ? "No tasks for this day yet." : "Tasks could not be loaded.";
-    tasksEmpty.append(empty);
+    const tasksMain = document.createElement("div");
+    tasksMain.className = "calendar-tasks-main";
+    const tasksTitle = document.createElement("h3");
+    tasksTitle.textContent = "Tasks";
+    tasksMain.append(tasksTitle);
+    const tasksEmpty = document.createElement("div");
+    tasksEmpty.className = "calendar-tasks-empty-slot calendar-task-list-box";
+    const dayTasks = calendarTasks.filter(task => task.dueDate === key || task.completedAt === key || (!task.dueDate && key === todayKey));
+    if (key === todayKey) {
+      const form = document.createElement("form");
+      form.className = "calendar-task-add";
+      const input = document.createElement("input");
+      input.type = "text";
+      input.maxLength = 180;
+      input.placeholder = "Add a task for this day…";
+      input.setAttribute("aria-label", "New task for this day");
+      const add = document.createElement("button");
+      add.type = "submit";
+      add.textContent = "Add";
+      form.append(input, add);
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        const value = input.value.trim();
+        if (!value) return;
+        if (calendarTasks.length >= 100) {
+          input.setCustomValidity("You can have up to 100 tasks.");
+          input.reportValidity();
+          return;
+        }
+        calendarTasks.push({id:crypto.randomUUID(),text:value,completed:false,dueDate:key});
+        input.value = "";
+        input.setCustomValidity("");
+        queueCalendarTasksSync();
+        renderCalendarDetails();
+      });
+      tasksMain.append(form);
+    }
+    if (dayTasks.length) {
+      for (const task of dayTasks) {
+        const row = document.createElement("div");
+        row.className = "calendar-task-row" + (task.completedAt === key ? " completed" : "");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = task.completedAt === key;
+        checkbox.disabled = key > todayKey || daySnapshot?.locked === true;
+        checkbox.setAttribute("aria-label", "Mark " + task.text + " as completed");
+        checkbox.addEventListener("change", () => updateCalendarTask(task, checkbox.checked));
+        const label = document.createElement("span");
+        label.className = "calendar-task-label";
+        label.textContent = task.text;
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "calendar-task-remove";
+        remove.textContent = "×";
+        remove.title = "Remove task";
+        remove.disabled = daySnapshot?.locked === true;
+        remove.setAttribute("aria-label", "Remove task: " + task.text);
+        remove.addEventListener("click", () => removeCalendarTask(task));
+        row.append(checkbox, label, remove);
+        tasksEmpty.append(row);
+      }
+    } else {
+      const empty = document.createElement("p");
+      empty.className = "calendar-details-empty";
+      empty.textContent = calendarTasksLoaded ? "No tasks for this day yet." : "Tasks could not be loaded.";
+      tasksEmpty.append(empty);
+    }
+    if (daySnapshot?.locked) {
+      const status = document.createElement("span");
+      status.className = "calendar-task-locked-status";
+      status.textContent = "Day locked";
+      tasksEmpty.append(status);
+    }
+    tasksSection.append(tasksMain, tasksEmpty);
   }
-  tasksSection.append(tasksMain, tasksEmpty);
   content.append(tasksSection);
   if (key <= todayKey) {
     renderCalendarHourlyGraph(panel, key);
@@ -900,13 +1103,23 @@ function renderCalendarDetails() {
 function removeCalendarTask(task) {
   calendarTasks = calendarTasks.filter(item => item.id !== task.id);
   queueCalendarTasksSync();
+  const todayKey = calendarDateKey(new Date());
+  if (selectedCalendarDate && calendarDateKey(selectedCalendarDate) === todayKey)
+    void saveCalendarDaySnapshot(todayKey,calendarTasks.filter(item => !item.dueDate || item.dueDate <= todayKey).map(item => ({
+      id:item.id,text:item.text,completed:item.completedAt === todayKey
+    })),false);
   renderCalendarDetails();
 }
 function updateCalendarTask(task, completed) {
+  if (calendarTaskDays.find(day => day?.date === calendarDateKey(new Date()))?.locked) return;
+  const todayKey = calendarDateKey(new Date());
   task.completed = completed;
-  if (completed) task.completedAt = calendarDateKey(new Date());
+  if (completed) task.completedAt = todayKey;
   else delete task.completedAt;
   queueCalendarTasksSync();
+  void saveCalendarDaySnapshot(todayKey,calendarTasks.filter(item => !item.dueDate || item.dueDate <= todayKey).map(item => ({
+    id:item.id,text:item.text,completed:item.completedAt === todayKey
+  })),false);
   renderCalendarDetails();
 }
 let calendarSlideDirection = 0;
