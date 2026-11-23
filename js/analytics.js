@@ -290,40 +290,59 @@ function renderSubjectDistribution(subjectsByDay, monthPrefix, year, month, opti
   }
   const entries=[...totals.entries()].sort((a,b)=>b[1]-a[1]);
   const total=entries.reduce((sum,entry)=>sum+entry[1],0), ns="http://www.w3.org/2000/svg";
-  const make=(tag,attrs)=>{const node=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));return node;};
-  svg.append(make("circle",{cx:110,cy:110,r:76,fill:"none",stroke:"var(--subject-donut-track,#eceff1)","stroke-width":24}));
+  const make=(tag,attrs,parent=svg)=>{const node=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))node.setAttribute(key,String(value));parent.append(node);return node;};
+  svg.setAttribute("viewBox","0 0 560 390");
+  svg.setAttribute("preserveAspectRatio","xMidYMid meet");
+  svg.append(make("circle",{cx:280,cy:195,r:78,fill:"none",stroke:"var(--subject-donut-track,#eceff1)","stroke-width":24}));
   if(!total){
-    const empty=make("text",{x:110,y:106,"text-anchor":"middle","class":"subject-donut-empty"});empty.textContent="No study data";
-    const sub=make("text",{x:110,y:126,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent=options.emptyLabel || "this month";
-    svg.append(empty,sub);
-    const note=document.createElement("p");note.className="subject-distribution-empty";note.textContent="Subject breakdown will appear here as you study.";legend.append(note);return;
+    const empty=make("text",{x:280,y:190,"text-anchor":"middle","class":"subject-donut-empty"});empty.textContent="No study data";
+    const sub=make("text",{x:280,y:210,"text-anchor":"middle","class":"subject-donut-empty"});sub.textContent=options.emptyLabel || "this month";
+    return;
   }
-  const circumference=2*Math.PI*76,gap=4;
+  const circumference=2*Math.PI*78,gap=4;
   const palette=["#8fc36a","#39a99a","#e28d83","#e9a443","#8580c9","#54a5d8","#e76b50","#b37be0","#6b9d91","#c5a05c"];
-  const usedColours=new Map();
+  const usedColours=new Map(), callouts=[];
   let offset=0;
   entries.forEach(([subject,duration],index)=>{
     const fraction=duration/total,baseColour=calendarSubjectColours[subject]||palette[index%palette.length];
     const key=baseColour.toLowerCase(),shadeIndex=usedColours.get(key)||0;
     usedColours.set(key,shadeIndex+1);
     const colour=shadeIndex===0?baseColour:distributionShade(baseColour,shadeIndex%2===1?-0.24:0.22);
-    const segmentLength=Math.max(0,fraction*circumference-gap);
-    const ring=make("circle",{cx:110,cy:110,r:76,fill:"none",stroke:colour,"stroke-width":24,
+    const segmentLength=Math.max(0,fraction*circumference-gap),midAngle=(-90+(offset+fraction*circumference/2)/circumference*360)*Math.PI/180;
+    const ring=make("circle",{cx:280,cy:195,r:78,fill:"none",stroke:colour,"stroke-width":24,
       "stroke-dasharray":segmentLength+" "+(circumference-segmentLength),"stroke-dashoffset":-offset,
-      transform:"rotate(-90 110 110)","stroke-linecap":"butt","aria-label":subject+": "+(fraction*100).toFixed(1)+" percent"});
+      transform:"rotate(-90 280 195)","stroke-linecap":"butt","aria-label":subject+": "+(fraction*100).toFixed(1)+" percent"});
     ring.addEventListener("pointerenter",event=>showDistributionTooltip(event,subject,duration));
     ring.addEventListener("pointermove",event=>showDistributionTooltip(event,subject,duration));
     ring.addEventListener("pointerleave",hideDistributionTooltip);
-    svg.append(ring);offset+=fraction*circumference;
-    const row=document.createElement("div");row.className="subject-distribution-item";
-    const swatch=document.createElement("span");swatch.className="subject-distribution-swatch";swatch.style.backgroundColor=colour;
-    const name=document.createElement("span");name.className="subject-distribution-name";name.textContent=subject;
-    const percent=document.createElement("strong");percent.textContent=(fraction*100).toFixed(1)+"%";
-    row.append(swatch,name,percent);
-    row.addEventListener("pointerenter",event=>showDistributionTooltip(event,subject,duration));
-    row.addEventListener("pointermove",event=>showDistributionTooltip(event,subject,duration));
-    row.addEventListener("pointerleave",hideDistributionTooltip);
-    legend.append(row);
+    const x1=280+Math.cos(midAngle)*92,y1=195+Math.sin(midAngle)*92,
+          x2=280+Math.cos(midAngle)*132,y2=195+Math.sin(midAngle)*132,
+          rightSide=Math.cos(midAngle)>=0,x3=x2+(rightSide?24:-24);
+    callouts.push({subject,duration,colour,x1,y1,x2,y2,x3,rightSide});
+    offset+=fraction*circumference;
+  });
+  // Spread labels vertically on each side so nearby slices do not produce overlapping callouts.
+  for(const side of [false,true]){
+    const sideItems=callouts.filter(item=>item.rightSide===side).sort((a,b)=>a.y2-b.y2);
+    const minY=35,maxY=355,separation=48;
+    sideItems.forEach((item,index)=>{item.labelY=Math.max(minY,Math.min(maxY,item.y2));if(index)item.labelY=Math.max(item.labelY,sideItems[index-1].labelY+separation);});
+    if(sideItems.length&&sideItems[sideItems.length-1].labelY>maxY){
+      const shift=sideItems[sideItems.length-1].labelY-maxY;
+      sideItems.forEach(item=>item.labelY-=shift);
+    }
+  }
+  callouts.forEach(item=>{
+    const {x1,y1,x2,y2,x3,rightSide,labelY,subject,duration,colour}=item;
+    make("path",{d:"M "+x1+" "+y1+" L "+x2+" "+y2+" L "+x3+" "+labelY,fill:"none",stroke:colour,"stroke-width":1.5,"stroke-linecap":"round","stroke-linejoin":"round"});
+    const labelX=x3+(rightSide?5:-5),anchor=rightSide?"start":"end";
+    const group=make("g",{"class":"subject-donut-callout"});
+    const name=make("text",{x:labelX,y:labelY-3,"text-anchor":anchor,"class":"subject-donut-callout-name"},group);
+    name.textContent=subject;
+    const time=make("text",{x:labelX,y:labelY+13,"text-anchor":anchor,"class":"subject-donut-callout-time"},group);
+    time.textContent=formatDistributionDuration(duration);
+    group.addEventListener("pointerenter",event=>showDistributionTooltip(event,subject,duration));
+    group.addEventListener("pointermove",event=>showDistributionTooltip(event,subject,duration));
+    group.addEventListener("pointerleave",hideDistributionTooltip);
   });
 }
 function renderMonthlyChart() {
