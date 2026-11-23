@@ -41,7 +41,7 @@
   function openDb(){
     if(!("indexedDB" in window))return Promise.reject(new Error("IndexedDB is unavailable in this browser."));
     if(!dbPromise)dbPromise=new Promise((resolve,reject)=>{
-      const req=indexedDB.open(DB_NAME,2);
+      const req=indexedDB.open(DB_NAME,3);
       req.onupgradeneeded=()=>{
         const db=req.result;
         const store=db.objectStoreNames.contains(STORE)
@@ -50,7 +50,16 @@
         if(!store.indexNames.contains("status"))store.createIndex("status","status");
         if(!store.indexNames.contains("batchId"))store.createIndex("batchId","batchId");
       };
-      req.onsuccess=()=>{const db=req.result;db.onversionchange=()=>db.close();resolve(db);};
+      req.onsuccess=()=>{
+        const db=req.result;
+        db.onversionchange=()=>db.close();
+        if(!db.objectStoreNames.contains(STORE)){
+          db.close();dbPromise=null;
+          reject(new Error("Upload storage schema repair did not create the tasks store. Reload the page and retry."));
+          return;
+        }
+        resolve(db);
+      };
       req.onerror=()=>{dbPromise=null;reject(req.error||new Error("Could not open upload storage."));};
       req.onblocked=()=>console.warn("Waiting for another tab to release upload storage for upgrade.");
     });
