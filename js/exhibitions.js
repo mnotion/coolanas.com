@@ -77,6 +77,7 @@ const workspaceCacheKey = "coolanas-bucket-cache:v2:" + user.id;
 const workspaceCacheMaxAge = 10 * 60 * 1000;
 let workspaceCacheTimestamp = 0;
 let metadataCacheTimestamp = 0;
+let renderedSharedBucketsSignature = "";
 function readWorkspaceCache() {
   try {
     const cached = JSON.parse(localStorage.getItem(workspaceCacheKey) || "null");
@@ -829,8 +830,7 @@ function hideUploadProgress() {
 }
 async function loadItems({force = false} = {}) {
   const cached = !force ? readWorkspaceCache() : null;
-  const cacheIsFresh = cached && cached.rootId === exhibitionRootId &&
-      Date.now() - Number(cached.savedAt || 0) < workspaceCacheMaxAge;
+  const cacheIsFresh = cached && cached.rootId === exhibitionRootId;
   if (cacheIsFresh) {
     items = cached.items;
     ownedItems = items;
@@ -1675,22 +1675,29 @@ function formatStorage(bytes) {
   }
   return value.toFixed(index === 0 ? 0 : 2) + " " + units[index];
 }
-async function refreshSharedBuckets({force = false} = {}) {
+async function refreshSharedBuckets({force = false, cacheOnly = false, silent = false} = {}) {
   const grid = document.getElementById("shared-buckets-list");
   const ownerGrid = document.getElementById("shared-by-you-list");
   const ownerTitle = document.getElementById("shared-by-you-title");
   try {
     const cached = readWorkspaceCache();
-    const cacheIsFresh = !force && cached && cached.rootId === exhibitionRootId &&
-        Date.now() - Number(cached.metadataSavedAt || 0) < workspaceCacheMaxAge &&
+    const hasCachedShares = cached && cached.rootId === exhibitionRootId &&
         Array.isArray(cached.sharedBuckets) && Array.isArray(cached.sharedByYou);
-    const result = cacheIsFresh ?
+    const result = cacheOnly && hasCachedShares ?
         {buckets: cached.sharedBuckets, sharedByYou: cached.sharedByYou} :
-        await filesAction("shared_buckets_list");
-    if (!cacheIsFresh) metadataCacheTimestamp = Date.now();
+        !force && hasCachedShares && Date.now() - Number(cached.metadataSavedAt || 0) < workspaceCacheMaxAge ?
+            {buckets: cached.sharedBuckets, sharedByYou: cached.sharedByYou} :
+            cacheOnly ? {buckets: sharedBucketRecords, sharedByYou: sharedByYouRecords} :
+            await filesAction("shared_buckets_list");
+    if (!cacheOnly && (!hasCachedShares || force ||
+        Date.now() - Number(cached?.metadataSavedAt || 0) >= workspaceCacheMaxAge))
+      metadataCacheTimestamp = Date.now();
     sharedBucketRecords = result.buckets || [];
     sharedByYouRecords = result.sharedByYou || [];
     const sharedByYou = sharedByYouRecords;
+    const signature = JSON.stringify({received: sharedBucketRecords, owned: sharedByYou});
+    if (signature === renderedSharedBucketsSignature) return;
+    renderedSharedBucketsSignature = signature;
     grid.replaceChildren();
     ownerGrid.replaceChildren();
     if (!sharedBucketRecords.length) {
@@ -1783,14 +1790,16 @@ async function refreshSharedBuckets({force = false} = {}) {
       ownerGrid.append(card);
     }
   } catch (error) {
-    grid.replaceChildren();
-    ownerGrid.replaceChildren();
-    ownerTitle.hidden = true;
-    const empty = document.createElement("p");
-    empty.className = "shared-bucket-empty";
-    empty.textContent = "Could not load shared buckets.";
-    grid.append(empty);
-    document.getElementById("shared-buckets-feedback").textContent = error.message || "";
+    if (!silent && !sharedBucketRecords.length) {
+      grid.replaceChildren();
+      ownerGrid.replaceChildren();
+      ownerTitle.hidden = true;
+      const empty = document.createElement("p");
+      empty.className = "shared-bucket-empty";
+      empty.textContent = "Could not load shared buckets.";
+      grid.append(empty);
+    }
+    if (!silent) document.getElementById("shared-buckets-feedback").textContent = error.message || "";
   }
 }
 // Share buckets and manage invitations.
@@ -2029,7 +2038,6 @@ document.addEventListener("click", event => {
 async function refreshExhibitions({force = false} = {}) {
   const cached = readWorkspaceCache();
   const cacheIsFresh = !force && cached && cached.rootId === exhibitionRootId &&
-      Date.now() - Number(cached.metadataSavedAt || 0) < workspaceCacheMaxAge &&
       Array.isArray(cached.exhibitions);
   if (cacheIsFresh) {
     exhibitionRecords = cached.exhibitions;
