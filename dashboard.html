@@ -40,7 +40,7 @@
     </div>
     <div class="subject-context-menu" id="subject-context-menu" hidden><button type="button" data-action="rename">Rename</button><button type="button" data-action="colour">Colour</button><div class="subject-menu-colours" id="subject-menu-colours" hidden></div><button type="button" data-action="delete">Delete</button></div>
     <section class="task-list-card" aria-labelledby="task-list-title">
-      <div class="task-list-head"><h2 id="task-list-title">Task list</h2></div>
+      <div class="task-list-head"><h2 id="task-list-title">Task list</h2><button class="task-day-lock" id="task-day-lock" type="button" aria-label="Lock today's tasks" aria-pressed="false" title="Lock today's tasks"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="task-lock-shackle" d="M7.5 10V7a4.5 4.5 0 0 1 9 0v3"/><rect class="task-lock-body" x="5" y="10" width="14" height="11" rx="2"/><circle cx="12" cy="15" r="1.25" class="task-lock-keyhole"/><path d="M12 16.2v1.6" class="task-lock-keyhole"/></svg></button></div>
       <form class="task-add-row" id="task-add-form">
         <input class="task-add-input" id="task-add-input" type="text" maxlength="180" placeholder="Add a task…" aria-label="New task" autocomplete="off">
         <button class="task-add-button" type="submit" aria-label="Add task">+</button>
