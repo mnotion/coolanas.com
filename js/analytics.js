@@ -125,6 +125,13 @@ function readPendingAnalytics() {
     return Array.isArray(value) ? value : [];
   } catch { return []; }
 }
+function setAnalyticsSyncStatus(message, state = "idle", title = "") {
+  const status = $("analytics-sync-status");
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.state = state;
+  status.title = title || message;
+}
 async function loadCloudAnalytics() {
   if (cloudAnalyticsLoadPromise) return cloudAnalyticsLoadPromise;
   cloudAnalyticsLoadPromise = (async () => {
@@ -174,10 +181,12 @@ async function loadCloudAnalytics() {
       }
       localStorage.setItem(accountKey("coolanas-study-monthly-time-v1"),JSON.stringify(monthly));
       cloudAnalyticsLoaded = true;
+      setAnalyticsSyncStatus("Cloud sync active","success","Last successful account sync: " + new Date().toLocaleString());
       renderTimer();
       renderMonthlyChart();
       if (selectedCalendarDate) renderCalendarDetails();
     } catch (error) {
+      setAnalyticsSyncStatus("Cloud sync unavailable · showing last saved data","error",error?.message || "Cloud analytics sync failed.");
       console.warn("Could not load/sync saved account analytics:",error);
     }
   })().finally(() => { cloudAnalyticsLoadPromise = null; });
