@@ -173,6 +173,55 @@ function addIntervalToTotals(totals, start, end) {
     cursor = segmentEnd;
   }
 }
+function renderStudyHeatmap(totals, now) {
+  const grid = $("study-heatmap-grid"), months = $("study-heatmap-months"),
+        scroller = $("study-heatmap-scroll");
+  if (!grid || !months || !scroller) return;
+  grid.replaceChildren();
+  months.replaceChildren();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+        end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1),
+        start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 364);
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const dates = [];
+  for (let cursor = new Date(start); cursor < end; cursor.setDate(cursor.getDate() + 1)) dates.push(new Date(cursor));
+  const maxDay = Math.max(1, ...Object.values(totals).map(value => Math.max(0, Number(value) || 0)));
+  const weekCount = Math.ceil(dates.length / 7);
+  grid.style.gridTemplateColumns = "repeat(" + weekCount + ", 14px)";
+  months.style.gridTemplateColumns = "repeat(" + weekCount + ", 14px)";
+  const monthSeen = new Set();
+  dates.forEach((date, index) => {
+    const week = Math.floor(index / 7), weekday = (date.getDay() + 6) % 7,
+          key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") +
+        "-" + String(date.getDate()).padStart(2, "0");
+    const monthKey = date.getFullYear() + "-" + date.getMonth();
+    if (weekday === 0 && !monthSeen.has(monthKey)) {
+      monthSeen.add(monthKey);
+      const label = document.createElement("span");
+      label.className = "study-heatmap-month";
+      label.style.gridColumn = String(week + 1);
+      label.textContent = date.toLocaleDateString(undefined, {month:"short"});
+      months.append(label);
+    }
+    const amount = Math.max(0, Number(totals[key]) || 0);
+    let level = 0;
+    if (amount > 0) level = amount <= maxDay * 0.25 ? 1 : amount <= maxDay * 0.5 ? 2 : amount <= maxDay * 0.75 ? 3 : 4;
+    const cell = document.createElement("span");
+    cell.className = "study-heatmap-cell";
+    cell.dataset.level = String(level);
+    cell.tabIndex = 0;
+    cell.setAttribute("role", "img");
+    const readable = date.toLocaleDateString(undefined, {weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    const minutes = Math.floor(amount / 60000);
+    const time = minutes >= 60 ? Math.floor(minutes / 60) + "h " + minutes % 60 + "m" : minutes + "m";
+    cell.setAttribute("aria-label", readable + ": " + time + " studied");
+    cell.title = readable + " · " + time;
+    cell.style.gridColumn = String(week + 1);
+    cell.style.gridRow = String(weekday + 1);
+    grid.append(cell);
+  });
+  if (!scroller.dataset.initialized) { scroller.scrollLeft = scroller.scrollWidth; scroller.dataset.initialized = "true"; }
+}
 function renderMonthlyChart() {
   const dailyKey = accountKey("coolanas-study-daily-time-v1");
   let totals = {}, subjectsByDay = {};
@@ -207,6 +256,7 @@ function renderMonthlyChart() {
       {length: days},
       (_, index) =>
           Math.max(0, Number(totals[monthPrefix + String(index + 1).padStart(2, "0")]) || 0));
+  renderStudyHeatmap(totals, now);
   const svg = $("monthly-time-chart");
   svg.replaceChildren();
   const ns = "http://www.w3.org/2000/svg", width = 760, height = 280, left = 48, right = 16,
