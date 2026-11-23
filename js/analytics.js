@@ -767,6 +767,7 @@ function renderBucketTreeNode(item, childrenByParent, depth = 0) {
       const toggle = document.createElement("input");
       toggle.type = "checkbox";
       toggle.className = "tree-toggle";
+      toggle.checked = depth === 0;
       toggle.id = "bucket-tree-toggle-" + String(item.id).replace(/[^a-zA-Z0-9_-]/g,"");
       const label = document.createElement("label");
       label.className = "tree-label";
