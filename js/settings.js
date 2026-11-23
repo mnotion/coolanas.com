@@ -18,15 +18,13 @@ function setStatus(id, message, type = "") {
   el.className = "status" + (type ? " " + type : "");
 }
 function applyTheme(mode) {
+  window.CoolanasTheme?.set(mode);
   document.documentElement.classList.toggle("dark-mode", mode === "dark");
-  try {
-    localStorage.setItem("coolanas-theme", mode);
-  } catch {
-  }
+  document.documentElement.dataset.theme = mode;
   $("theme-switch").setAttribute("aria-checked", String(mode === "dark"));
   $("theme-label").textContent = mode === "dark" ? "On" : "Off";
 }
-applyTheme(localStorage.getItem("coolanas-theme") === "dark" ? "dark" : "light");
+applyTheme(window.CoolanasTheme?.get() || "light");
 $("theme-switch")
     .addEventListener(
         "click",
