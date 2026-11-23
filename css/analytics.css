@@ -1489,7 +1489,7 @@ html.dark-mode .shared-bucket-owner-heading {
 }
 
 /* Monthly subject distribution beside the study heatmap. */
-.study-insights-row {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.9fr);gap:28px;align-items:start;margin-top:28px;padding-top:22px;border-top:1px solid #eee}
+.study-insights-row {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.9fr);gap:28px;align-items:start;margin-top:28px;padding-top:36px;border-top:1px solid #eee}
 .study-insights-row .study-heatmap {min-width:0;margin:0;padding:0;border:0}
 .subject-distribution {min-width:0;margin:0;padding:0}
 .subject-distribution-heading {display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:12px}
@@ -1509,3 +1509,11 @@ html.dark-mode .subject-distribution-heading span,html.dark-mode .subject-donut-
 html.dark-mode {--subject-donut-track:#303936}
 @media(max-width:850px){.study-insights-row{grid-template-columns:minmax(0,1fr);gap:22px}.subject-distribution-content{grid-template-columns:minmax(150px,220px) minmax(110px,1fr)}}
 @media(max-width:460px){.subject-distribution-content{grid-template-columns:minmax(120px,170px) minmax(90px,1fr);gap:8px}.subject-distribution-item{font-size:10px}}
+
+.subject-distribution-item {cursor:default}
+.subject-distribution-tooltip {
+  position:fixed;z-index:10000;pointer-events:none;white-space:pre-line;
+  padding:8px 11px;border-radius:7px;background:#222;color:#fff;
+  font-size:12px;line-height:1.45;box-shadow:0 3px 12px rgba(0,0,0,.2)
+}
+.subject-distribution-tooltip[hidden] {display:none}
