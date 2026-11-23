@@ -94,13 +94,14 @@ function writeWorkspaceCache() {
       items: ownedItems,
       exhibitions: exhibitionRecords,
       totalBytes: exhibitionTotalBytes,
-      sharedBuckets: sharedBucketRecords
+      sharedBuckets: sharedBucketRecords,
+      sharedByYou: sharedByYouRecords
     }));
   } catch (error) {
     console.warn("Could not cache bucket contents:", error.message);
   }
 }
-let activeSharedBucket = null, sharedBucketRecords = [], currentShareBucket = null;
+let activeSharedBucket = null, sharedBucketRecords = [], sharedByYouRecords = [], currentShareBucket = null;
 const selectedIds = new Set();
 let activeSettingsItem = null;
 let pendingDeleteIds = [];
@@ -1661,14 +1662,21 @@ function formatStorage(bytes) {
   }
   return value.toFixed(index === 0 ? 0 : 2) + " " + units[index];
 }
-async function refreshSharedBuckets() {
+async function refreshSharedBuckets({force = false} = {}) {
   const grid = document.getElementById("shared-buckets-list");
   const ownerGrid = document.getElementById("shared-by-you-list");
   const ownerTitle = document.getElementById("shared-by-you-title");
   try {
-    const result = await filesAction("shared_buckets_list");
+    const cached = readWorkspaceCache();
+    const cacheIsFresh = !force && cached && cached.rootId === exhibitionRootId &&
+        Date.now() - Number(cached.savedAt || 0) < workspaceCacheMaxAge &&
+        Array.isArray(cached.sharedBuckets) && Array.isArray(cached.sharedByYou);
+    const result = cacheIsFresh ?
+        {buckets: cached.sharedBuckets, sharedByYou: cached.sharedByYou} :
+        await filesAction("shared_buckets_list");
     sharedBucketRecords = result.buckets || [];
-    const sharedByYou = result.sharedByYou || [];
+    sharedByYouRecords = result.sharedByYou || [];
+    const sharedByYou = sharedByYouRecords;
     grid.replaceChildren();
     ownerGrid.replaceChildren();
     if (!sharedBucketRecords.length) {
@@ -2004,11 +2012,24 @@ document.addEventListener("click", event => {
     closeBucketSharePanel();
 });
 // Load the current workspace contents.
-async function refreshExhibitions() {
-  const data = await filesAction("exhibitions_list");
-  exhibitionRecords = data.exhibitions || [];
-  exhibitionTotalBytes = Number(data.totalBytes) || 0;
-  await refreshSharedBuckets();
+async function refreshExhibitions({force = false} = {}) {
+  const cached = readWorkspaceCache();
+  const cacheIsFresh = !force && cached && cached.rootId === exhibitionRootId &&
+      Date.now() - Number(cached.savedAt || 0) < workspaceCacheMaxAge &&
+      Array.isArray(cached.exhibitions);
+  if (cacheIsFresh) {
+    exhibitionRecords = cached.exhibitions;
+    exhibitionTotalBytes = Number(cached.totalBytes) || 0;
+    sharedBucketRecords = Array.isArray(cached.sharedBuckets) ? cached.sharedBuckets : [];
+    sharedByYouRecords = Array.isArray(cached.sharedByYou) ? cached.sharedByYou : [];
+    await refreshSharedBuckets();
+  } else {
+    const data = await filesAction("exhibitions_list");
+    exhibitionRecords = data.exhibitions || [];
+    exhibitionTotalBytes = Number(data.totalBytes) || 0;
+    await refreshSharedBuckets({force: true});
+    workspaceCacheTimestamp = Date.now();
+  }
   writeWorkspaceCache();
   document.getElementById("bucket-title").textContent =
       "Bucket • " + formatStorage(exhibitionTotalBytes);
@@ -2029,7 +2050,7 @@ document.getElementById("exhibition-create-form").addEventListener("submit", asy
     const result = await filesAction("create_exhibition", {name});
     upsertItem(result.item);
     input.value = "";
-    await refreshExhibitions();
+    await refreshExhibitions({force: true});
   } catch (err) {
     error.textContent = err.message || "Could not create bucket.";
   } finally {
