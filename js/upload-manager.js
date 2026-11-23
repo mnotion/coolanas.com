@@ -39,16 +39,32 @@
     return null;
   }
   function openDb(){
-    if(!("indexedDB" in window))return Promise.resolve(null);
-    if(!dbPromise)dbPromise=new Promise(resolve=>{
-      const req=indexedDB.open(DB_NAME,1);
-      req.onsuccess=()=>resolve(req.result);req.onerror=()=>resolve(null);
+    if(!("indexedDB" in window))return Promise.reject(new Error("IndexedDB is unavailable in this browser."));
+    if(!dbPromise)dbPromise=new Promise((resolve,reject)=>{
+      const req=indexedDB.open(DB_NAME,2);
+      req.onupgradeneeded=()=>{
+        const db=req.result;
+        const store=db.objectStoreNames.contains(STORE)
+          ?req.transaction.objectStore(STORE)
+          :db.createObjectStore(STORE,{keyPath:"id"});
+        if(!store.indexNames.contains("status"))store.createIndex("status","status");
+        if(!store.indexNames.contains("batchId"))store.createIndex("batchId","batchId");
+      };
+      req.onsuccess=()=>{const db=req.result;db.onversionchange=()=>db.close();resolve(db);};
+      req.onerror=()=>{dbPromise=null;reject(req.error||new Error("Could not open upload storage."));};
+      req.onblocked=()=>console.warn("Waiting for another tab to release upload storage for upgrade.");
     });
     return dbPromise;
   }
   async function getTasks(){
-    const db=await openDb();if(!db)return [];
-    return new Promise(resolve=>{const req=db.transaction(STORE,"readonly").objectStore(STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>resolve([]);});
+    const db=await openDb();
+    return new Promise((resolve,reject)=>{
+      let req;
+      try{req=db.transaction(STORE,"readonly").objectStore(STORE).getAll();}
+      catch(error){reject(error);return;}
+      req.onsuccess=()=>resolve(req.result||[]);
+      req.onerror=()=>reject(req.error||new Error("Could not read upload queue."));
+    });
   }
   async function refresh(){
     const userId=currentUserId();
