@@ -1553,18 +1553,21 @@ html.dark-mode .calendar-daily-distribution {
   }
 }
 
-/* Centered donut with radial subject callouts. */
-.subject-distribution-content {display:block;width:100%}
-.subject-distribution-content svg,
-#subject-distribution-chart,
-.calendar-daily-distribution #calendar-subject-distribution-chart {
-  display:block;width:100%;max-width:560px;height:auto;margin:0 auto;overflow:visible
-}
-.subject-distribution-legend {display:none!important}
+/* Monthly distribution: compact donut with a readable subject legend. */
+#monthly-distribution-content {display:grid;grid-template-columns:minmax(140px,220px) minmax(120px,1fr);gap:16px;align-items:center;width:100%}
+#subject-distribution-chart {display:block;width:100%;max-width:220px;height:auto;margin:0 auto;overflow:visible}
+#subject-distribution-legend {display:flex!important;flex-direction:column;gap:9px;min-width:0;max-height:220px;overflow-y:auto}
+#subject-distribution-legend .subject-distribution-item {grid-template-columns:10px minmax(0,1fr) auto;gap:7px;align-items:center;font-size:12px}
+#subject-distribution-legend .subject-distribution-swatch {width:10px;height:10px;border-radius:3px}
+#subject-distribution-legend .subject-distribution-name {font-size:12px}
+#subject-distribution-legend .subject-distribution-item strong {font-size:12px}
+#subject-distribution-legend .subject-distribution-item small {grid-column:2 / 4;color:#888;font-size:10px}
+#calendar-subject-distribution-legend {display:none!important}
 .subject-donut-callout-name {font-size:13px;font-weight:650;fill:var(--text-color,#222)}
 .subject-donut-callout-time {font-size:11px;fill:#858b96}
 html.dark-mode .subject-donut-callout-name {fill:#f1f1f1}
 html.dark-mode .subject-donut-callout-time {fill:#aaa}
+@media(max-width:520px){#monthly-distribution-content{grid-template-columns:minmax(110px,170px) minmax(100px,1fr);gap:10px}#subject-distribution-legend .subject-distribution-item{font-size:11px}}
 
 /* Calendar uses the same full-size centred radial distribution as the monthly chart. */
 .calendar-daily-distribution .subject-distribution-content {
