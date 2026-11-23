@@ -122,6 +122,11 @@
   window.addEventListener("storage",refresh);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refresh();});
   window.CoolanasUploads={enqueue,refresh,getTasks};
-  registerWorker().then(()=>refresh());
+  registerWorker().then(async()=>{
+    await refresh();
+    const userId=currentUserId();
+    const pending=(await getTasks()).some(task=>task.ownerId===userId&&(task.status==="pending"||task.status==="uploading"));
+    if(pending)registration?.active?.postMessage({type:"PROCESS_COOLANAS_UPLOADS"});
+  });
   setInterval(refresh,1000);
 })();
