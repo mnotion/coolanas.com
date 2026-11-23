@@ -874,8 +874,28 @@ const taskItemsEl = document.getElementById("task-items");
 const taskAddForm = document.getElementById("task-add-form");
 const taskAddInput = document.getElementById("task-add-input");
 const taskError = document.getElementById("task-error");
+const taskDayLockButton = document.getElementById("task-day-lock");
 let tasks = [];
+let taskDays = [];
+let taskDayLocked = false;
 let tasksReady = false;
+function taskDateKey(date = new Date()) {
+  return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" +
+      String(date.getDate()).padStart(2, "0");
+}
+function currentDaySnapshotTasks() {
+  const todayKey = taskDateKey();
+  return tasks.filter(task => !task.dueDate || task.dueDate <= todayKey).map(task => ({
+    id:task.id, text:task.text, completed:task.completed === true && task.completedAt === todayKey
+  }));
+}
+function updateTaskDayLockButton() {
+  if (!taskDayLockButton) return;
+  taskDayLockButton.classList.toggle("is-locked", taskDayLocked);
+  taskDayLockButton.setAttribute("aria-pressed", String(taskDayLocked));
+  taskDayLockButton.setAttribute("aria-label", taskDayLocked ? "Unlock today's tasks" : "Lock today's tasks");
+  taskDayLockButton.title = taskDayLocked ? "Unlock today's tasks" : "Lock today's tasks";
+}
 let taskDragId = null;
 let dropIndicator = null;
 async function taskAction(action, payload = {}) {
@@ -885,10 +905,25 @@ async function taskAction(action, payload = {}) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
+async function saveCurrentTaskDay(locked = taskDayLocked) {
+  const date = taskDateKey();
+  const result = await taskAction("tasks_day_save", {
+    date, tasks:currentDaySnapshotTasks(), locked
+  });
+  const index = taskDays.findIndex(day => day?.date === date);
+  if (index >= 0) taskDays[index] = result.snapshot;
+  else taskDays.push(result.snapshot);
+  taskDays.sort((a,b) => String(a.date).localeCompare(String(b.date)));
+}
 async function persistTasks() {
   taskError.textContent = "";
+  if (taskDayLocked) {
+    taskError.textContent = "Today's tasks are locked. Unlock them before making changes.";
+    return;
+  }
   try {
     await taskAction("tasks_save", {tasks});
+    await saveCurrentTaskDay(false);
   } catch (error) {
     taskError.textContent = error.message || "Tasks could not be saved.";
   }
@@ -910,10 +945,11 @@ function renderTasks() {
     taskItemsEl.appendChild(empty);
     return;
   }
-  const todayKey = new Date().getFullYear() + "-" +
-      String(new Date().getMonth() + 1).padStart(2, "0") + "-" +
-      String(new Date().getDate()).padStart(2, "0");
+  const todayKey = taskDateKey();
   const visibleTasks = tasks.filter(task => !task.dueDate || task.dueDate <= todayKey);
+  updateTaskDayLockButton();
+  taskAddInput.disabled = taskDayLocked;
+  taskAddForm.querySelector("button[type='submit']").disabled = taskDayLocked;
   if (!visibleTasks.length) {
     const empty = document.createElement("div");
     empty.className = "task-empty";
@@ -930,7 +966,8 @@ function renderTasks() {
     handle.textContent = "⠿";
     handle.title = "Drag to reorder";
     handle.setAttribute("aria-label", "Drag to reorder");
-    handle.draggable = true;
+    handle.draggable = !taskDayLocked;
+    handle.classList.toggle("is-disabled", taskDayLocked);
     const label = document.createElement("span");
     label.className = "task-text";
     label.textContent = task.text;
@@ -939,7 +976,8 @@ function renderTasks() {
     complete.title = task.completed ? "Mark as incomplete" : "Mark as completed";
     const completeInput = document.createElement("input");
     completeInput.type = "checkbox";
-    completeInput.checked = task.completed;
+    completeInput.checked = task.completed === true && task.completedAt === todayKey;
+    completeInput.disabled = taskDayLocked;
     completeInput.setAttribute("aria-label", complete.title);
     const completeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     completeSvg.setAttribute("viewBox", "0 0 64 64");
@@ -966,11 +1004,10 @@ function renderTasks() {
       completeInput.setAttribute("aria-label", complete.title);
       taskError.textContent = "";
       await new Promise(resolve => setTimeout(resolve, 520));
-      try {
-        await taskAction("tasks_save", {tasks});
-      } catch (error) {
+      await persistTasks();
+      if (taskError.textContent) {
         task.completed = previous;
-        taskError.textContent = error.message || "Tasks could not be saved.";
+        if (previous && !task.completedAt) task.completedAt = todayKey;
         renderTasks();
       }
     });
@@ -979,6 +1016,7 @@ function renderTasks() {
     remove.type = "button";
     remove.textContent = "×";
     remove.setAttribute("aria-label", "Delete " + task.text);
+    remove.disabled = taskDayLocked;
     remove.addEventListener("click", async () => {
       const previous = tasks.slice();
       tasks = tasks.filter(item => item.id !== task.id);
@@ -991,7 +1029,7 @@ function renderTasks() {
     });
     row.append(handle, label, complete, remove);
     label.addEventListener("dblclick", () => {
-      if (row.classList.contains("editing")) return;
+      if (taskDayLocked || row.classList.contains("editing")) return;
       row.classList.add("editing");
       label.hidden = true;
       handle.hidden = true;
@@ -1032,6 +1070,7 @@ function renderTasks() {
       input.addEventListener("blur", () => finish(true));
     });
     handle.addEventListener("dragstart", event => {
+      if (taskDayLocked) { event.preventDefault(); return; }
       taskDragId = task.id;
       row.classList.add("dragging");
       event.dataTransfer.effectAllowed = "move";
@@ -1050,7 +1089,7 @@ function cleanupTaskDrag() {
   }
 }
 taskItemsEl.addEventListener("dragover", event => {
-  if (!taskDragId) return;
+  if (taskDayLocked || !taskDragId) return;
   event.preventDefault();
   event.dataTransfer.dropEffect = "move";
   const row = event.target.closest?.(".task-row");
@@ -1067,7 +1106,7 @@ taskItemsEl.addEventListener("dragover", event => {
   indicator.classList.add("visible");
 });
 taskItemsEl.addEventListener("drop", async (event) => {
-  if (!taskDragId) return;
+  if (taskDayLocked || !taskDragId) return;
   event.preventDefault();
   const sourceId = taskDragId;
   const indicator = ensureDropIndicator();
@@ -1119,7 +1158,7 @@ taskItemsEl.addEventListener("dragend", cleanupTaskDrag);
 taskAddForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const value = taskAddInput.value.trim();
-  if (!value || !tasksReady) return;
+  if (!value || !tasksReady || taskDayLocked) return;
   if (tasks.length >= 100) {
     taskError.textContent = "You can have up to 100 tasks.";
     return;
@@ -1135,12 +1174,35 @@ taskAddForm.addEventListener("submit", async (event) => {
     taskAddInput.value = value;
   }
 });
+taskDayLockButton?.addEventListener("click", async () => {
+  if (!tasksReady || taskDayLockButton.disabled) return;
+  taskDayLockButton.disabled = true;
+  taskError.textContent = "";
+  const nextLocked = !taskDayLocked;
+  try {
+    await saveCurrentTaskDay(nextLocked);
+    taskDayLocked = nextLocked;
+    renderTasks();
+  } catch (error) {
+    taskError.textContent = error.message || "Today's task status could not be saved.";
+  } finally {
+    taskDayLockButton.disabled = false;
+  }
+});
 async function loadTasks() {
   try {
     const result = await taskAction("tasks_get");
-    tasks = Array.isArray(result.tasks) ?
-        result.tasks.map(task => ({...task, completed: task.completed === true})) :
-        [];
+    taskDays = Array.isArray(result.taskDays) ? result.taskDays : [];
+    const todayKey = taskDateKey();
+    const todaySnapshot = taskDays.find(day => day?.date === todayKey);
+    taskDayLocked = todaySnapshot?.locked === true;
+    const lockedStatuses = new Map((todaySnapshot?.tasks || []).map(task => [task.id, task.completed === true]));
+    tasks = Array.isArray(result.tasks) ? result.tasks.map(task => {
+      const completed = todaySnapshot?.locked === true
+        ? lockedStatuses.get(task.id) === true
+        : (typeof task.completedAt === "string" ? task.completedAt === todayKey : task.completed === true);
+      return {...task, completed, ...(completed ? {completedAt:todayKey} : {})};
+    }) : [];
     tasksReady = true;
     taskError.textContent = "";
     renderTasks();
