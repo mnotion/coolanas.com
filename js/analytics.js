@@ -162,8 +162,9 @@ async function loadCloudAnalytics() {
       });
       if (error || data?.error)
         throw new Error(data?.error || error?.message || "Could not fetch cloud analytics.");
-      // Backblaze stats/analytics.json is authoritative. Browser storage is only
-      // a temporary sync queue and a cache of the data returned by this request.
+      // The account JSON document on the server is authoritative for live reads.
+      // Backblaze stats/analytics.json is the durable JSON-file mirror; browser
+      // storage is only a retry queue and a cache of the last server response.
       const daily = data.daily && typeof data.daily === "object" && !Array.isArray(data.daily) ? data.daily : {};
       const dailySubjects = data.dailySubjects && typeof data.dailySubjects === "object" &&
         !Array.isArray(data.dailySubjects) ? data.dailySubjects : {};
