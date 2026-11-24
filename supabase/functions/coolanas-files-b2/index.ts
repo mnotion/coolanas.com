@@ -392,12 +392,36 @@ Deno.serve(async (req) => {
       const key = prefix + "/stats/analytics.json";
       const initial = await readAccountSyncRow();
       if (initial?.analytics_b2_migrated === true && isRecord(initial.analytics_json)) {
-        const saved = normaliseAnalyticsDoc(initial.analytics_json);
+        let saved = normaliseAnalyticsDoc(initial.analytics_json);
+        let mirrorPending = initial.analytics_b2_mirror_pending === true;
+        if (mirrorPending && shouldRetryB2Import(initial.analytics_b2_checked_at)) {
+          return await withAnalyticsWriteLock(async () => {
+            const row = await readAccountSyncRow();
+            saved = normaliseAnalyticsDoc(row?.analytics_json);
+            mirrorPending = row?.analytics_b2_mirror_pending === true;
+            if (mirrorPending && shouldRetryB2Import(row?.analytics_b2_checked_at)) {
+              const mirrorAttemptAt = new Date().toISOString();
+              try {
+                await writeB2Json(key,saved);
+                mirrorPending = false;
+              } catch (error) {
+                console.warn("Could not retry the analytics JSON mirror:",error);
+              }
+              await saveAnalyticsState(saved,true,mirrorAttemptAt,mirrorPending);
+            }
+            const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
+              sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
+            return json(200,{
+              success:true,daily:saved.daily,dailySubjects:saved.dailySubjects,
+              dailyHours:saved.dailyHours,totalMs,legacyImportPending:false,mirrorPending
+            });
+          });
+        }
         const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
           sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
         return json(200,{
           success:true,daily:saved.daily,dailySubjects:saved.dailySubjects,
-          dailyHours:saved.dailyHours,totalMs,legacyImportPending:false
+          dailyHours:saved.dailyHours,totalMs,legacyImportPending:false,mirrorPending
         });
       }
       if (!shouldRetryB2Import(initial?.analytics_b2_checked_at)) {
@@ -414,32 +438,37 @@ Deno.serve(async (req) => {
         let saved = normaliseAnalyticsDoc(row?.analytics_json);
         let migrated = row?.analytics_b2_migrated === true;
         let checkedAt = typeof row?.analytics_b2_checked_at === "string" ? row.analytics_b2_checked_at : null;
+        let mirrorPending = row?.analytics_b2_mirror_pending === true || !migrated;
         if (!migrated && shouldRetryB2Import(checkedAt)) {
           const legacy = await readB2Json(key);
           checkedAt = new Date().toISOString();
           if (legacy.blocked) {
-            await saveAnalyticsState(saved,false,checkedAt);
+            await saveAnalyticsState(saved,false,checkedAt,true);
             const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
               sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
             return json(200,{
               success:true,daily:saved.daily,dailySubjects:saved.dailySubjects,
               dailyHours:saved.dailyHours,totalMs,legacyImportPending:true,
-              readCapExceeded:true
+              readCapExceeded:true,mirrorPending:true
             });
           }
           if (legacy.found) saved = mergeAnalyticsDocs(saved,legacy.value);
           migrated = true;
+          mirrorPending = true;
         }
         const now = new Date().toISOString();
         saved.updatedAt = now;
-        await saveAnalyticsState(saved,migrated,checkedAt || now);
-        let mirrorPending = false;
-        if (migrated) {
-          try { await writeB2Json(key,saved); }
-          catch (error) {
+        await saveAnalyticsState(saved,migrated,checkedAt || now,mirrorPending);
+        if (migrated && (!row?.analytics_b2_mirror_pending || shouldRetryB2Import(checkedAt))) {
+          const mirrorAttemptAt = new Date().toISOString();
+          try {
+            await writeB2Json(key,saved);
+            mirrorPending = false;
+          } catch (error) {
             mirrorPending = true;
             console.warn("Analytics are safe in the account database; B2 JSON mirror will retry:",error);
           }
+          await saveAnalyticsState(saved,true,mirrorAttemptAt,mirrorPending);
         }
         const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
           sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
@@ -462,12 +491,16 @@ Deno.serve(async (req) => {
         let saved = normaliseAnalyticsDoc(row?.analytics_json);
         let migrated = row?.analytics_b2_migrated === true;
         let checkedAt = typeof row?.analytics_b2_checked_at === "string" ? row.analytics_b2_checked_at : null;
+        let mirrorPending = row?.analytics_b2_mirror_pending === true || !migrated;
         if (!migrated && shouldRetryB2Import(checkedAt)) {
           const legacy = await readB2Json(key);
           checkedAt = new Date().toISOString();
           if (!legacy.blocked) {
             if (legacy.found) saved = mergeAnalyticsDocs(saved,legacy.value);
             migrated = true;
+            mirrorPending = true;
+          } else {
+            mirrorPending = true;
           }
         }
 
@@ -509,9 +542,9 @@ Deno.serve(async (req) => {
         if (snapshot) mergeLegacySnapshot(saved,snapshot,validDate);
         const updatedAt = new Date().toISOString();
         saved.updatedAt = updatedAt;
-        await saveAnalyticsState(saved,migrated,checkedAt || updatedAt);
-        let mirrorPending = !migrated;
-        if (migrated) {
+        await saveAnalyticsState(saved,migrated,checkedAt || updatedAt,mirrorPending);
+        if (migrated && (!row?.analytics_b2_mirror_pending || shouldRetryB2Import(checkedAt))) {
+          const mirrorAttemptAt = new Date().toISOString();
           try {
             await writeB2Json(key,saved);
             mirrorPending = false;
@@ -519,6 +552,7 @@ Deno.serve(async (req) => {
             mirrorPending = true;
             console.warn("Analytics sync saved to the account database; B2 JSON mirror will retry:",error);
           }
+          await saveAnalyticsState(saved,true,mirrorAttemptAt,mirrorPending);
         }
         const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
           sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
