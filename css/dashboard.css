@@ -1964,12 +1964,14 @@ html.dark-mode .mail-notification-actions button.secondary {
 @keyframes dashboard-enter {
   from {
     opacity:0;
-    transform:translateY(20px) scale(.90);
+    translate:0 20px;
+    scale:.90;
     filter:blur(4px)
   }
   to {
     opacity:1;
-    transform:translateY(0) scale(1);
+    translate:0 0;
+    scale:1;
     filter:blur(0)
   }
 }
