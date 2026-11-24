@@ -1960,39 +1960,78 @@ html.dark-mode .mail-notification-actions button.secondary {
   }
 }
 
-/* Subtle entrance animation when the dashboard is first opened or refreshed. */
-    @keyframes dashboard-enter {
+/* Noticeable but smooth dashboard entrance on a fresh page load. */
+@keyframes dashboard-enter {
   from {
     opacity:0;
-    scale:.985
+    transform:translateY(20px) scale(.90);
+    filter:blur(4px)
   }
   to {
     opacity:1;
-    scale:1
+    transform:translateY(0) scale(1);
+    filter:blur(0)
   }
 }
 
 .study-stopwatch,.study-subjects,.task-list-card,.contribution-card,
-    .profile-button,.mail-button,.bottom-nav {
-  animation:dashboard-enter .48s cubic-bezier(.2,.7,.25,1) both;
+.profile-button,.mail-button,.bottom-nav {
+  animation:dashboard-enter .72s cubic-bezier(.16,.78,.22,1) both;
 }
 
-.study-subjects {
-  animation-delay:.04s
-}
+.study-subjects { animation-delay:.08s }
+.task-list-card { animation-delay:.16s }
+.bottom-nav { animation-delay:.22s }
 
-.task-list-card {
-  animation-delay:.08s
-}
-
-.bottom-nav {
-  animation-delay:.12s
+/* Mobile task panel: hidden at scroll origin, revealed as an animated dock. */
+@media(max-width:620px) {
+  .task-list-card {
+    position:fixed!important;
+    inset:auto 14px calc(92px + env(safe-area-inset-bottom))!important;
+    z-index:45;
+    display:block;
+    width:auto!important;
+    min-width:0;
+    max-height:min(42vh,390px);
+    margin:0!important;
+    overflow:auto;
+    overscroll-behavior:contain;
+    padding:15px;
+    border-radius:18px;
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transform:translate3d(0,34px,0) scale(.94);
+    transform-origin:bottom center;
+    filter:blur(3px);
+    transition:opacity .32s ease,transform .42s cubic-bezier(.2,.8,.2,1),
+      filter .32s ease,visibility .32s;
+    animation:none!important;
+  }
+  body.mobile-task-visible .task-list-card {
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+    transform:translate3d(0,0,0) scale(1);
+    filter:blur(0);
+  }
+  .task-items {
+    max-height:calc(42vh - 145px);
+    overflow:auto;
+    overscroll-behavior:contain;
+  }
+  main {
+    padding-bottom:calc(150px + env(safe-area-inset-bottom) + 32vh);
+  }
 }
 
 @media(prefers-reduced-motion:reduce) {
   .study-stopwatch,.study-subjects,.task-list-card,.contribution-card,
-      .profile-button,.mail-button,.bottom-nav {
-    animation:none
+  .profile-button,.mail-button,.bottom-nav {
+    animation:none!important;
+  }
+  .task-list-card {
+    transition:none!important;
   }
 }
 
