@@ -2502,17 +2502,13 @@ async function downloadItem(item) {
     return;
   }
   const manifest = await filesAction("download_archive_manifest", {id: item.id});
-  if (!Array.isArray(manifest.files) || !manifest.files.length) {
-    throw new Error("This folder is empty.");
-  }
+  if (!Array.isArray(manifest.files)) throw new Error("The folder contents could not be loaded.");
   const {default: JSZip} = await import("https://esm.sh/jszip@3.10.1");
   const zip = new JSZip();
-  let completed = 0;
   for (const entry of manifest.files) {
     const response = await fetch(entry.downloadUrl);
     if (!response.ok) throw new Error("Could not download " + entry.name + " (" + response.status + ").");
     zip.file(entry.name, await response.blob());
-    completed++;
   }
   const blob = await zip.generateAsync({type: "blob", compression: "DEFLATE", compressionOptions: {level: 5}});
   const url = URL.createObjectURL(blob);
