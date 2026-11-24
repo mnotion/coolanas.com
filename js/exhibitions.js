@@ -2045,7 +2045,9 @@ async function refreshExhibitions({force = false, silent = false} = {}) {
     sharedBucketRecords = Array.isArray(cached.sharedBuckets) ? cached.sharedBuckets : [];
     sharedByYouRecords = Array.isArray(cached.sharedByYou) ? cached.sharedByYou : [];
     metadataCacheTimestamp = Number(cached.metadataSavedAt) || 0;
-    await refreshSharedBuckets({cacheOnly: true, silent});
+    // Shared access can change independently of the owner's bucket contents.
+    // Always refresh it from the server so newly accepted invitations appear.
+    await refreshSharedBuckets({force: true, silent});
   } else {
     const data = await filesAction("exhibitions_list");
     exhibitionRecords = data.exhibitions || [];
