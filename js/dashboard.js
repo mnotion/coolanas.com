@@ -1,6 +1,23 @@
 const SUPABASE_URL = "https://nacwftrsdpglzrhasmit.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
 const {createClient} = await import("https://esm.sh/@supabase/supabase-js@2.119.0");
+
+// On mobile, keep the task list tucked away at the very top of the page.
+// It becomes a compact floating panel as soon as the user starts scrolling.
+const mobileTaskCard = document.querySelector(".task-list-card");
+const mobileTaskQuery = window.matchMedia("(max-width: 620px)");
+function updateMobileTaskVisibility() {
+  const visible = mobileTaskQuery.matches && window.scrollY > 24;
+  document.body.classList.toggle("mobile-task-visible", visible);
+  if (mobileTaskCard) {
+    mobileTaskCard.setAttribute("aria-hidden", String(!visible && mobileTaskQuery.matches));
+    mobileTaskCard.inert = !visible && mobileTaskQuery.matches;
+  }
+}
+window.addEventListener("scroll", updateMobileTaskVisibility, {passive:true});
+window.addEventListener("resize", updateMobileTaskVisibility);
+mobileTaskQuery.addEventListener?.("change", updateMobileTaskVisibility);
+updateMobileTaskVisibility();
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
