@@ -122,14 +122,15 @@
       panel.classList.remove("visible");
       return;
     }
-    const done = completed.length, uploading = active.filter(t => t.status === "uploading").length;
+    const done = visible.filter(t => t.status === "complete").length;
+    const uploading = active.filter(t => t.status === "uploading").length;
     panel.classList.add("visible");
     panel.querySelector(".cu-title").textContent = failed.length ? "Uploads need attention" : "Uploading files";
     panel.querySelector(".cu-fill").style.width =
-        (tasks.length ? Math.round(done / tasks.length * 100) : 0) + "%";
+        (visible.length ? Math.round(done / visible.length * 100) : 0) + "%";
     panel.querySelector(".cu-detail").textContent =
         failed[0]?.error || active[0]?.fileName || "Finishing uploads…";
-    panel.querySelector(".cu-count").textContent = done + "/" + tasks.length + " · " + uploading + " active";
+    panel.querySelector(".cu-count").textContent = done + "/" + visible.length + " complete · " + uploading + " active";
     const fileList = panel.querySelector(".cu-files");
     fileList.replaceChildren();
     for (const task of visible) {
@@ -143,9 +144,9 @@
       name.title = task.fileName || "";
       const state = document.createElement("span");
       state.className = "cu-file-state";
-      state.textContent = task.status === "complete" ? "Complete" :
+      state.textContent = task.status === "complete" ? "100% · Complete" :
           task.status === "uploading" ? "Uploading…" :
-          task.status === "failed" ? "Failed" : "Queued";
+          task.status === "failed" ? "Failed" : "Queued · 0%";
       head.append(name,state);
       const track = document.createElement("div");
       track.className = "cu-file-track";
