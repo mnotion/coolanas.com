@@ -181,7 +181,21 @@ async function loadCloudAnalytics() {
       }
       localStorage.setItem(accountKey("coolanas-study-monthly-time-v1"),JSON.stringify(monthly));
       cloudAnalyticsLoaded = true;
-      setAnalyticsSyncStatus("Cloud sync active","success","Last successful account sync: " + new Date().toLocaleString());
+      if (data.legacyImportPending === true) {
+        setAnalyticsSyncStatus(
+          "Cloud sync active · restoring JSON archive",
+          "success",
+          "Live analytics are syncing to your account. The legacy Backblaze JSON archive will be imported when its download cap allows."
+        );
+      } else if (data.mirrorPending === true) {
+        setAnalyticsSyncStatus(
+          "Cloud sync active · JSON mirror retrying",
+          "success",
+          "Analytics are safely synced to your account. The Backblaze JSON mirror will retry automatically."
+        );
+      } else {
+        setAnalyticsSyncStatus("Cloud sync active","success","Last successful account sync: " + new Date().toLocaleString());
+      }
       renderTimer();
       renderMonthlyChart();
       if (selectedCalendarDate) renderCalendarDetails();
