@@ -2,6 +2,39 @@ const SUPABASE_URL = "https://nacwftrsdpglzrhasmit.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4OLO5cw2lr_l90MECEAG0A_MJY1NQQF";
 const {createClient} = await import("https://esm.sh/@supabase/supabase-js@2.119.0");
 
+// Replay the dashboard entrance when the browser opens or restores this page.
+function playDashboardEntrance() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const targets = [
+    [".study-stopwatch", 0],
+    ["#study-subjects", 75],
+    [".task-list-card", 130],
+    ["#profile-button", 170],
+    ["#mail-button", 210],
+    [".bottom-nav", 250]
+  ];
+  targets.forEach(([selector, delay]) => {
+    const element = document.querySelector(selector);
+    if (!element || (selector === ".task-list-card" && window.matchMedia("(max-width: 620px)").matches)) return;
+    element.getAnimations().forEach(animation => {
+      if (animation.id === "coolanas-dashboard-entry") animation.cancel();
+    });
+    const animation = element.animate([
+      { opacity: 0, transform: "translateY(22px) scale(.88)", filter: "blur(5px)" },
+      { opacity: 1, transform: "translateY(0) scale(1)", filter: "blur(0)" }
+    ], {
+      duration: 760,
+      delay,
+      easing: "cubic-bezier(.16,.78,.22,1)",
+      fill: "both"
+    });
+    animation.id = "coolanas-dashboard-entry";
+  });
+}
+window.addEventListener("pageshow", () => {
+  requestAnimationFrame(() => requestAnimationFrame(playDashboardEntrance));
+});
+
 // On mobile, keep the task list tucked away at the very top of the page.
 // It becomes a compact floating panel as soon as the user starts scrolling.
 const mobileTaskCard = document.querySelector(".task-list-card");
