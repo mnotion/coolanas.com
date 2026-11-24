@@ -1,4 +1,4 @@
-/* Shared, account-scoped appearance bootstrap backed by each user's B2 settings.json. */
+/* Account-scoped appearance bootstrap backed by server JSON state and mirrored to B2 settings.json. */
 (() => {
   const root = document.documentElement;
   let mode = "light";
@@ -10,6 +10,7 @@
   let clientReadyResolve;
   const clientReady = new Promise(resolve => { clientReadyResolve = resolve; });
   const loads = new Map();
+  const retryTimers = new Map();
 
   const apply = value => {
     mode = value === "dark" ? "dark" : "light";
@@ -81,6 +82,23 @@
     ready: () => ready
   };
 
+  function scheduleSettingsRetry(targetUserId) {
+    if (retryTimers.has(targetUserId)) clearTimeout(retryTimers.get(targetUserId));
+    const timer = setTimeout(async () => {
+      retryTimers.delete(targetUserId);
+      if (userId !== targetUserId) return;
+      try {
+        const {data:{session},error} = await supabase.auth.getSession();
+        if (error) throw error;
+        if (session?.user?.id === targetUserId) await loadForSession(session);
+      } catch (error) {
+        console.warn("Account settings retry deferred:",error);
+        scheduleSettingsRetry(targetUserId);
+      }
+    },60000);
+    retryTimers.set(targetUserId,timer);
+  }
+
   async function loadForSession(session) {
     if (!session?.user?.id) return {};
     await clientReady;
@@ -114,20 +132,29 @@
       const settings = data?.settings && typeof data.settings === "object" ? data.settings : {};
       const cloudTheme = settings.theme === "dark" || settings.theme === "light"
         ? settings.theme : null;
-      // On the first cloud bootstrap, migrate the theme previously saved only
-      // on this device. Once settings.json has an explicit theme, the cloud wins.
-      const selectedTheme = data?.created === true || !cloudTheme
-        ? (cachedMode || cloudTheme || "light") : cloudTheme;
-      apply(selectedTheme);
-      try { localStorage.setItem("coolanas-theme:" + nextUserId, selectedTheme); } catch {}
-      if (cloudTheme !== selectedTheme) await persistTheme(selectedTheme);
+      // Cloud JSON is authoritative. During a capped B2 import, do not write a
+      // guessed light default: an older dark preference may still be in settings.json.
+      const importPending = data?.legacyImportPending === true;
+      const selectedTheme = cloudTheme || cachedMode || (importPending ? null : "light");
+      if (selectedTheme) {
+        apply(selectedTheme);
+        try { localStorage.setItem("coolanas-theme:" + nextUserId, selectedTheme); } catch {}
+        if (!cloudTheme && !importPending) await persistTheme(selectedTheme);
+      }
       ready = true;
-      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {detail:{settings, userId:nextUserId}}));
+      if (!importPending) retryTimers.delete(nextUserId);
+      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {
+        detail:{settings,userId:nextUserId,legacyImportPending:importPending,mirrorPending:data?.mirrorPending===true}
+      }));
+      if (importPending) scheduleSettingsRetry(nextUserId);
       return settings;
     })().catch(error => {
       console.error("Could not load account settings:", error);
       ready = true;
-      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {detail:{settings:{}, userId:nextUserId, error}}));
+      window.dispatchEvent(new CustomEvent("coolanas:settingsready", {
+        detail:{settings:{},userId:nextUserId,error}
+      }));
+      scheduleSettingsRetry(nextUserId);
       return {};
     }).finally(() => loads.delete(nextUserId));
 
