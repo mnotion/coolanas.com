@@ -131,287 +131,392 @@ Deno.serve(async (req) => {
       }
     };
 
+    const isRecord = (value: unknown): value is Record<string, any> =>
+      Boolean(value && typeof value === "object" && !Array.isArray(value));
+    const isB2NotFound = (error: any) =>
+      error?.$metadata?.httpStatusCode === 404 ||
+      error?.name === "NoSuchKey" || error?.name === "NotFound";
+    const isB2ReadCapExceeded = (error: any) => {
+      const message = String(error?.message || error || "");
+      return /download bandwidth|Class B.*cap exceeded|download_cap_exceeded/i.test(message);
+    };
+    const shouldRetryB2Import = (checkedAt: unknown) => {
+      if (typeof checkedAt !== "string") return true;
+      const checked = Date.parse(checkedAt);
+      return !Number.isFinite(checked) || Date.now() - checked >= 5 * 60 * 1000;
+    };
+    const readB2Json = async (key: string) => {
+      try {
+        const object = await s3.send(new GetObjectCommand({Bucket:bucket,Key:key}));
+        const raw = await object.Body?.transformToString();
+        const parsed = raw ? JSON.parse(raw) : {};
+        return {found:true,blocked:false,value:isRecord(parsed) ? parsed : {}};
+      } catch (error) {
+        if (isB2NotFound(error)) return {found:false,blocked:false,value:{}};
+        if (isB2ReadCapExceeded(error)) return {found:false,blocked:true,value:{}};
+        throw error;
+      }
+    };
+    const writeB2Json = async (key: string, value: Record<string, unknown>) => {
+      await s3.send(new PutObjectCommand({
+        Bucket:bucket,Key:key,Body:JSON.stringify(value),
+        ContentType:"application/json; charset=utf-8"
+      }));
+    };
+    const readAccountSyncRow = async () => {
+      const {data,error} = await supabase.from("coolanas_dashboard_data")
+        .select("settings_json, settings_b2_migrated, settings_b2_checked_at, analytics_json, analytics_b2_migrated, analytics_b2_checked_at")
+        .eq("user_id",userId).maybeSingle();
+      if (error) throw error;
+      return data;
+    };
+    const saveSettingsState = async (
+      settings: Record<string, unknown> | null, migrated: boolean, checkedAt: string
+    ) => {
+      const {error} = await supabase.from("coolanas_dashboard_data").upsert({
+        user_id:userId,settings_json:settings,settings_b2_migrated:migrated,
+        settings_b2_checked_at:checkedAt,updated_at:new Date().toISOString()
+      },{onConflict:"user_id"});
+      if (error) throw error;
+    };
+    const emptyAnalyticsDoc = () => ({
+      version:4,daily:{},dailySubjects:{},dailyHours:{},events:{}
+    });
+    const normaliseAnalyticsDoc = (value: unknown) => {
+      const source = isRecord(value) ? value : {};
+      return {
+        version:4,
+        daily:isRecord(source.daily) ? source.daily : {},
+        dailySubjects:isRecord(source.dailySubjects) ? source.dailySubjects : {},
+        dailyHours:isRecord(source.dailyHours) ? source.dailyHours : {},
+        events:isRecord(source.events) ? source.events : {},
+        ...(typeof source.updatedAt === "string" ? {updatedAt:source.updatedAt} : {})
+      };
+    };
+    const mergeAnalyticsDocs = (currentValue: unknown, legacyValue: unknown) => {
+      const current = normaliseAnalyticsDoc(currentValue);
+      const legacy = normaliseAnalyticsDoc(legacyValue);
+      for (const [date,value] of Object.entries(legacy.daily)) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date) && typeof value === "number" && Number.isFinite(value) && value >= 0)
+          current.daily[date] = Math.max(0,Number(current.daily[date]) || 0,value);
+      }
+      for (const [date,subjects] of Object.entries(legacy.dailySubjects)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isRecord(subjects)) continue;
+        if (!isRecord(current.dailySubjects[date])) current.dailySubjects[date] = {};
+        for (const [subject,value] of Object.entries(subjects)) {
+          if (subject.length <= 80 && typeof value === "number" && Number.isFinite(value) && value >= 0)
+            current.dailySubjects[date][subject] = Math.max(0,Number(current.dailySubjects[date][subject]) || 0,value);
+        }
+      }
+      for (const [date,hours] of Object.entries(legacy.dailyHours)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !isRecord(hours)) continue;
+        if (!isRecord(current.dailyHours[date])) current.dailyHours[date] = {};
+        for (const [hour,value] of Object.entries(hours)) {
+          if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) && typeof value === "number" && Number.isFinite(value) && value >= 0)
+            current.dailyHours[date][hour] = Math.max(0,Number(current.dailyHours[date][hour]) || 0,value);
+        }
+      }
+      for (const [eventId,value] of Object.entries(legacy.events)) {
+        if (value === true) current.events[eventId] = true;
+      }
+      return current;
+    };
+    const saveAnalyticsState = async (
+      analytics: Record<string, unknown>, migrated: boolean, checkedAt: string
+    ) => {
+      const {error} = await supabase.from("coolanas_dashboard_data").upsert({
+        user_id:userId,analytics_json:analytics,analytics_b2_migrated:migrated,
+        analytics_b2_checked_at:checkedAt,updated_at:new Date().toISOString()
+      },{onConflict:"user_id"});
+      if (error) throw error;
+    };
+    const mergeLegacySnapshot = (
+      current: ReturnType<typeof normaliseAnalyticsDoc>, snapshot: any,
+      validDate: (value: unknown) => value is string
+    ) => {
+      if (!snapshot) return;
+      const daily = snapshot.daily;
+      const dailySubjects = snapshot.dailySubjects;
+      const dailyHours = snapshot.dailyHours;
+      for (const [date,value] of Object.entries(isRecord(daily) ? daily : {})) {
+        if (validDate(date) && typeof value === "number" && Number.isFinite(value) && value >= 0)
+          current.daily[date] = Math.max(0,Number(current.daily[date]) || 0,value);
+      }
+      for (const [date,subjects] of Object.entries(isRecord(dailySubjects) ? dailySubjects : {})) {
+        if (!validDate(date) || !isRecord(subjects)) continue;
+        if (!isRecord(current.dailySubjects[date])) current.dailySubjects[date] = {};
+        for (const [subject,value] of Object.entries(subjects)) {
+          if (subject && subject.length <= 80 && typeof value === "number" && Number.isFinite(value) && value >= 0)
+            current.dailySubjects[date][subject] = Math.max(0,Number(current.dailySubjects[date][subject]) || 0,value);
+        }
+      }
+      for (const [date,hours] of Object.entries(isRecord(dailyHours) ? dailyHours : {})) {
+        if (!validDate(date) || !isRecord(hours)) continue;
+        if (!isRecord(current.dailyHours[date])) current.dailyHours[date] = {};
+        for (const [hour,value] of Object.entries(hours)) {
+          if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) && typeof value === "number" && Number.isFinite(value) && value >= 0)
+            current.dailyHours[date][hour] = Math.max(0,Number(current.dailyHours[date][hour]) || 0,value);
+        }
+      }
+    };
+
     if (action === "settings_get") {
       const key = prefix + "/stats/settings.json";
-      try {
-        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        const raw = await object.Body?.transformToString();
-        const saved = raw ? JSON.parse(raw) : {};
-        const settings = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
-        return json(200, { success: true, settings, created: false });
-      } catch (error) {
-        const status = (error as any)?.$metadata?.httpStatusCode;
-        const name = (error as any)?.name ?? "";
-        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
-        return await withAnalyticsWriteLock(async () => {
-          // Re-check after acquiring the account lock so parallel first logins
-          // cannot overwrite another device's first settings write.
-          try {
-            const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-            const raw = await object.Body?.transformToString();
-            const saved = raw ? JSON.parse(raw) : {};
-            const settings = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
-            return json(200, { success: true, settings, created: false });
-          } catch (recheckError) {
-            const recheckStatus = (recheckError as any)?.$metadata?.httpStatusCode;
-            const recheckName = (recheckError as any)?.name ?? "";
-            if (recheckStatus !== 404 && recheckName !== "NoSuchKey" && recheckName !== "NotFound")
-              throw recheckError;
-          }
-          const now = new Date().toISOString();
-          const settings = { version: 1, createdAt: now, updatedAt: now };
-          await s3.send(new PutObjectCommand({
-            Bucket: bucket, Key: key, Body: JSON.stringify(settings),
-            ContentType: "application/json; charset=utf-8",
-          }));
-          return json(200, { success: true, settings, created: true });
-        });
+      const initial = await readAccountSyncRow();
+      if (initial?.settings_b2_migrated === true && isRecord(initial.settings_json)) {
+        return json(200,{success:true,settings:initial.settings_json,created:false,legacyImportPending:false});
       }
+      if (!shouldRetryB2Import(initial?.settings_b2_checked_at)) {
+        if (!isRecord(initial?.settings_json)) {
+          return json(503,{error:"Account settings are queued for their first cloud import. Retry shortly."});
+        }
+        return json(200,{success:true,settings:initial.settings_json,created:false,legacyImportPending:true});
+      }
+      return await withAnalyticsWriteLock(async () => {
+        const row = await readAccountSyncRow();
+        if (row?.settings_b2_migrated === true && isRecord(row.settings_json)) {
+          return json(200,{success:true,settings:row.settings_json,created:false,legacyImportPending:false});
+        }
+        if (!shouldRetryB2Import(row?.settings_b2_checked_at) && isRecord(row?.settings_json)) {
+          return json(200,{success:true,settings:row.settings_json,created:false,legacyImportPending:true});
+        }
+        const legacy = await readB2Json(key);
+        const now = new Date().toISOString();
+        if (legacy.blocked) {
+          await saveSettingsState(isRecord(row?.settings_json) ? row.settings_json : null,false,now);
+          if (!isRecord(row?.settings_json)) {
+            return json(503,{error:"Backblaze's daily download cap is reached. Account settings will retry automatically after it resets."});
+          }
+          return json(200,{success:true,settings:row.settings_json,created:false,legacyImportPending:true});
+        }
+        const existing = isRecord(row?.settings_json) ? row.settings_json : {};
+        const settings = {...legacy.value,...existing};
+        if (!settings.version) settings.version = 1;
+        if (!settings.createdAt) settings.createdAt = now;
+        settings.updatedAt = now;
+        await saveSettingsState(settings,true,now);
+        let mirrorPending = false;
+        try { await writeB2Json(key,settings); }
+        catch (error) {
+          mirrorPending = true;
+          console.warn("Settings were saved to the account database; B2 JSON mirror will retry:",error);
+        }
+        return json(200,{
+          success:true,settings,created:!legacy.found && !Object.keys(existing).length,
+          legacyImportPending:false,mirrorPending
+        });
+      });
     }
 
     if (action === "settings_update") {
       const incoming = body?.settings;
-      if (!incoming || typeof incoming !== "object" || Array.isArray(incoming) ||
-          JSON.stringify(incoming).length > 20000) {
-        return json(400, { error: "Invalid settings payload." });
+      if (!isRecord(incoming) || JSON.stringify(incoming).length > 20000) {
+        return json(400,{error:"Invalid settings payload."});
+      }
+      for (const [setting,value] of Object.entries(incoming)) {
+        if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(setting))
+          return json(400,{error:"Invalid setting name."});
+        if (setting === "theme" && value !== "light" && value !== "dark")
+          return json(400,{error:"Theme must be light or dark."});
       }
       return await withAnalyticsWriteLock(async () => {
-      const key = prefix + "/stats/settings.json";
-      let saved: Record<string, unknown> = {};
-      try {
-        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        const raw = await object.Body?.transformToString();
-        const parsed = raw ? JSON.parse(raw) : {};
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) saved = parsed;
-      } catch (error) {
-        const status = (error as any)?.$metadata?.httpStatusCode;
-        const name = (error as any)?.name ?? "";
-        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
-      }
-      for (const [setting, value] of Object.entries(incoming)) {
-        if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(setting)) {
-          return json(400, { error: "Invalid setting name." });
+        const key = prefix + "/stats/settings.json";
+        const row = await readAccountSyncRow();
+        let saved = isRecord(row?.settings_json) ? {...row.settings_json} : {};
+        let migrated = row?.settings_b2_migrated === true;
+        let checkedAt = typeof row?.settings_b2_checked_at === "string" ? row.settings_b2_checked_at : null;
+        if (!migrated && shouldRetryB2Import(checkedAt)) {
+          const legacy = await readB2Json(key);
+          checkedAt = new Date().toISOString();
+          if (!legacy.blocked) {
+            saved = {...legacy.value,...saved};
+            migrated = true;
+          }
         }
-        if (setting === "theme" && value !== "light" && value !== "dark") {
-          return json(400, { error: "Theme must be light or dark." });
+        const now = new Date().toISOString();
+        if (!saved.createdAt) saved.createdAt = now;
+        for (const [setting,value] of Object.entries(incoming)) saved[setting] = value;
+        saved.version = 1;
+        saved.updatedAt = now;
+        await saveSettingsState(saved,migrated,checkedAt || now);
+        let mirrorPending = !migrated;
+        if (migrated) {
+          try {
+            await writeB2Json(key,saved);
+            mirrorPending = false;
+          } catch (error) {
+            mirrorPending = true;
+            console.warn("Settings are safe in the account database; B2 JSON mirror will retry:",error);
+          }
         }
-        saved[setting] = value;
-      }
-      saved.version = 1;
-      saved.updatedAt = new Date().toISOString();
-      await s3.send(new PutObjectCommand({
-        Bucket: bucket, Key: key, Body: JSON.stringify(saved),
-        ContentType: "application/json; charset=utf-8",
-      }));
-      return json(200, { success: true, settings: saved });
+        return json(200,{success:true,settings:saved,legacyImportPending:!migrated,mirrorPending});
       });
     }
 
     if (action === "analytics_get") {
       const key = prefix + "/stats/analytics.json";
-      try {
-        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        const raw = await object.Body?.transformToString();
-        const saved = raw ? JSON.parse(raw) : {};
-        const daily: Record<string, number> = {};
-        if (saved?.daily && typeof saved.daily === "object" && !Array.isArray(saved.daily)) {
-          for (const [date, value] of Object.entries(saved.daily)) {
-            if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(value) && Number(value) >= 0) {
-              daily[date] = Number(value);
-            }
+      const initial = await readAccountSyncRow();
+      if (initial?.analytics_b2_migrated === true && isRecord(initial.analytics_json)) {
+        const saved = normaliseAnalyticsDoc(initial.analytics_json);
+        const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
+          sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
+        return json(200,{
+          success:true,daily:saved.daily,dailySubjects:saved.dailySubjects,
+          dailyHours:saved.dailyHours,totalMs,legacyImportPending:false
+        });
+      }
+      if (!shouldRetryB2Import(initial?.analytics_b2_checked_at)) {
+        const saved = normaliseAnalyticsDoc(initial?.analytics_json);
+        const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
+          sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
+        return json(200,{
+          success:true,daily:saved.daily,dailySubjects:saved.dailySubjects,
+          dailyHours:saved.dailyHours,totalMs,legacyImportPending:true
+        });
+      }
+      return await withAnalyticsWriteLock(async () => {
+        const row = await readAccountSyncRow();
+        let saved = normaliseAnalyticsDoc(row?.analytics_json);
+        let migrated = row?.analytics_b2_migrated === true;
+        let checkedAt = typeof row?.analytics_b2_checked_at === "string" ? row.analytics_b2_checked_at : null;
+        if (!migrated && shouldRetryB2Import(checkedAt)) {
+          const legacy = await readB2Json(key);
+          checkedAt = new Date().toISOString();
+          if (legacy.blocked) {
+            await saveAnalyticsState(saved,false,checkedAt);
+            const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
+              sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
+            return json(200,{
+              success:true,daily:saved.daily,dailySubjects:saved.dailySubjects,
+              dailyHours:saved.dailyHours,totalMs,legacyImportPending:true,
+              readCapExceeded:true
+            });
+          }
+          if (legacy.found) saved = mergeAnalyticsDocs(saved,legacy.value);
+          migrated = true;
+        }
+        const now = new Date().toISOString();
+        saved.updatedAt = now;
+        await saveAnalyticsState(saved,migrated,checkedAt || now);
+        let mirrorPending = false;
+        if (migrated) {
+          try { await writeB2Json(key,saved); }
+          catch (error) {
+            mirrorPending = true;
+            console.warn("Analytics are safe in the account database; B2 JSON mirror will retry:",error);
           }
         }
-        const dailySubjects = saved?.dailySubjects && typeof saved.dailySubjects === "object" && !Array.isArray(saved.dailySubjects) ? saved.dailySubjects : {};
-        const dailyHours = saved?.dailyHours && typeof saved.dailyHours === "object" && !Array.isArray(saved.dailyHours) ? saved.dailyHours : {};
-        const totalMs = Object.values(daily).reduce((sum, value) => sum + value, 0);
-        return json(200, { success: true, daily, dailySubjects, dailyHours, totalMs });
-      } catch (error) {
-        const status = (error as any)?.$metadata?.httpStatusCode;
-        const name = (error as any)?.name ?? "";
-        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
-        return json(200, { success: true, daily: {}, dailySubjects: {}, dailyHours: {}, totalMs: 0 });
-      }
+        const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
+          sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
+        return json(200,{
+          success:true,daily:saved.daily,dailySubjects:saved.dailySubjects,
+          dailyHours:saved.dailyHours,totalMs,legacyImportPending:!migrated,mirrorPending
+        });
+      });
     }
+
+    const syncAnalyticsDocuments = async (records: any[], snapshot: any) => {
+      const key = prefix + "/stats/analytics.json";
+      const validDate = (value: unknown): value is string => {
+        if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+        const parsed = new Date(value + "T00:00:00.000Z");
+        return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0,10) === value;
+      };
+      return await withAnalyticsWriteLock(async () => {
+        const row = await readAccountSyncRow();
+        let saved = normaliseAnalyticsDoc(row?.analytics_json);
+        let migrated = row?.analytics_b2_migrated === true;
+        let checkedAt = typeof row?.analytics_b2_checked_at === "string" ? row.analytics_b2_checked_at : null;
+        if (!migrated && shouldRetryB2Import(checkedAt)) {
+          const legacy = await readB2Json(key);
+          checkedAt = new Date().toISOString();
+          if (!legacy.blocked) {
+            if (legacy.found) saved = mergeAnalyticsDocs(saved,legacy.value);
+            migrated = true;
+          }
+        }
+
+        let accepted = 0,duplicates = 0;
+        const seen = new Set<string>();
+        for (const record of records) {
+          if (!record || !validDate(record.date) ||
+              !Number.isSafeInteger(record.durationMs) || record.durationMs <= 0 ||
+              record.durationMs > 604800000 ||
+              typeof record.eventId !== "string" ||
+              !/^[A-Za-z0-9_-]{8,120}$/.test(record.eventId) ||
+              seen.has(record.eventId)) {
+            return json(400,{error:"One or more analytics records are invalid."});
+          }
+          seen.add(record.eventId);
+          if (saved.events[record.eventId] === true) {
+            duplicates++;
+            continue;
+          }
+          const subject = typeof record.subject === "string" && record.subject.trim()
+            ? record.subject.trim().slice(0,80) : "Unassigned";
+          saved.daily[record.date] = Math.max(0,Number(saved.daily[record.date]) || 0) + record.durationMs;
+          if (!isRecord(saved.dailySubjects[record.date])) saved.dailySubjects[record.date] = {};
+          saved.dailySubjects[record.date][subject] =
+            Math.max(0,Number(saved.dailySubjects[record.date][subject]) || 0) + record.durationMs;
+          if (isRecord(record.hourlyMs)) {
+            if (!isRecord(saved.dailyHours[record.date])) saved.dailyHours[record.date] = {};
+            for (const [hour,value] of Object.entries(record.hourlyMs)) {
+              if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) &&
+                  typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
+                saved.dailyHours[record.date][hour] =
+                  Math.max(0,Number(saved.dailyHours[record.date][hour]) || 0) + value;
+              }
+            }
+          }
+          saved.events[record.eventId] = true;
+          accepted++;
+        }
+        if (snapshot) mergeLegacySnapshot(saved,snapshot,validDate);
+        const updatedAt = new Date().toISOString();
+        saved.updatedAt = updatedAt;
+        await saveAnalyticsState(saved,migrated,checkedAt || updatedAt);
+        let mirrorPending = !migrated;
+        if (migrated) {
+          try {
+            await writeB2Json(key,saved);
+            mirrorPending = false;
+          } catch (error) {
+            mirrorPending = true;
+            console.warn("Analytics sync saved to the account database; B2 JSON mirror will retry:",error);
+          }
+        }
+        const totalMs = Object.values(saved.daily).reduce((sum:number,value:any)=>
+          sum + (Number.isFinite(value) ? Math.max(0,Number(value)) : 0),0);
+        return json(200,{
+          success:true,accepted,duplicates,daily:saved.daily,
+          dailySubjects:saved.dailySubjects,dailyHours:saved.dailyHours,
+          totalMs,updatedAt,legacyImportPending:!migrated,mirrorPending
+        });
+      });
+    };
 
     if (action === "analytics_record") {
       const date = body?.date;
       const durationMs = body?.durationMs;
       const eventId = body?.eventId;
-      const subject = typeof body?.subject === "string" && body.subject.trim() ? body.subject.trim().slice(0, 80) : "Unassigned";
-      const hourlyMs = body?.hourlyMs && typeof body.hourlyMs === "object" && !Array.isArray(body.hourlyMs) ? body.hourlyMs : null;
       if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
           !Number.isSafeInteger(durationMs) || durationMs <= 0 || durationMs > 604800000 ||
-          typeof eventId !== "string" || !/^[A-Za-z0-9_-]{8,100}$/.test(eventId)) {
-        return json(400, { error: "Invalid study-time record." });
+          typeof eventId !== "string" || !/^[A-Za-z0-9_-]{8,120}$/.test(eventId)) {
+        return json(400,{error:"Invalid study-time record."});
       }
-      return await withAnalyticsWriteLock(async () => {
-      const key = prefix + "/stats/analytics.json";
-      let saved: any = { version: 1, daily: {}, events: {} };
-      try {
-        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        const raw = await object.Body?.transformToString();
-        if (raw) saved = JSON.parse(raw);
-      } catch (error) {
-        const status = (error as any)?.$metadata?.httpStatusCode;
-        const name = (error as any)?.name ?? "";
-        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
-      }
-      if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
-      if (!saved.daily || typeof saved.daily !== "object" || Array.isArray(saved.daily)) saved.daily = {};
-      if (!saved.dailySubjects || typeof saved.dailySubjects !== "object" || Array.isArray(saved.dailySubjects)) saved.dailySubjects = {};
-      if (!saved.dailyHours || typeof saved.dailyHours !== "object" || Array.isArray(saved.dailyHours)) saved.dailyHours = {};
-      if (!saved.events || typeof saved.events !== "object" || Array.isArray(saved.events)) saved.events = {};
-      if (saved.events[eventId] !== true) {
-        saved.daily[date] = Math.max(0, Number(saved.daily[date]) || 0) + durationMs;
-        if (!saved.dailySubjects[date] || typeof saved.dailySubjects[date] !== "object" || Array.isArray(saved.dailySubjects[date])) saved.dailySubjects[date] = {};
-        saved.dailySubjects[date][subject] = Math.max(0, Number(saved.dailySubjects[date][subject]) || 0) + durationMs;
-        if (hourlyMs) {
-          if (!saved.dailyHours[date] || typeof saved.dailyHours[date] !== "object" || Array.isArray(saved.dailyHours[date])) saved.dailyHours[date] = {};
-          for (const [hour, value] of Object.entries(hourlyMs)) {
-            if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) && typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
-              saved.dailyHours[date][hour] = Math.max(0, Number(saved.dailyHours[date][hour]) || 0) + Number(value);
-            }
-          }
-        }
-        saved.events[eventId] = true;
-      }
-      const totalMs = Object.values(saved.daily).reduce((sum: number, value: unknown) =>
-        sum + (Number.isFinite(value) ? Math.max(0, Number(value)) : 0), 0);
-      const payload = JSON.stringify({ version: 4, daily: saved.daily, dailySubjects: saved.dailySubjects, dailyHours: saved.dailyHours, events: saved.events, updatedAt: new Date().toISOString() });
-      await s3.send(new PutObjectCommand({
-        Bucket: bucket, Key: key, Body: payload, ContentType: "application/json; charset=utf-8",
-      }));
-      return json(200, { success: true, daily: saved.daily, dailySubjects: saved.dailySubjects, totalMs });
-      });
+      return await syncAnalyticsDocuments([{
+        date,durationMs,eventId,subject:body?.subject,hourlyMs:body?.hourlyMs
+      }],null);
     }
 
     if (action === "analytics_sync") {
       const records = body.records == null ? [] : body.records;
       const snapshot = body.snapshot == null ? null : body.snapshot;
       if (!Array.isArray(records) || records.length > 100 ||
-          (snapshot !== null && (!snapshot || typeof snapshot !== "object" ||
-            Array.isArray(snapshot) || JSON.stringify(snapshot).length > 1500000))) {
-        return json(400, { error: "Invalid analytics sync payload." });
+          (snapshot !== null && (!isRecord(snapshot) || JSON.stringify(snapshot).length > 1500000))) {
+        return json(400,{error:"Invalid analytics sync payload."});
       }
-      const validDate = (value: unknown): value is string => {
-        if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-        const parsed = new Date(value + "T00:00:00.000Z");
-        return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-      };
-      return await withAnalyticsWriteLock(async () => {
-      const key = prefix + "/stats/analytics.json";
-      let saved: any = { version: 4, daily: {}, dailySubjects: {}, dailyHours: {}, events: {} };
-      try {
-        const object = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        const raw = await object.Body?.transformToString();
-        if (raw) saved = JSON.parse(raw);
-      } catch (error) {
-        const status = (error as any)?.$metadata?.httpStatusCode;
-        const name = (error as any)?.name ?? "";
-        if (status !== 404 && name !== "NoSuchKey" && name !== "NotFound") throw error;
-      }
-      if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
-      if (!saved.daily || typeof saved.daily !== "object" || Array.isArray(saved.daily)) saved.daily = {};
-      if (!saved.dailySubjects || typeof saved.dailySubjects !== "object" || Array.isArray(saved.dailySubjects)) saved.dailySubjects = {};
-      if (!saved.dailyHours || typeof saved.dailyHours !== "object" || Array.isArray(saved.dailyHours)) saved.dailyHours = {};
-      if (!saved.events || typeof saved.events !== "object" || Array.isArray(saved.events)) saved.events = {};
-
-      let accepted = 0, duplicates = 0;
-      const seen = new Set<string>();
-      for (const record of records) {
-        if (!record || !validDate(record.date) ||
-            !Number.isSafeInteger(record.durationMs) || record.durationMs <= 0 ||
-            record.durationMs > 604800000 ||
-            typeof record.eventId !== "string" ||
-            !/^[A-Za-z0-9_-]{8,120}$/.test(record.eventId) ||
-            seen.has(record.eventId)) {
-          return json(400, { error: "One or more analytics records are invalid." });
-        }
-        seen.add(record.eventId);
-        if (saved.events[record.eventId] === true) {
-          duplicates++;
-          continue;
-        }
-        const subject = typeof record.subject === "string" && record.subject.trim()
-          ? record.subject.trim().slice(0, 80) : "Unassigned";
-        saved.daily[record.date] = Math.max(0, Number(saved.daily[record.date]) || 0) + record.durationMs;
-        if (!saved.dailySubjects[record.date] ||
-            typeof saved.dailySubjects[record.date] !== "object" ||
-            Array.isArray(saved.dailySubjects[record.date])) saved.dailySubjects[record.date] = {};
-        saved.dailySubjects[record.date][subject] =
-          Math.max(0, Number(saved.dailySubjects[record.date][subject]) || 0) + record.durationMs;
-        if (record.hourlyMs && typeof record.hourlyMs === "object" &&
-            !Array.isArray(record.hourlyMs)) {
-          if (!saved.dailyHours[record.date] || typeof saved.dailyHours[record.date] !== "object" ||
-              Array.isArray(saved.dailyHours[record.date])) saved.dailyHours[record.date] = {};
-          for (const [hour, value] of Object.entries(record.hourlyMs)) {
-            if (/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) &&
-                typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
-              saved.dailyHours[record.date][hour] =
-                Math.max(0, Number(saved.dailyHours[record.date][hour]) || 0) + value;
-            }
-          }
-        }
-        saved.events[record.eventId] = true;
-        accepted++;
-      }
-
-      // Reconcile pre-cloud browser caches once per account/device. Max-merging makes
-      // this idempotent and prevents already-uploaded sessions being counted twice.
-      if (snapshot) {
-        const daily = snapshot.daily;
-        const dailySubjects = snapshot.dailySubjects;
-        const dailyHours = snapshot.dailyHours;
-        if (daily != null && (typeof daily !== "object" || Array.isArray(daily)) ||
-            dailySubjects != null && (typeof dailySubjects !== "object" || Array.isArray(dailySubjects)) ||
-            dailyHours != null && (typeof dailyHours !== "object" || Array.isArray(dailyHours))) {
-          return json(400, { error: "Invalid legacy analytics snapshot." });
-        }
-        for (const [date, value] of Object.entries(daily || {})) {
-          if (!validDate(date) || typeof value !== "number" || !Number.isFinite(value) || value < 0) continue;
-          saved.daily[date] = Math.max(0, Number(saved.daily[date]) || 0, value);
-        }
-        for (const [date, subjects] of Object.entries(dailySubjects || {})) {
-          if (!validDate(date) || !subjects || typeof subjects !== "object" || Array.isArray(subjects)) continue;
-          if (!saved.dailySubjects[date] || typeof saved.dailySubjects[date] !== "object" ||
-              Array.isArray(saved.dailySubjects[date])) saved.dailySubjects[date] = {};
-          for (const [subject, value] of Object.entries(subjects)) {
-            if (!subject || subject.length > 80 || typeof value !== "number" ||
-                !Number.isFinite(value) || value < 0) continue;
-            saved.dailySubjects[date][subject] =
-              Math.max(0, Number(saved.dailySubjects[date][subject]) || 0, value);
-          }
-        }
-        for (const [date, hours] of Object.entries(dailyHours || {})) {
-          if (!validDate(date) || !hours || typeof hours !== "object" || Array.isArray(hours)) continue;
-          if (!saved.dailyHours[date] || typeof saved.dailyHours[date] !== "object" ||
-              Array.isArray(saved.dailyHours[date])) saved.dailyHours[date] = {};
-          for (const [hour, value] of Object.entries(hours)) {
-            if (!/^(?:[0-9]|1[0-9]|2[0-3])$/.test(hour) ||
-                typeof value !== "number" || !Number.isFinite(value) || value < 0) continue;
-            saved.dailyHours[date][hour] =
-              Math.max(0, Number(saved.dailyHours[date][hour]) || 0, value);
-          }
-        }
-      }
-
-      const updatedAt = new Date().toISOString();
-      const totalMs = Object.values(saved.daily).reduce((sum: number, value: unknown) =>
-        sum + (Number.isFinite(value) ? Math.max(0, Number(value)) : 0), 0);
-      const payload = JSON.stringify({
-        version: 4, daily: saved.daily, dailySubjects: saved.dailySubjects,
-        dailyHours: saved.dailyHours, events: saved.events, updatedAt
-      });
-      await s3.send(new PutObjectCommand({
-        Bucket: bucket, Key: key, Body: payload,
-        ContentType: "application/json; charset=utf-8",
-      }));
-      return json(200, {
-        success: true, accepted, duplicates, daily: saved.daily,
-        dailySubjects: saved.dailySubjects, dailyHours: saved.dailyHours,
-        totalMs, updatedAt
-      });
-      });
+      return await syncAnalyticsDocuments(records,snapshot);
     }
 
     if (action === "profile_picture_get") {
