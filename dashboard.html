@@ -56,7 +56,7 @@
       <button class="menu-item" id="change-pfp" type="button">Change profile picture</button>
       <button class="menu-item" id="remove-pfp" type="button" hidden>Remove profile picture</button>
       <button class="menu-item" id="change-account" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 8v6m-3-3h6"/></svg><span>Change account</span></button>
-      <button class="menu-item" id="profile-settings" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1-.1 1.8Z"/></svg><span>Settings</span></button>
+      <button class="menu-item" id="profile-settings" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7 2.4-1.4 1.1a7 7 0 0 1-.1 1.8Z"/></svg><span>Settings</span></button>
       <button class="menu-item" id="theme-toggle" type="button">Switch to dark mode</button>
       <button class="menu-item" id="profile-signout" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg><span>Sign out</span></button>
     </nav>
@@ -94,11 +94,11 @@
         const mobile = window.matchMedia("(max-width: 620px)").matches;
         const targets = [
           [".study-stopwatch", 0],
-          ["#study-subjects", 100],
-          [".task-list-card", 180],
-          ["#profile-button", 220],
-          ["#mail-button", 260],
-          [".bottom-nav", 320]
+          ["#study-subjects", 260],
+          [".task-list-card", 520],
+          ["#profile-button", 680],
+          ["#mail-button", 820],
+          [".bottom-nav", 980]
         ];
         targets.forEach(([selector, delay]) => {
           const element = document.querySelector(selector);
@@ -107,7 +107,7 @@
             { opacity: 0, transform: "translateY(30px) scale(.86)", filter: "blur(7px)" },
             { opacity: 1, transform: "translateY(0) scale(1)", filter: "blur(0)" }
           ], {
-            duration: 900,
+            duration: 1800,
             delay,
             easing: "cubic-bezier(.16,.78,.22,1)",
             fill: "both"
