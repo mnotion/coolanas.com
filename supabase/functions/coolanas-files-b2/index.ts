@@ -1325,7 +1325,7 @@ Deno.serve(async (req) => {
       const files = (rows ?? []).filter((row: any) =>
         typeof row.storage_path === "string" && row.storage_path.startsWith(folderPrefix)
       );
-      if (files.length > 500) return json(413, { error: "This folder contains too many files to zip in one download. Download a smaller folder." });
+      if (files.length > 2000) return json(413, { error: "This folder contains too many files to zip in one download. Download a smaller folder." });
       const manifest = [];
       for (const file of files) {
         const relativePath = file.storage_path.slice(folderPrefix.length);
