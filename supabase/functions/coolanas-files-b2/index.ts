@@ -268,7 +268,18 @@ Deno.serve(async (req) => {
       const key = prefix + "/stats/settings.json";
       const initial = await readAccountSyncRow();
       if (initial?.settings_b2_migrated === true && isRecord(initial.settings_json)) {
-        return json(200,{success:true,settings:initial.settings_json,created:false,legacyImportPending:false});
+        let mirrorPending = initial.settings_b2_mirror_pending === true;
+        if (mirrorPending && shouldRetryB2Import(initial.settings_b2_checked_at)) {
+          const now = new Date().toISOString();
+          try {
+            await writeB2Json(key,initial.settings_json);
+            mirrorPending = false;
+          } catch (error) {
+            console.warn("Could not retry the settings JSON mirror:",error);
+          }
+          await saveSettingsState(initial.settings_json,true,now,mirrorPending);
+        }
+        return json(200,{success:true,settings:initial.settings_json,created:false,legacyImportPending:false,mirrorPending});
       }
       if (!shouldRetryB2Import(initial?.settings_b2_checked_at)) {
         if (!isRecord(initial?.settings_json)) {
@@ -279,7 +290,18 @@ Deno.serve(async (req) => {
       return await withAnalyticsWriteLock(async () => {
         const row = await readAccountSyncRow();
         if (row?.settings_b2_migrated === true && isRecord(row.settings_json)) {
-          return json(200,{success:true,settings:row.settings_json,created:false,legacyImportPending:false});
+          let mirrorPending = row.settings_b2_mirror_pending === true;
+          if (mirrorPending && shouldRetryB2Import(row.settings_b2_checked_at)) {
+            const now = new Date().toISOString();
+            try {
+              await writeB2Json(key,row.settings_json);
+              mirrorPending = false;
+            } catch (error) {
+              console.warn("Could not retry the settings JSON mirror:",error);
+            }
+            await saveSettingsState(row.settings_json,true,now,mirrorPending);
+          }
+          return json(200,{success:true,settings:row.settings_json,created:false,legacyImportPending:false,mirrorPending});
         }
         if (!shouldRetryB2Import(row?.settings_b2_checked_at) && isRecord(row?.settings_json)) {
           return json(200,{success:true,settings:row.settings_json,created:false,legacyImportPending:true});
@@ -287,7 +309,7 @@ Deno.serve(async (req) => {
         const legacy = await readB2Json(key);
         const now = new Date().toISOString();
         if (legacy.blocked) {
-          await saveSettingsState(isRecord(row?.settings_json) ? row.settings_json : null,false,now);
+          await saveSettingsState(isRecord(row?.settings_json) ? row.settings_json : null,false,now,true);
           if (!isRecord(row?.settings_json)) {
             return json(503,{error:"Backblaze's daily download cap is reached. Account settings will retry automatically after it resets."});
           }
@@ -298,12 +320,15 @@ Deno.serve(async (req) => {
         if (!settings.version) settings.version = 1;
         if (!settings.createdAt) settings.createdAt = now;
         settings.updatedAt = now;
-        await saveSettingsState(settings,true,now);
-        let mirrorPending = false;
-        try { await writeB2Json(key,settings); }
-        catch (error) {
-          mirrorPending = true;
+        let mirrorPending = true;
+        await saveSettingsState(settings,true,now,mirrorPending);
+        try {
+          await writeB2Json(key,settings);
+          mirrorPending = false;
+          await saveSettingsState(settings,true,new Date().toISOString(),false);
+        } catch (error) {
           console.warn("Settings were saved to the account database; B2 JSON mirror will retry:",error);
+          await saveSettingsState(settings,true,new Date().toISOString(),true);
         }
         return json(200,{
           success:true,settings,created:!legacy.found && !Object.keys(existing).length,
@@ -329,12 +354,14 @@ Deno.serve(async (req) => {
         let saved = isRecord(row?.settings_json) ? {...row.settings_json} : {};
         let migrated = row?.settings_b2_migrated === true;
         let checkedAt = typeof row?.settings_b2_checked_at === "string" ? row.settings_b2_checked_at : null;
+        let mirrorPending = row?.settings_b2_mirror_pending === true || !migrated;
         if (!migrated && shouldRetryB2Import(checkedAt)) {
           const legacy = await readB2Json(key);
           checkedAt = new Date().toISOString();
           if (!legacy.blocked) {
             saved = {...legacy.value,...saved};
             migrated = true;
+            mirrorPending = true;
           }
         }
         const now = new Date().toISOString();
@@ -342,9 +369,12 @@ Deno.serve(async (req) => {
         for (const [setting,value] of Object.entries(incoming)) saved[setting] = value;
         saved.version = 1;
         saved.updatedAt = now;
-        await saveSettingsState(saved,migrated,checkedAt || now);
-        let mirrorPending = !migrated;
-        if (migrated) {
+        const saveCheckedAt = checkedAt || now;
+        await saveSettingsState(saved,migrated,saveCheckedAt,mirrorPending);
+        const shouldMirror = migrated &&
+          (!row?.settings_b2_mirror_pending || shouldRetryB2Import(checkedAt));
+        if (shouldMirror) {
+          const mirrorAttemptAt = new Date().toISOString();
           try {
             await writeB2Json(key,saved);
             mirrorPending = false;
@@ -352,6 +382,7 @@ Deno.serve(async (req) => {
             mirrorPending = true;
             console.warn("Settings are safe in the account database; B2 JSON mirror will retry:",error);
           }
+          await saveSettingsState(saved,true,mirrorAttemptAt,mirrorPending);
         }
         return json(200,{success:true,settings:saved,legacyImportPending:!migrated,mirrorPending});
       });
