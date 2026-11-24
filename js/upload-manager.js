@@ -14,6 +14,17 @@
     #coolanas-upload-status .cu-bottom{display:flex;justify-content:space-between;gap:8px;margin-top:5px;opacity:.7;font-size:10px}
     #coolanas-upload-status button{border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;padding:2px 3px}
     #coolanas-upload-status .cu-terminate{color:#c33;font-weight:650}
+    #coolanas-upload-status .cu-files{display:grid;gap:8px;max-height:min(42vh,280px);overflow:auto;margin-top:9px}
+    #coolanas-upload-status .cu-file{min-width:0}
+    #coolanas-upload-status .cu-file-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:4px}
+    #coolanas-upload-status .cu-file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    #coolanas-upload-status .cu-file-state{flex:none;opacity:.7}
+    #coolanas-upload-status .cu-file-track{height:3px;border-radius:8px;background:rgba(120,120,120,.2);overflow:hidden}
+    #coolanas-upload-status .cu-file-fill{height:100%;width:0;background:#4778ee}
+    #coolanas-upload-status .cu-file.uploading .cu-file-fill{width:100%;animation:cu-pulse 1.2s ease-in-out infinite alternate}
+    #coolanas-upload-status .cu-file.complete .cu-file-fill{width:100%;background:#299764}
+    #coolanas-upload-status .cu-file.failed .cu-file-fill{width:100%;background:#c33}
+    @keyframes cu-pulse{from{opacity:.25}to{opacity:1}}
     @media(prefers-color-scheme:dark){#coolanas-upload-status{--upload-bg:#242424;--upload-fg:#f5f5f5}}
   `;
   document.head.append(style);
@@ -105,26 +116,46 @@
     const active = tasks.filter(t => t.status === "pending" || t.status === "uploading");
     const failed = tasks.filter(t => t.status === "failed");
     const completed = tasks.filter(t => t.status === "complete");
-    const total = active.length + failed.length + completed.length;
-    if (!total) {
-      panel.classList.remove("visible");
-      return;
-    }
+    const visible = tasks.filter(t => ["pending","uploading","failed","complete"].includes(t.status))
+        .sort((a,b) => (a.createdAt || 0) - (b.createdAt || 0)).slice(-30);
     if (!active.length && !failed.length) {
       panel.classList.remove("visible");
       return;
     }
     const done = completed.length, uploading = active.filter(t => t.status === "uploading").length;
     panel.classList.add("visible");
-    panel.querySelector(".cu-title").textContent =
-        failed.length ? "Uploads need attention" : "Uploading files";
+    panel.querySelector(".cu-title").textContent = failed.length ? "Uploads need attention" : "Uploading files";
     panel.querySelector(".cu-fill").style.width =
-        (total ? Math.round(done / total * 100) : 0) + "%";
+        (tasks.length ? Math.round(done / tasks.length * 100) : 0) + "%";
     panel.querySelector(".cu-detail").textContent =
         failed[0]?.error || active[0]?.fileName || "Finishing uploads…";
-    panel.querySelector(".cu-count").textContent =
-        done + "/" + total + " · " + uploading + " active";
-    window.dispatchEvent(new CustomEvent("coolanas-upload-updated", {detail: tasks}));
+    panel.querySelector(".cu-count").textContent = done + "/" + tasks.length + " · " + uploading + " active";
+    const fileList = panel.querySelector(".cu-files");
+    fileList.replaceChildren();
+    for (const task of visible) {
+      const row = document.createElement("div");
+      row.className = "cu-file " + task.status;
+      const head = document.createElement("div");
+      head.className = "cu-file-head";
+      const name = document.createElement("span");
+      name.className = "cu-file-name";
+      name.textContent = task.fileName || "Untitled file";
+      name.title = task.fileName || "";
+      const state = document.createElement("span");
+      state.className = "cu-file-state";
+      state.textContent = task.status === "complete" ? "Complete" :
+          task.status === "uploading" ? "Uploading…" :
+          task.status === "failed" ? "Failed" : "Queued";
+      head.append(name,state);
+      const track = document.createElement("div");
+      track.className = "cu-file-track";
+      const fill = document.createElement("div");
+      fill.className = "cu-file-fill";
+      track.append(fill);
+      row.append(head,track);
+      if (task.status === "failed" && task.error) row.title = task.error;
+      fileList.append(row);
+    }
   }
   async function registerWorker() {
     if (!("serviceWorker" in navigator)) return null;
