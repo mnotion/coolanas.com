@@ -165,17 +165,19 @@ Deno.serve(async (req) => {
     };
     const readAccountSyncRow = async () => {
       const {data,error} = await supabase.from("coolanas_dashboard_data")
-        .select("settings_json, settings_b2_migrated, settings_b2_checked_at, analytics_json, analytics_b2_migrated, analytics_b2_checked_at")
+        .select("settings_json, settings_b2_migrated, settings_b2_checked_at, settings_b2_mirror_pending, analytics_json, analytics_b2_migrated, analytics_b2_checked_at, analytics_b2_mirror_pending")
         .eq("user_id",userId).maybeSingle();
       if (error) throw error;
       return data;
     };
     const saveSettingsState = async (
-      settings: Record<string, unknown> | null, migrated: boolean, checkedAt: string
+      settings: Record<string, unknown> | null, migrated: boolean, checkedAt: string,
+      mirrorPending = false
     ) => {
       const {error} = await supabase.from("coolanas_dashboard_data").upsert({
         user_id:userId,settings_json:settings,settings_b2_migrated:migrated,
-        settings_b2_checked_at:checkedAt,updated_at:new Date().toISOString()
+        settings_b2_checked_at:checkedAt,settings_b2_mirror_pending:mirrorPending,
+        updated_at:new Date().toISOString()
       },{onConflict:"user_id"});
       if (error) throw error;
     };
@@ -222,11 +224,13 @@ Deno.serve(async (req) => {
       return current;
     };
     const saveAnalyticsState = async (
-      analytics: Record<string, unknown>, migrated: boolean, checkedAt: string
+      analytics: Record<string, unknown>, migrated: boolean, checkedAt: string,
+      mirrorPending = false
     ) => {
       const {error} = await supabase.from("coolanas_dashboard_data").upsert({
         user_id:userId,analytics_json:analytics,analytics_b2_migrated:migrated,
-        analytics_b2_checked_at:checkedAt,updated_at:new Date().toISOString()
+        analytics_b2_checked_at:checkedAt,analytics_b2_mirror_pending:mirrorPending,
+        updated_at:new Date().toISOString()
       },{onConflict:"user_id"});
       if (error) throw error;
     };
