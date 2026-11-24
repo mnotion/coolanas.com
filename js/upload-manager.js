@@ -33,7 +33,7 @@
   panel.setAttribute("role", "status");
   panel.setAttribute("aria-live", "polite");
   panel.innerHTML =
-      "<div class=\"cu-top\"><span class=\"cu-title\">Uploading files</span><button type=\"button\" class=\"cu-dismiss\">Hide</button><button type=\"button\" class=\"cu-terminate\">Terminate</button></div><div class=\"cu-track\"><div class=\"cu-fill\"></div></div><div class=\"cu-bottom\"><span class=\"cu-detail\">Preparing…</span><span class=\"cu-count\"></span></div>";
+      "<div class=\\"cu-top\\"><span class=\\"cu-title\\">Uploading files</span><button type=\\"button\\" class=\\"cu-dismiss\\">Hide</button><button type=\\"button\\" class=\\"cu-terminate\\">Terminate</button></div><div class=\\"cu-track\\"><div class=\\"cu-fill\\"></div></div><div class=\\"cu-bottom\\"><span class=\\"cu-detail\\">Preparing…</span><span class=\\"cu-count\\"></span></div><div class=\\"cu-files\\"></div>";
   document.body.append(panel);
   panel.querySelector(".cu-dismiss")
       .addEventListener("click", () => panel.classList.remove("visible"));
