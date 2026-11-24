@@ -786,6 +786,22 @@ tagInput.addEventListener("change", async () => {
     alert("Could not save tag: " + error.message);
   }
 });
+document.getElementById("card-settings-download").addEventListener("click", async () => {
+  if (!activeSettingsItem) return;
+  const item = activeSettingsItem;
+  const button = document.getElementById("card-settings-download");
+  button.disabled = true;
+  button.textContent = "Preparing download…";
+  try {
+    closeCardSettings();
+    await downloadItem(item);
+  } catch (error) {
+    alert("Could not download " + item.name + ": " + error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Download";
+  }
+});
 document.getElementById("card-settings-delete").addEventListener("click", async () => {
   if (!activeSettingsItem) return;
   const item = activeSettingsItem;
@@ -2468,6 +2484,45 @@ async function reorderBefore(ids, targetId) {
   } catch (error) {
     alert(error.message);
   }
+}
+async function downloadItem(item) {
+  if (item.item_type === "file") {
+    const result = await filesAction("download", {id: item.id});
+    const response = await fetch(result.downloadUrl);
+    if (!response.ok) throw new Error("File download failed (" + response.status + ").");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = item.name;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return;
+  }
+  const manifest = await filesAction("download_archive_manifest", {id: item.id});
+  if (!Array.isArray(manifest.files) || !manifest.files.length) {
+    throw new Error("This folder is empty.");
+  }
+  const {default: JSZip} = await import("https://esm.sh/jszip@3.10.1");
+  const zip = new JSZip();
+  let completed = 0;
+  for (const entry of manifest.files) {
+    const response = await fetch(entry.downloadUrl);
+    if (!response.ok) throw new Error("Could not download " + entry.name + " (" + response.status + ").");
+    zip.file(entry.name, await response.blob());
+    completed++;
+  }
+  const blob = await zip.generateAsync({type: "blob", compression: "DEFLATE", compressionOptions: {level: 5}});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = (item.name || "Coolanas download") + ".zip";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 async function openFile(item) {
   viewer.hidden = false;
