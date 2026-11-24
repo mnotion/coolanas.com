@@ -1289,6 +1289,60 @@ Deno.serve(async (req) => {
       return json(200, { success: true });
     }
 
+    if (action === "download_archive_manifest") {
+      const id = cleanId(body.id);
+      if (!id) return json(400, { error: "Invalid folder." });
+      const { data: selected, error: selectedError } = await supabase.from("coolanas_files")
+        .select("id,owner_id,name,item_type,storage_path")
+        .eq("id", id).eq("item_type", "folder").maybeSingle();
+      if (selectedError || !selected || !selected.storage_path) {
+        return json(404, { error: "Folder not found or access denied." });
+      }
+      let permitted = selected.owner_id === userId;
+      if (permitted) {
+        if (!belongsToUserPath(selected.storage_path)) {
+          return json(403, { error: "Folder path does not belong to this account." });
+        }
+      } else {
+        const { data: shares, error: shareError } = await supabase.from("bucket_shares")
+          .select("bucket_path,permission")
+          .eq("owner_id", selected.owner_id).eq("recipient_id", userId).is("revoked_at", null);
+        if (shareError) throw shareError;
+        const matching = (shares ?? []).filter((share: any) =>
+          typeof share.bucket_path === "string" && selected.storage_path.startsWith(share.bucket_path)
+        );
+        if (!matching.length || !matching.some((share: any) => share.permission === "view_download")) {
+          return json(403, { error: "The owner has disabled downloads for this shared bucket." });
+        }
+        permitted = true;
+      }
+      if (!permitted) return json(403, { error: "You do not have permission to download this folder." });
+      const { data: rows, error: rowsError } = await supabase.from("coolanas_files")
+        .select("id,name,item_type,storage_path")
+        .eq("owner_id", selected.owner_id).eq("item_type", "file");
+      if (rowsError) throw rowsError;
+      const folderPrefix = selected.storage_path.endsWith("/") ? selected.storage_path : selected.storage_path + "/";
+      const files = (rows ?? []).filter((row: any) =>
+        typeof row.storage_path === "string" && row.storage_path.startsWith(folderPrefix)
+      );
+      if (files.length > 500) return json(413, { error: "This folder contains too many files to zip in one download. Download a smaller folder." });
+      const manifest = [];
+      for (const file of files) {
+        const relativePath = file.storage_path.slice(folderPrefix.length);
+        if (!relativePath || relativePath.split("/").some((part: string) => !part || part === "." || part === "..")) continue;
+        const command = new GetObjectCommand({
+          Bucket: bucket,
+          Key: file.storage_path,
+          ResponseContentDisposition: "attachment; filename*=UTF-8''" + encodeURIComponent(file.name),
+        });
+        manifest.push({
+          name: relativePath,
+          downloadUrl: await getSignedUrl(s3, command, { expiresIn: 600 }),
+        });
+      }
+      return json(200, { files: manifest, count: manifest.length });
+    }
+
     if (action === "download" || action === "file_preview") {
       const previewOnly = action === "file_preview";
       const id = cleanId(body.id);
