@@ -454,13 +454,13 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-composer{border-top:0!important;padding:12px 16px 16px!important}
     .sca-dm-input-wrap{border:0!important;background:transparent!important;box-shadow:0 3px 14px rgba(0,0,0,.075),0 0 0 1px rgba(120,120,120,.10)!important;padding:7px!important}
     html.dark-mode .sca-dm-input-wrap{box-shadow:0 3px 14px rgba(0,0,0,.24),0 0 0 1px rgba(255,255,255,.10)!important}
-    .sca-dm-message-row{display:flex;align-items:flex-end;gap:4px;width:100%;max-width:100%;box-sizing:border-box}
-    .sca-dm-message-row.mine{align-self:flex-end;flex-direction:row-reverse}
-    .sca-dm-message-row.theirs{align-self:flex-start;flex-direction:row}
-    .sca-dm-message-group{display:flex;flex:0 1 min(50%,520px);flex-direction:column;gap:0;min-width:0;width:fit-content;max-width:min(50%,520px);box-sizing:border-box;padding:9px 12px;border-radius:15px;background:rgba(75,125,190,.15);overflow-wrap:break-word;word-break:normal;hyphens:manual;white-space:pre-wrap;font-size:13px;line-height:1.45}
+    .sca-dm-message-row{display:flex;align-items:flex-end;gap:4px;width:100%;max-width:100%;box-sizing:border-box;justify-content:flex-start}
+    .sca-dm-message-row.mine{align-self:stretch;flex-direction:row-reverse;justify-content:flex-start}
+    .sca-dm-message-row.theirs{align-self:stretch;flex-direction:row;justify-content:flex-start}
+    .sca-dm-message-group{display:flex;flex:0 0 min(50%,520px);flex-direction:column;gap:0;min-width:0;width:min(50%,520px);max-width:min(50%,520px);box-sizing:border-box;padding:9px 12px;border-radius:15px;background:rgba(75,125,190,.15);overflow-wrap:break-word;word-break:normal;hyphens:manual;white-space:pre-wrap;font-size:13px;line-height:1.45}
     .sca-dm-message-group.theirs{background:rgba(120,120,120,.10)}
     .sca-dm-message-line{margin:0;padding:0;text-indent:0;white-space:pre-wrap}
-    .sca-dm-message-row{gap:4px;margin:0}
+    .sca-dm-message-row{gap:4px;margin-top:10px}.sca-dm-message-row:first-child{margin-top:0}.sca-dm-message-row.same-sender{margin-top:3px}
     .sca-dm-message-row.mine .sca-dm-message-group{border-top-right-radius:5px}
     .sca-dm-message-row.theirs .sca-dm-message-group{border-top-left-radius:5px}
     .sca-dm-message-row .sca-dm-bubble{max-width:min(72%,520px)}
@@ -735,9 +735,12 @@ async function openScaConversation(friend,picture){
  input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
  function renderMessageRows(rows){
   messages.replaceChildren();
+  let previousSenderId=null;
   for(const message of rows){
    const mine=message.sender_id===user.id;
-   const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs");
+   const sameSender=previousSenderId===message.sender_id;
+   const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs")+(sameSender?" same-sender":"");
+   previousSenderId=message.sender_id;
    const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
    const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);
    avatar.append(avatarElement);
