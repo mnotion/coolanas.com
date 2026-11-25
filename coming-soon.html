@@ -879,6 +879,7 @@ async function openScaConversation(friend,picture){
  try{cachedRows=await getScaCachedMessages(conversationId);if(cachedRows.length)renderMessageRows(cachedRows);}catch(e){console.warn("Could not read cached messages:",e);}
  messages.scrollTop=messages.scrollHeight;
  await loadMessages();if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
+ let remoteTypingExpiry=null;
  scaDmChannel=supabase.channel("sca-dm-"+conversationId)
   .on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},()=>loadMessages().catch(console.warn))
   .on("postgres_changes",{event:"UPDATE",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},async payload=>{
@@ -889,7 +890,6 @@ async function openScaConversation(friend,picture){
    await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
    renderMessageRows(cachedRows);
   })
-  let remoteTypingExpiry=null;
   .on("broadcast",{event:"typing"},({payload})=>{
    if(payload?.userId===user.id)return;
    const visible=payload?.typing===true;
