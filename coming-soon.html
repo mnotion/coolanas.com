@@ -330,6 +330,9 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       .sca-workspace.is-expanded .sca-main{width:calc(100vw - 20px)!important;margin:0;padding-right:78px}
       .sca-friends-rail.is-open{width:min(300px,calc(100vw - 92px))}
     }
+    .sca-workspace.is-expanded .sca-main{width:calc(100vw - 192px)!important;margin-left:104px;margin-right:88px;padding-right:24px}
+    .sca-workspace.is-expanded .sca-friends-rail.is-open{width:min(330px,calc(100vw - 150px))}
+    .sca-workspace.is-expanded .sca-main:has(+ .sca-friends-rail.is-open){width:calc(100vw - 104px - 378px)!important;margin-right:378px}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -432,6 +435,8 @@ const friendResults=document.getElementById("sca-friend-results");
 const friendRequestList=document.getElementById("sca-friend-request-list");
 const friendAvatars=document.getElementById("sca-friend-avatars");
 let friendSearchRequest=0,friendSearchTimer=0;
+let friendPictureDirectory=null;
+async function getFriendPictureDirectory(){if(friendPictureDirectory)return friendPictureDirectory;const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"profile_picture_directory"}});if(error)throw error;friendPictureDirectory=new Map((data?.users||[]).map(person=>[person.username,{pictureUrl:person.pictureUrl,googleAvatar:person.googleAvatar}]));return friendPictureDirectory;}
 function friendHint(target,message){const p=document.createElement("p");p.className="sca-friend-hint";p.textContent=message;target.replaceChildren(p);}
 function avatarNode(username,url){
  const holder=document.createElement("span");holder.className="sca-friend-avatar";
@@ -450,7 +455,7 @@ friendTabs.forEach(button=>button.addEventListener("click",()=>openFriendTab(but
 async function loadScaFriends(){
  const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
  friendAvatars.replaceChildren();
- for(const friend of data||[]){const node=avatarNode(friend.username,friend.google_avatar);node.title=friend.username||"Friend";friendAvatars.append(node);}
+ let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn("Could not load friend pictures:",error.message);}for(const friend of data||[]){const profileImage=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;const node=avatarNode(friend.username,profileImage);node.title=friend.username||"Friend";friendAvatars.append(node);}
 }
 async function loadFriendRequests(direction){
  friendRequestList.replaceChildren();friendHint(friendRequestList,"Loading…");
@@ -461,7 +466,7 @@ async function loadFriendRequests(direction){
  if(!rows.length){friendHint(friendRequestList,direction==="incoming"?"No new friend requests.":"No pending requests.");return;}
  for(const item of rows){
   const row=document.createElement("div");row.className="sca-friend-result";
-  row.append(avatarNode(item.username,item.google_avatar));
+  let profileImage=item.google_avatar;try{const directory=await getFriendPictureDirectory();profileImage=directory.get(item.username)?.pictureUrl||profileImage;}catch(error){console.warn("Could not load profile picture:",error.message);}row.append(avatarNode(item.username,profileImage));
   const name=document.createElement("strong");name.textContent=item.username||"User";row.append(name);
   const action=document.createElement("button");action.type="button";
   if(direction==="incoming"){
@@ -504,7 +509,7 @@ async function searchScaUsers(query){
  if(!data?.length){friendHint(friendResults,"No users found.");return;}
  for(const person of data){
   const row=document.createElement("div");row.className="sca-friend-result";
-  row.append(avatarNode(person.username,person.google_avatar));
+  let profileImage=person.google_avatar;try{const directory=await getFriendPictureDirectory();profileImage=directory.get(person.username)?.pictureUrl||profileImage;}catch(error){console.warn("Could not load profile picture:",error.message);}row.append(avatarNode(person.username,profileImage));
   const name=document.createElement("strong");name.textContent=person.username||"User";row.append(name);
   const action=document.createElement("button");action.type="button";
   let pending=person.friendship_status==="pending";
