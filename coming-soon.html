@@ -736,7 +736,7 @@ async function openScaConversation(friend,picture){
  };
  typePlaceholder();
  const count=document.createElement("small");count.className="sca-dm-counter";count.hidden=true;
- const send=document.createElement("button");send.type="submit";send.disabled=true;send.setAttribute("aria-label","Send message");send.title="Send message";send.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>';
+ const send=document.createElement("button");send.type="submit";send.disabled=true;send.setAttribute("aria-label","Send message");send.title="Send message";send.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.7 2.3 14.1 21.1a1.35 1.35 0 0 1-2.5-.05L8.1 13.1 1.9 9.6a1.35 1.35 0 0 1 .15-2.45L20.1 1.4a1.35 1.35 0 0 1 1.6.9Z"/><path d="m8.1 13.1 6.1-6.2"/></svg>';
  wrap.append(input,count,send);composer.append(wrap);
  panel.append(messages,composer);
  input.addEventListener("input",()=>{const n=input.value.length;count.hidden=n<=275;count.textContent=n+" / 300";send.disabled=!input.value.trim()||n>300;input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";});
