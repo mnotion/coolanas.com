@@ -491,6 +491,12 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-friend .sca-friend-avatar{width:40px;height:40px;flex:0 0 40px}
     .sca-dm-friend-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
     .sca-dm-friend-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+    .sca-dm-friend-copy{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .sca-dm-friend-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;transition:color .15s}
+    .sca-dm-friend.has-unread .sca-dm-friend-name{color:#b85a5a}
+    .sca-dm-friend.has-heavy-unread .sca-dm-friend-name{color:#d13d3d}
+    .sca-dm-unread-count{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#c95b5b;color:#fff;font-size:10px;font-weight:700;line-height:1;box-sizing:border-box}
+    .sca-dm-friend.has-heavy-unread .sca-dm-unread-count{background:#d83232}
     .sca-dm-friend-copy small{display:none}
     .sca-dm-conversation{display:flex;flex-direction:column;min-width:0;min-height:0;background:transparent}
     .sca-dm-header{display:flex;align-items:center;gap:11px;min-height:72px;padding:12px 20px;border-bottom:1px solid rgba(120,120,120,.14)}
@@ -699,10 +705,20 @@ async function renderScaMessagesDraft(){
   const friends=data||[];list.replaceChildren();
   if(!friends.length){list.textContent="You have no friends yet. Add friends to start a conversation.";return;}
   let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn(error);}
+  const friendButtons=new Map();
   for(const friend of friends){const button=document.createElement("button");button.type="button";button.className="sca-dm-friend";const picture=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;
-   const copy=document.createElement("span");copy.className="sca-dm-friend-copy";const username=document.createElement("strong");username.textContent=friend.username||"Friend";copy.append(username);button.append(avatarNode(friend.username,picture),copy);
-   button.addEventListener("click",()=>{list.querySelectorAll(".sca-dm-friend").forEach(x=>x.classList.toggle("active",x===button));openScaConversation(friend,picture).catch(e=>{document.getElementById("sca-dm-conversation").textContent=e.message||"Could not open conversation.";});});list.append(button);
+   const copy=document.createElement("span");copy.className="sca-dm-friend-copy";const username=document.createElement("strong");username.className="sca-dm-friend-name";username.textContent=friend.username||"Friend";const unread=document.createElement("span");unread.className="sca-dm-unread-count";unread.hidden=true;copy.append(username,unread);button.append(avatarNode(friend.username,picture),copy);friendButtons.set(friend.friend_id,{button,unread});
+   button.addEventListener("click",()=>{list.querySelectorAll(".sca-dm-friend").forEach(x=>x.classList.toggle("active",x===button));openScaConversation(friend,picture).then(()=>refreshFriendUnreadCounts()).catch(e=>{document.getElementById("sca-dm-conversation").textContent=e.message||"Could not open conversation.";});});list.append(button);
   }
+  async function refreshFriendUnreadCounts(){
+   const friendIds=friends.map(friend=>friend.friend_id).filter(Boolean);if(!friendIds.length)return;
+   const {data,error}=await supabase.from("coolanas_dm_messages").select("sender_id").in("sender_id",friendIds).is("read_at",null);
+   if(error){console.warn("Could not refresh unread DM counts:",error.message);return;}
+   const counts=new Map();for(const item of data||[])counts.set(item.sender_id,(counts.get(item.sender_id)||0)+1);
+   for(const friend of friends){const count=counts.get(friend.friend_id)||0;const entry=friendButtons.get(friend.friend_id);if(!entry)continue;entry.unread.hidden=count===0;entry.unread.textContent=count>9?"9+":String(count);entry.unread.setAttribute("aria-label",count+" unseen messages");entry.button.classList.toggle("has-unread",count>0);entry.button.classList.toggle("has-heavy-unread",count>9);}
+  }
+  await refreshFriendUnreadCounts();
+  setInterval(()=>refreshFriendUnreadCounts(),5000);
  }
 }
 async function openScaConversation(friend,picture){
