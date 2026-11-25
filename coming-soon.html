@@ -433,6 +433,52 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-friend-avatar-rail .sca-friend-avatar{display:grid;place-items:center;width:40px;height:40px;flex:0 0 40px;border-radius:50%;overflow:hidden;background:#e9edf3;color:#52647a;font-weight:700}
     .sca-friend-avatar-rail .sca-friend-avatar img{display:block;width:100%;height:100%;object-fit:cover}
     .sca-friends-rail.is-open .sca-friend-avatar-rail{display:none}
+
+    /* SCA direct-message draft layout */
+    .sca-dm-layout{display:grid;grid-template-columns:260px minmax(0,1fr);width:100%;height:100%;min-height:560px;overflow:hidden;border:1px solid rgba(120,120,120,.14);border-radius:20px;background:var(--sca-surface,rgba(255,255,255,.72))}
+    .sca-dm-sidebar{display:flex;flex-direction:column;min-width:0;border-right:1px solid rgba(120,120,120,.16);background:rgba(120,120,120,.035)}
+    .sca-dm-sidebar-head{padding:20px 16px 14px}
+    .sca-dm-sidebar-head h2{margin:0;font-size:17px;font-weight:700}
+    .sca-dm-sidebar-head p{margin:5px 0 0;color:var(--muted-color,#888);font-size:12px}
+    .sca-dm-friend-list{display:flex;flex-direction:column;gap:4px;padding:0 9px 12px;overflow:auto}
+    .sca-dm-friend{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:12px;background:transparent;text-align:left;color:inherit;cursor:pointer}
+    .sca-dm-friend:hover{background:rgba(120,120,120,.09)}
+    .sca-dm-friend.active{background:rgba(75,125,190,.12)}
+    .sca-dm-friend .sca-friend-avatar{width:40px;height:40px;flex:0 0 40px}
+    .sca-dm-friend-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+    .sca-dm-friend-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+    .sca-dm-friend-copy small{color:var(--muted-color,#888);font-size:11px}
+    .sca-dm-conversation{display:flex;flex-direction:column;min-width:0;min-height:0;background:transparent}
+    .sca-dm-header{display:flex;align-items:center;gap:11px;min-height:72px;padding:12px 20px;border-bottom:1px solid rgba(120,120,120,.14)}
+    .sca-dm-header .sca-friend-avatar{width:42px;height:42px;flex:0 0 42px}
+    .sca-dm-header-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+    .sca-dm-header-copy strong{font-size:14px}
+    .sca-dm-header-copy small{font-size:11px;color:var(--muted-color,#888)}
+    .sca-dm-empty{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:30px;text-align:center;color:var(--muted-color,#888)}
+    .sca-dm-empty-icon{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;background:rgba(120,120,120,.08);font-size:23px}
+    .sca-dm-empty strong{color:var(--text-color,inherit);font-size:14px}
+    .sca-dm-empty p{max-width:300px;margin:0;font-size:12px;line-height:1.6}
+    .sca-dm-composer{display:flex;align-items:flex-end;gap:10px;padding:14px 16px;border-top:1px solid rgba(120,120,120,.14)}
+    .sca-dm-composer textarea{flex:1;min-height:42px;max-height:110px;resize:vertical;padding:12px 14px;border:1px solid rgba(120,120,120,.2);border-radius:13px;background:transparent;color:inherit;font:13px inherit;outline:none}
+    .sca-dm-composer button{height:42px;padding:0 16px;border:0;border-radius:12px;background:#4779bd;color:#fff;font-size:12px;font-weight:650;opacity:.55;cursor:not-allowed}
+    .sca-dm-placeholder{padding:0 18px 12px;color:var(--muted-color,#999);font-size:10px;text-align:right}
+    .sca-dm-no-friends{padding:18px 12px;color:var(--muted-color,#888);font-size:12px;line-height:1.5}
+    html.dark-mode .sca-dm-layout{background:#222;border-color:#414141}
+    html.dark-mode .sca-dm-sidebar{background:rgba(255,255,255,.025);border-color:#414141}
+    html.dark-mode .sca-dm-friend.active{background:rgba(95,145,210,.18)}
+    html.dark-mode .sca-dm-header,html.dark-mode .sca-dm-composer{border-color:#414141}
+    html.dark-mode .sca-dm-composer textarea{border-color:#505050}
+    @media(max-width:760px){
+      .sca-dm-layout{grid-template-columns:190px minmax(0,1fr);min-height:500px}
+      .sca-dm-sidebar-head{padding:16px 12px 12px}
+      .sca-dm-friend{gap:7px;padding:8px}
+    }
+    @media(max-width:540px){
+      .sca-dm-layout{grid-template-columns: minmax(0,1fr);grid-template-rows:180px minmax(300px,1fr);min-height:560px}
+      .sca-dm-sidebar{border-right:0;border-bottom:1px solid rgba(120,120,120,.16)}
+      .sca-dm-friend-list{flex-direction:row;overflow-x:auto;overflow-y:hidden}
+      .sca-dm-friend{width:150px;flex:0 0 150px}
+    }
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -529,6 +575,7 @@ function openScaSection(section){
   scaMain.hidden=section!=="friends";
   if(section!=="friends"){scaPrimary.replaceChildren();return;}
   scaPrimary.replaceChildren();
+  renderScaMessagesDraft();
 }
 scaButtons.forEach(button=>button.addEventListener("click",()=>openScaSection(button.dataset.scaSection)));
 openScaSection("bazaar");
@@ -563,6 +610,50 @@ function openFriendTab(tab){
 friendTabs.forEach(button=>button.addEventListener("click",()=>openFriendTab(button.dataset.friendTab)));
 friendRail.dataset.tab="search";
 friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";friendTabs.forEach(button=>button.classList.remove("active"));});
+async function renderScaMessagesDraft(){
+ scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-sidebar-head"><h2>Messages</h2><p>Your friends</p></div><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong><p>Choose someone from the list to open your conversation.</p></div></section></div>';
+ const list=document.getElementById("sca-dm-friend-list");
+ const {data,error}=await supabase.rpc("coolanas_friend_list");
+ if(error){list.innerHTML='<p class="sca-dm-no-friends">Could not load your friends.</p>';return;}
+ const friends=data||[];
+ if(!friends.length){list.innerHTML='<p class="sca-dm-no-friends">You have no friends yet. Add friends to start a conversation.</p>';return;}
+ let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn("Friend picture lookup failed:",error.message);}
+ list.replaceChildren();
+ for(const friend of friends){
+  const button=document.createElement("button");button.type="button";button.className="sca-dm-friend";
+  const avatar=avatarNode(friend.username,directory?.get(friend.username)?.pictureUrl||friend.google_avatar);
+  const copy=document.createElement("span");copy.className="sca-dm-friend-copy";
+  const username=document.createElement("strong");username.textContent=friend.username||"Friend";
+  const displayName=document.createElement("small");displayName.textContent=friend.username||"";
+  copy.append(username,displayName);button.append(avatar,copy);
+  button.addEventListener("click",()=>{
+   list.querySelectorAll(".sca-dm-friend").forEach(item=>item.classList.toggle("active",item===button));
+   openScaConversationDraft(friend,directory?.get(friend.username)?.pictureUrl||friend.google_avatar);
+  });
+  list.append(button);
+ }
+}
+function openScaConversationDraft(friend,picture){
+ const panel=document.getElementById("sca-dm-conversation");if(!panel)return;
+ panel.replaceChildren();
+ const header=document.createElement("div");header.className="sca-dm-header";
+ header.append(avatarNode(friend.username,picture));
+ const copy=document.createElement("div");copy.className="sca-dm-header-copy";
+ const name=document.createElement("strong");name.textContent=friend.username||"Friend";
+ const status=document.createElement("small");status.textContent="Direct message";
+ copy.append(name,status);header.append(copy);
+ const empty=document.createElement("div");empty.className="sca-dm-empty";
+ const icon=document.createElement("div");icon.className="sca-dm-empty-icon";icon.textContent="✉";
+ const title=document.createElement("strong");title.textContent="Your conversation starts here";
+ const description=document.createElement("p");description.textContent="This is the draft messaging layout. Message history and delivery will be connected in the next stage.";
+ empty.append(icon,title,description);
+ const composer=document.createElement("div");composer.className="sca-dm-composer";
+ const input=document.createElement("textarea");input.maxLength=300;input.placeholder="Write a message…";input.setAttribute("aria-label","Write a message");input.disabled=true;
+ const send=document.createElement("button");send.type="button";send.textContent="Send";send.disabled=true;
+ composer.append(input,send);
+ const note=document.createElement("div");note.className="sca-dm-placeholder";note.textContent="Messaging not connected yet · 300 character limit";
+ panel.append(header,empty,composer,note);
+}
 async function loadScaFriends(){
  const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
  friendAvatars.replaceChildren();friendAvatarRail.replaceChildren();
