@@ -630,7 +630,7 @@ const scaWorkspace=document.getElementById("sca-workspace");
 const scaMain=document.getElementById("sca-main");
 const scaPrimary=document.getElementById("sca-primary-panel");
 const scaButtons=[...document.querySelectorAll("[data-sca-section]")];
-let scaDmChannel=null,scaDmReadPoll=null,scaDmReadVisibilityHandler=null,scaDmTypingHeartbeat=null,scaDmTypingActive=false;
+let scaDmChannel=null,scaDmChannelReady=false,scaDmReadPoll=null,scaDmReadVisibilityHandler=null,scaDmTypingHeartbeat=null,scaDmTypingActive=false;
 function stopScaTypingBroadcast(){
  if(scaDmTypingHeartbeat){clearInterval(scaDmTypingHeartbeat);scaDmTypingHeartbeat=null;}
  const channel=scaDmChannel;scaDmTypingActive=false;
@@ -897,7 +897,17 @@ async function openScaConversation(friend,picture){
    typingIndicator.classList.toggle("is-visible",visible);
    typingIndicator.setAttribute("aria-hidden",visible?"false":"true");
    if(visible)remoteTypingExpiry=setTimeout(()=>{typingIndicator.classList.remove("is-visible");typingIndicator.setAttribute("aria-hidden","true");},5500);
-  }).subscribe();
+  }).subscribe((status,error)=>{
+   if(status==="SUBSCRIBED"){
+    scaDmChannelReady=true;
+    if(input.value.length)broadcastTyping(true);
+   }else if(status==="CHANNEL_ERROR"||status==="TIMED_OUT"||status==="CLOSED"){
+    scaDmChannelReady=false;
+    typingIndicator.classList.remove("is-visible");
+    typingIndicator.setAttribute("aria-hidden","true");
+    if(error)console.warn("SCA DM realtime channel issue:",status,error);
+   }
+  });
  // Realtime UPDATE delivery can be delayed by client connection state; poll
  // receipt metadata while this conversation is open so the sender sees views
  // without waiting for another message.
@@ -914,11 +924,14 @@ async function openScaConversation(friend,picture){
  function broadcastTyping(typing){
   if(!scaDmChannel)return;
   scaDmTypingActive=typing;
-  scaDmChannel.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing}}).catch(()=>{});
+  if(!scaDmChannelReady)return;
+  scaDmChannel.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing}}).then(status=>{
+   if(status!=="ok")console.warn("SCA typing broadcast was not acknowledged:",status);
+  }).catch(error=>console.warn("SCA typing broadcast failed:",error));
   if(scaDmTypingHeartbeat){clearInterval(scaDmTypingHeartbeat);scaDmTypingHeartbeat=null;}
   if(typing)scaDmTypingHeartbeat=setInterval(()=>{
    if(!input.value.length||!panel.isConnected){stopScaTypingBroadcast();return;}
-   scaDmChannel?.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing:true}}).catch(()=>{});
+   if(scaDmChannelReady)scaDmChannel?.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing:true}}).then(status=>{if(status!=="ok")console.warn("SCA typing heartbeat was not acknowledged:",status);}).catch(error=>console.warn("SCA typing heartbeat failed:",error));
   },2000);
  }
  let preparedDraftText="",preparedDraftEnvelope=null,preparedDraftPromise=Promise.resolve(null),draftPreparationVersion=0;
