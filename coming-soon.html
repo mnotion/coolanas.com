@@ -611,6 +611,8 @@ const scaMain=document.getElementById("sca-main");
 const scaPrimary=document.getElementById("sca-primary-panel");
 const scaButtons=[...document.querySelectorAll("[data-sca-section]")];
 function openScaSection(section){
+  if(!scaButtons.some(button=>button.dataset.scaSection===section))section="friends";
+  try{localStorage.setItem("coolanas-active-section",section);}catch{}
   scaButtons.forEach(button=>{
     if(button.dataset.scaSection===section)button.setAttribute("aria-current","page");
     else button.removeAttribute("aria-current");
@@ -624,10 +626,11 @@ function openScaSection(section){
   renderScaMessagesDraft();
 }
 scaButtons.forEach(button=>button.addEventListener("click",()=>openScaSection(button.dataset.scaSection)));
-openScaSection("bazaar");
 
 const friendRail=document.getElementById("sca-friends-rail");
 const friendTabs=[...document.querySelectorAll("[data-friend-tab]")];
+let savedSection="friends";try{const candidate=localStorage.getItem("coolanas-active-section");if(["friends","profile","guild"].includes(candidate))savedSection=candidate;}catch{}
+openScaSection(savedSection);
 const addFriendButton=document.getElementById("sca-add-friend");
 addFriendButton.addEventListener("click",()=>{const opening=!friendRail.classList.contains("is-open");friendRail.classList.toggle("is-open",opening);if(opening){friendRail.dataset.tab="search";friendSearchInput.focus();}else friendRail.dataset.tab="";});
 const friendSearch=document.getElementById("sca-friend-search");
@@ -710,7 +713,7 @@ async function renderScaMessagesDraft(){
   const friendButtons=new Map();
   for(const friend of friends){const button=document.createElement("button");button.type="button";button.className="sca-dm-friend";const picture=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;
    const copy=document.createElement("span");copy.className="sca-dm-friend-copy";const username=document.createElement("strong");username.className="sca-dm-friend-name";username.textContent=friend.username||"Friend";const unread=document.createElement("span");unread.className="sca-dm-unread-count";unread.hidden=true;copy.append(username,unread);button.append(avatarNode(friend.username,picture),copy);friendButtons.set(friend.friend_id,{button,unread});
-   button.addEventListener("click",()=>{list.querySelectorAll(".sca-dm-friend").forEach(x=>x.classList.toggle("active",x===button));openScaConversation(friend,picture).then(()=>refreshFriendUnreadCounts()).catch(e=>{document.getElementById("sca-dm-conversation").textContent=e.message||"Could not open conversation.";});});list.append(button);
+   button.addEventListener("click",()=>{try{localStorage.setItem("coolanas-active-friend",String(friend.friend_id));}catch{}list.querySelectorAll(".sca-dm-friend").forEach(x=>x.classList.toggle("active",x===button));openScaConversation(friend,picture).then(()=>refreshFriendUnreadCounts()).catch(e=>{document.getElementById("sca-dm-conversation").textContent=e.message||"Could not open conversation.";});});list.append(button);
   }
   async function refreshFriendUnreadCounts(){
    const friendIds=friends.map(friend=>friend.friend_id).filter(Boolean);if(!friendIds.length)return;
@@ -720,6 +723,8 @@ async function renderScaMessagesDraft(){
    for(const friend of friends){const count=counts.get(friend.friend_id)||0;const entry=friendButtons.get(friend.friend_id);if(!entry)continue;entry.unread.hidden=count===0;entry.unread.setAttribute("aria-label",count+" unseen messages");entry.unread.title=count+" unseen messages";if(count===1){entry.unread.innerHTML='<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="4" fill="#c95b5b"/></svg>';}else if(count>1){const label=count>9?"9+":String(count);const width=label.length>1?22:18;entry.unread.innerHTML='<svg viewBox="0 0 '+width+' 18" aria-hidden="true"><rect x="1" y="1" width="'+(width-2)+'" height="16" rx="8" fill="'+(count>9?"#d83232":"#c95b5b")+'"/><text x="'+(width/2)+'" y="12.2" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#fff">'+label+'</text></svg>';}else{entry.unread.replaceChildren();}entry.button.classList.toggle("has-unread",count>0);entry.button.classList.toggle("has-heavy-unread",count>9);}
   }
   await refreshFriendUnreadCounts();
+  let savedFriendId="";try{savedFriendId=localStorage.getItem("coolanas-active-friend")||"";}catch{}
+  if(savedFriendId){const savedFriend=friends.find(friend=>String(friend.friend_id)===savedFriendId);if(savedFriend){const entry=friendButtons.get(savedFriend.friend_id);entry?.button.classList.add("active");const savedPicture=directory?.get(savedFriend.username)?.pictureUrl||savedFriend.google_avatar;openScaConversation(savedFriend,savedPicture).catch(error=>console.warn("Could not restore open conversation:",error));}}
   setInterval(()=>refreshFriendUnreadCounts(),5000);
  }
 }
