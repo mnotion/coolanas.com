@@ -434,6 +434,19 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-friend-avatar-rail .sca-friend-avatar img{display:block;width:100%;height:100%;object-fit:cover}
     .sca-friends-rail.is-open .sca-friend-avatar-rail{display:none}
 
+/* SCA messaging viewport spacing and integrated conversation header */
+    .sca-main[data-section="friends"]{padding-top:104px!important;padding-bottom:126px!important;padding-right:132px!important;min-height:100dvh;box-sizing:border-box}
+    .sca-main[data-section="friends"] .sca-panel{min-height:0;height:calc(100dvh - 230px);overflow:hidden}
+    .sca-main[data-section="friends"] .sca-dm-layout{height:100%;min-height:0}
+    .sca-dm-sidebar-head button{border-color:transparent;border-radius:9px;background:transparent}
+    .sca-dm-sidebar-head button.active{border-color:transparent;background:rgba(75,125,190,.12)}
+    .sca-dm-header{background:transparent;border-bottom:0}
+    .sca-dm-conversation{background:var(--sca-surface,rgba(255,255,255,.72))}
+    html.dark-mode .sca-dm-conversation{background:#222}
+    html.dark-mode .sca-dm-sidebar-head button{border-color:transparent}
+    html.dark-mode .sca-dm-sidebar-head button.active{background:rgba(95,145,210,.18)}
+    @media(max-width:760px){.sca-main[data-section="friends"]{padding:88px 88px 112px 14px!important}.sca-main[data-section="friends"] .sca-panel{height:calc(100dvh - 200px)}}
+    @media(max-width:620px){.sca-main[data-section="friends"]{padding:82px 76px 180px 10px!important}.sca-main[data-section="friends"] .sca-panel{height:calc(100dvh - 270px)}}
     /* SCA direct-message draft layout */
     .sca-panel.sca-messaging-active{padding:0;overflow:hidden}.sca-dm-layout{display:grid;grid-template-columns:260px minmax(0,1fr);width:100%;height:calc(100vh - 68px);min-height:560px;overflow:hidden;border:0;border-radius:0;background:transparent}
     .sca-dm-sidebar{display:flex;flex-direction:column;min-width:0;border-right:1px solid rgba(120,120,120,.16);background:rgba(120,120,120,.035)}
@@ -673,7 +686,27 @@ async function openScaConversation(friend,picture){
  const header=document.createElement("div");header.className="sca-dm-header";header.append(avatarNode(friend.username,picture));const copy=document.createElement("div");copy.className="sca-dm-header-copy";const name=document.createElement("strong");name.textContent=friend.username||"Friend";copy.append(name);header.append(copy);
  const messages=document.createElement("div");messages.className="sca-dm-messages";messages.setAttribute("aria-live","polite");
  const composer=document.createElement("form");composer.className="sca-dm-composer";const wrap=document.createElement("div");wrap.className="sca-dm-input-wrap";
- const input=document.createElement("textarea");input.maxLength=300;input.rows=1;input.placeholder="Write a message…";input.setAttribute("aria-label","Write a message");
+ const input=document.createElement("textarea");input.maxLength=300;input.rows=1;input.placeholder="";input.setAttribute("aria-label","Write a message");
+ const placeholderPhrases=[
+ "Let's start studying…","What time's lunch?","When's bio class?","I think it was chem homework…","Have you started the history notes?","Did we get homework today?","Are you in the library?","What page are we on?","Can you send me the notes?","That lesson went so quickly.",
+ "I forgot what the teacher said…","Do we have a test tomorrow?","What are you revising?","I'm doing maths first.","Which topic are we on?","Have you finished the worksheet?","Was that due today?","What's the homework for biology?","I need to organise my notes.","Study break?",
+ "Are you free after class?","Did you understand that question?","That was a lot of information.","Which textbook are we using?","Have you made flashcards?","Let's compare answers.","What did you get for number 4?","I might go over that again.","The exam timetable is out yet?","How was your lesson?",
+ "Are we meeting to revise?","I need to catch up on chemistry.","What did I miss?","Did you write that down?","Can we go through this topic?","What's your next lesson?","I'm nearly done with this chapter.","Any good revision tips?","Let's do a quick study session.","Have you checked the class page?",
+ "Was there a change to the deadline?","I can't find the assignment.","Which questions are we doing?","That explanation actually helped.","What are you working on?","Have you started the coursework?","I need a quick break.","Are we still meeting later?","What's the plan for tomorrow?","Did you get the slides?",
+ "I'm going over today's lesson.","Which subject first?","How much revision have you done?","Do you have the revision guide?","What was that key term?","Can you remind me of the deadline?","I think I missed a page.","Let's tackle the hard bit.","Have you seen the timetable?","What did the teacher mean?",
+ "Is the classroom changed?","Are we doing a group study?","I found a useful resource.","Want to revise together?","What's the next topic?","I need to tidy my notes.","Did you understand the experiment?","What time does the library close?","Which chapters are included?","Let's make a revision plan.",
+ "Have you got a spare pen?","I think that's in the textbook.","How did you find the quiz?","What's for lunch today?","Are you on your way?","Did we have a cover lesson?","I need to check my planner.","Can you explain that bit?","What did you put for the conclusion?","Let's go over the definitions.",
+ "Have you uploaded your work?","I should start revising now…","That homework took ages.","Are we sitting together?","Which room are we in?","Do you know the lesson time?","I have a question about the task.","Let's compare revision notes.","What are you doing this evening?","Nearly finished studying.",
+ "One more question…","Did you see the announcement?","I need to practise that again.","What's the first thing due?","Shall we take five?","How's revision going?","Let's get this done.","Any updates from class?","Ready for the next topic?","What should we study next?"
+ ];
+ let phraseIndex=Math.floor(Math.random()*placeholderPhrases.length),typingTimer=0,phraseTimer=0;
+ const typePlaceholder=()=>{
+  if(document.activeElement===input||input.value)return;
+  const phrase=placeholderPhrases[phraseIndex];let char=0;input.placeholder="";
+  const typeNext=()=>{if(document.activeElement===input||input.value)return;input.placeholder=phrase.slice(0,++char);if(char<phrase.length)typingTimer=setTimeout(typeNext,42);else phraseTimer=setTimeout(()=>{phraseIndex=(phraseIndex+1)%placeholderPhrases.length;typePlaceholder();},5000);};
+  typeNext();
+ };
+ typePlaceholder();
  const count=document.createElement("small");count.className="sca-dm-counter";count.hidden=true;
  const send=document.createElement("button");send.type="submit";send.disabled=true;send.setAttribute("aria-label","Send message");send.title="Send message";send.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>';
  wrap.append(input,count,send);composer.append(wrap);
