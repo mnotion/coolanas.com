@@ -811,11 +811,11 @@ async function openScaConversation(friend,picture){
   return result;
  }
  async function encryptViewedPlainMessages(){
-  const pending=cachedRows.filter(item=>item.sender_id===user.id&&item.read_at&&item.ciphertext?.v===0);
+  const pending=cachedRows.filter(item=>item.read_at&&item.ciphertext?.v===0);
   for(const item of pending){
    try{
     const envelope=await encryptScaMessage(item.clearText??item.ciphertext.plaintext,friend.friend_id,conversationId);
-    const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:envelope}).eq("id",item.id).eq("sender_id",user.id).not("read_at","is",null);
+    const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:envelope}).eq("id",item.id).not("read_at","is",null);
     if(error)throw error;
     cachedRows=cachedRows.map(row=>row.id===item.id?{...row,ciphertext:envelope}:row);
     await setScaCachedMessages(conversationId,cachedRows);
@@ -843,6 +843,7 @@ async function openScaConversation(friend,picture){
    const readAtById=new Map(data.map(item=>[item.id,item.read_at]));
    cachedRows=cachedRows.map(item=>readAtById.has(item.id)?{...item,read_at:readAtById.get(item.id)}:item);
    await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);
+   await encryptViewedPlainMessages();
   }
  }
  async function loadMessages(){
