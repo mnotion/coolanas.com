@@ -56,6 +56,26 @@ main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
     .bottom-nav{z-index:10}
 
     /* Social Coolanas navigation and workspace */
+    /* SCA layout refinements */
+    .sca-bazaar-entry{top:calc(50% - 220px);width:190px}
+    .sca-bazaar-button,.sca-bazaar-button[aria-current="page"]{
+      min-height:58px;background:linear-gradient(135deg,#8c6b20,#d4ad4c 52%,#f0d88a);
+      border:1px solid rgba(255,224,145,.8);color:#241b08;
+      box-shadow:0 5px 18px rgba(173,132,42,.28),inset 0 1px 0 rgba(255,255,255,.45);
+      font-weight:750;letter-spacing:.01em
+    }
+    .sca-bazaar-button svg{color:#3c2c0b;opacity:1}
+    .sca-bazaar-button:hover{background:linear-gradient(135deg,#a27c28,#e2bd5e 52%,#f6e2a0);color:#211805;transform:translateY(-1px)}
+    .sca-bazaar-button[aria-current="page"]{outline:2px solid rgba(225,187,91,.28);outline-offset:2px}
+    .sca-main{width:calc(100vw - 256px);max-width:none;margin-right:0;min-width:0}
+    .sca-workspace.is-expanded .sca-main{width:calc(100vw - 134px)}
+    .sca-main[hidden]{display:none!important}
+    html:not(.dark-mode) .sca-bazaar-button,html:not(.dark-mode) .sca-bazaar-button[aria-current="page"]{color:#241b08;background:linear-gradient(135deg,#8c6b20,#d4ad4c 52%,#f0d88a);border-color:rgba(255,224,145,.8)}
+    @media(max-width:620px){
+      .sca-bazaar-entry{top:auto;bottom:140px;width:calc(100% - 20px)}
+      .sca-main,.sca-workspace.is-expanded .sca-main{width:calc(100vw - 20px);max-width:none}
+    }
+
     .sca-bazaar-entry{position:fixed;z-index:12;left:18px;top:calc(50% - 151px);width:190px}
     .sca-sidebar{position:fixed;z-index:11;left:18px;top:50%;transform:translateY(-50%);width:190px;padding:8px;border:1px solid rgba(255,255,255,.12);border-radius:17px;background:rgba(38,38,38,.88);box-shadow:0 10px 32px rgba(0,0,0,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:grid;gap:5px;transition:width .22s ease}
     .sca-nav-item,.sca-bazaar-button{width:100%;min-height:58px;display:flex;align-items:center;gap:13px;padding:0 15px;border:1px solid transparent;border-radius:11px;background:transparent;color:#d5d5d5;text-align:left;font:600 14px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
@@ -304,6 +324,13 @@ function openScaSection(section){
   });
   scaWorkspace.classList.toggle("is-expanded",section==="friends");
   scaMain.dataset.section=section;
+  const showFriends=section==="friends";
+  scaMain.hidden=!showFriends;
+  if(!showFriends){
+    scaPrimary.innerHTML="";
+    scaSecondary.innerHTML="";
+    return;
+  }
   const content={
     bazaar:{title:"Bazaar",subtitle:"Study discussions and updates from the Coolanas community",sideTitle:"Highlights",sideSubtitle:"A quick look at what's happening",emptyTitle:"The bazaar is getting ready",emptyText:"Community discussions will appear here."},
     friends:{title:"Friends",subtitle:"Your study connections and their activity",sideTitle:"Friend activity",sideSubtitle:"See who's studying",emptyTitle:"Your friends will appear here",emptyText:"Add friends to see their study activity."},
