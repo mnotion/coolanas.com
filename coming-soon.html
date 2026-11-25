@@ -911,13 +911,18 @@ async function openScaConversation(friend,picture){
   event.preventDefault();
   const text=input.value.trim();if(!text||text.length>300)return;
   const messageId=crypto.randomUUID(),createdAt=new Date().toISOString();
+  const useEncryption=cachedRows.some(item=>item.ciphertext?.v===1);
   const optimistic={id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:{v:0,plaintext:text},created_at:createdAt,read_at:null,clearText:text};
   cachedRows=[...cachedRows,optimistic];setScaCachedMessages(conversationId,cachedRows).catch(console.warn);renderMessageRows(cachedRows);
   input.value="";count.hidden=true;count.textContent="";input.style.height="";send.disabled=true;
   broadcastTyping(false);input.focus();pendingSendCount++;
-  supabase.from("coolanas_dm_messages").insert({id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:optimistic.ciphertext}).then(async result=>{
+  (async()=>{
+   const envelope=useEncryption?await encryptScaMessage(text,friend.friend_id,conversationId):optimistic.ciphertext;
+   cachedRows=cachedRows.map(item=>item.id===messageId?{...item,ciphertext:envelope}:item);
+   await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);
+   const result=await supabase.from("coolanas_dm_messages").insert({id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:envelope});
    if(result.error)throw result.error;
-  }).catch(async error=>{
+  })().catch(async error=>{
    cachedRows=cachedRows.filter(item=>item.id!==messageId);
    await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);renderMessageRows(cachedRows);
    if(!input.value){input.value=text;send.disabled=false;input.focus();}
