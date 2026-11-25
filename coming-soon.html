@@ -630,8 +630,17 @@ const scaWorkspace=document.getElementById("sca-workspace");
 const scaMain=document.getElementById("sca-main");
 const scaPrimary=document.getElementById("sca-primary-panel");
 const scaButtons=[...document.querySelectorAll("[data-sca-section]")];
+let scaDmChannel=null,scaDmReadPoll=null,scaDmReadVisibilityHandler=null,scaDmTypingHeartbeat=null,scaDmTypingActive=false;
+function stopScaTypingBroadcast(){
+ if(scaDmTypingHeartbeat){clearInterval(scaDmTypingHeartbeat);scaDmTypingHeartbeat=null;}
+ const channel=scaDmChannel;scaDmTypingActive=false;
+ if(channel)channel.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing:false}}).catch(()=>{});
+}
+window.addEventListener("pagehide",stopScaTypingBroadcast);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")stopScaTypingBroadcast();});
 function openScaSection(section){
   if(!scaButtons.some(button=>button.dataset.scaSection===section))section="friends";
+  if(section!=="friends")stopScaTypingBroadcast();
   try{localStorage.setItem("coolanas-active-section",section);}catch{}
   scaButtons.forEach(button=>{
     if(button.dataset.scaSection===section)button.setAttribute("aria-current","page");
@@ -683,7 +692,7 @@ function openFriendTab(tab){
 friendTabs.forEach(button=>button.addEventListener("click",()=>openFriendTab(button.dataset.friendTab)));
 friendRail.dataset.tab="search";
 friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";friendTabs.forEach(button=>button.classList.remove("active"));});
-let scaDmChannel=null,scaDmReadPoll=null,scaDmReadVisibilityHandler=null;
+
 const scaDmDbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open("coolanas-sca-e2ee",2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains("keys"))db.createObjectStore("keys");if(!db.objectStoreNames.contains("messages"))db.createObjectStore("messages");};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
 async function getScaCachedMessages(conversationId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
 async function setScaCachedMessages(conversationId,rows){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("messages","readwrite");tx.objectStore("messages").put(rows,conversationId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
@@ -753,6 +762,7 @@ async function renderScaMessagesDraft(){
  }
 }
 async function openScaConversation(friend,picture){
+ stopScaTypingBroadcast();
  if(scaDmReadPoll){clearInterval(scaDmReadPoll);scaDmReadPoll=null;}
  if(scaDmReadVisibilityHandler){document.removeEventListener("visibilitychange",scaDmReadVisibilityHandler);scaDmReadVisibilityHandler=null;}
  const panel=document.getElementById("sca-dm-conversation");panel.replaceChildren();
@@ -879,11 +889,14 @@ async function openScaConversation(friend,picture){
    await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
    renderMessageRows(cachedRows);
   })
+  let remoteTypingExpiry=null;
   .on("broadcast",{event:"typing"},({payload})=>{
    if(payload?.userId===user.id)return;
    const visible=payload?.typing===true;
+   if(remoteTypingExpiry)clearTimeout(remoteTypingExpiry);
    typingIndicator.classList.toggle("is-visible",visible);
    typingIndicator.setAttribute("aria-hidden",visible?"false":"true");
+   if(visible)remoteTypingExpiry=setTimeout(()=>{typingIndicator.classList.remove("is-visible");typingIndicator.setAttribute("aria-hidden","true");},5500);
   }).subscribe();
  // Realtime UPDATE delivery can be delayed by client connection state; poll
  // receipt metadata while this conversation is open so the sender sees views
@@ -898,14 +911,17 @@ async function openScaConversation(friend,picture){
  scaDmReadPoll=setInterval(()=>{
   if(document.visibilityState==="visible")syncCachedReadStatuses().catch(console.warn);
  },1500);
- function broadcastTyping(typing,textValue=""){
+ function broadcastTyping(typing){
   if(!scaDmChannel)return;
+  scaDmTypingActive=typing;
   scaDmChannel.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing}}).catch(()=>{});
+  if(scaDmTypingHeartbeat){clearInterval(scaDmTypingHeartbeat);scaDmTypingHeartbeat=null;}
+  if(typing)scaDmTypingHeartbeat=setInterval(()=>{
+   if(!input.value.length||!panel.isConnected){stopScaTypingBroadcast();return;}
+   scaDmChannel?.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing:true}}).catch(()=>{});
+  },2000);
  }
- input.addEventListener("input",()=>{
-  const draft=input.value;
-  broadcastTyping(draft.length>0,draft);
- });
+ input.addEventListener("input",()=>broadcastTyping(input.value.length>0));
  let pendingSendCount=0;
  composer.addEventListener("submit",event=>{
   event.preventDefault();
