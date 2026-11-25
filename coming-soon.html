@@ -507,40 +507,26 @@ async function searchScaUsers(query){
   row.append(avatarNode(person.username,person.google_avatar));
   const name=document.createElement("strong");name.textContent=person.username||"User";row.append(name);
   const action=document.createElement("button");action.type="button";
-  if(person.friendship_status==="pending"){
-   action.textContent="Pending";action.className="pending";
-   action.addEventListener("click",async()=>{
-    action.disabled=true;
+  let pending=person.friendship_status==="pending";
+  const paint=()=>{action.textContent=pending?"Pending":"Add friend";action.classList.toggle("pending",pending);action.disabled=false;};
+  paint();
+  action.addEventListener("click",async()=>{
+   action.disabled=true;
+   if(pending){
     const {data:requests,error:requestsError}=await supabase.rpc("coolanas_friend_requests");
-    const pending=(requests||[]).find(item=>item.direction==="outgoing"&&item.user_id===person.user_id);
-    if(requestsError||!pending){action.disabled=false;return;}
-    const {error:cancelError}=await supabase.rpc("coolanas_friend_cancel",{p_friendship_id:pending.friendship_id});
+    const existing=(requests||[]).find(item=>item.direction==="outgoing"&&item.user_id===person.user_id);
+    if(requestsError||!existing){action.disabled=false;return;}
+    const {error:cancelError}=await supabase.rpc("coolanas_friend_cancel",{p_friendship_id:existing.friendship_id});
     if(cancelError){action.disabled=false;return;}
-    action.textContent="Add friend";action.classList.remove("pending");action.disabled=false;
-    action.onclick=null;
-    action.addEventListener("click",()=>sendFriendRequest(person,action));
-   });
-  }else{action.textContent="Add friend";action.addEventListener("click",()=>sendFriendRequest(person,action));}
+    pending=false;paint();
+   }else{
+    const {error:requestError}=await supabase.rpc("coolanas_friend_request",{p_recipient_id:person.user_id});
+    if(requestError){action.disabled=false;return;}
+    pending=true;paint();
+   }
+  });
   row.append(action);friendResults.append(row);
  }
-}
-async function sendFriendRequest(person,button){
- button.disabled=true;
- const {error}=await supabase.rpc("coolanas_friend_request",{p_recipient_id:person.user_id});
- if(error){button.disabled=false;button.textContent="Add friend";return;}
- button.textContent="Pending";button.classList.add("pending");button.disabled=false;
- button.onclick=null;
- button.addEventListener("click",async()=>{
-  const {data:requests}=await supabase.rpc("coolanas_friend_requests");
-  const pending=(requests||[]).find(item=>item.direction==="outgoing"&&item.user_id===person.user_id);
-  if(!pending)return;
-  const {error:cancelError}=await supabase.rpc("coolanas_friend_cancel",{p_friendship_id:pending.friendship_id});
-  if(cancelError)return;
-  button.textContent="Add friend";button.classList.remove("pending");button.onclick=null;
-  button.replaceWith(button.cloneNode(true));
-  const replacement=friendResults.querySelector(".sca-friend-result:last-child button");
-  if(replacement)replacement.addEventListener("click",()=>sendFriendRequest(person,replacement));
- });
 }
 friendSearchInput.addEventListener("input",()=>{
  clearTimeout(friendSearchTimer);const value=friendSearchInput.value;
@@ -566,7 +552,7 @@ async function refreshMail(){
   const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"mail_list"}});
   if(error)throw error;
   if(data?.error)throw new Error(data.error);
-  const notifications=data?.notifications||[];
+  const notifications=(data?.notifications||[]).filter(item=>!["friend_request","friend_accepted"].includes(item.type));
   if(notifications.some(item=>item.type==="friend_accepted"))loadScaFriends().catch(()=>{});
   mailNotifications.replaceChildren();
   if(!notifications.length){const empty=document.createElement("p");empty.className="mail-empty";empty.textContent="No new mails.";mailNotifications.append(empty);return;}
@@ -576,26 +562,6 @@ async function refreshMail(){
    const message=document.createElement("p");message.textContent=notification.message||"";
    card.append(title,message);
    const status=notification.payload?.invitation_status;
-   if(notification.type==="friend_request"&&notification.payload?.friendship_status==="pending"&&notification.payload?.friendship_id){
-    const actions=document.createElement("div");actions.className="mail-notification-actions";
-    const accept=document.createElement("button");accept.type="button";accept.textContent="Accept";
-    const decline=document.createElement("button");decline.type="button";decline.className="secondary";decline.textContent="Decline";
-    const respond=async(response)=>{
-     accept.disabled=true;decline.disabled=true;
-     try{
-      const {error:respondError}=await supabase.rpc("coolanas_friend_respond",{p_friendship_id:notification.payload.friendship_id,p_response:response});
-      if(respondError)throw respondError;
-      await refreshMail();
-      await loadScaFriends();
-     }catch(error){
-      const feedback=document.createElement("span");feedback.className="mail-notification-status";feedback.textContent=error.message||"Could not respond to friend request.";card.append(feedback);
-      accept.disabled=false;decline.disabled=false;
-     }
-    };
-    accept.addEventListener("click",()=>respond("accept"));
-    decline.addEventListener("click",()=>respond("decline"));
-    actions.append(accept,decline);card.append(actions);
-   }
    if(notification.type==="bucket_invitation"&&status==="pending"&&notification.invitation_id){
     const actions=document.createElement("div");actions.className="mail-notification-actions";
     const accept=document.createElement("button");accept.type="button";accept.textContent="Accept";
