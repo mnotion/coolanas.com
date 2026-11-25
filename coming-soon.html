@@ -459,7 +459,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-message-row.mine{align-self:stretch;flex-direction:row-reverse;justify-content:flex-start}
     .sca-dm-message-row.theirs{align-self:stretch;flex-direction:row;justify-content:flex-start}
     .sca-dm-message-group{display:flex;flex:0 1 auto;flex-direction:column;gap:0;min-width:0;width:fit-content;max-width:min(50%,520px);box-sizing:border-box;padding:9px 12px;border-radius:15px;background:rgba(75,125,190,.15);overflow-wrap:anywhere;word-break:normal;hyphens:manual;white-space:pre-wrap;text-align:left;font-size:13px;line-height:1.45}
-    .sca-dm-message-group,.sca-dm-message-group.theirs{background:transparent!important;box-shadow:none!important}
+    .sca-dm-message-group.theirs{background:rgba(120,120,120,.10)}
     .sca-dm-message-line{margin:0;padding:0;text-indent:0;white-space:pre-wrap}
     .sca-dm-message-status{flex:0 0 auto;align-self:flex-end;margin:0 2px 3px 0;font-size:11px;line-height:1;color:var(--muted-color,#7d8b9a);opacity:.85}
     .sca-dm-message-row{gap:4px;margin-top:10px}.sca-dm-message-row:first-child{margin-top:0}.sca-dm-message-row.same-sender{margin-top:3px}
@@ -497,7 +497,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-empty-icon{display:grid;place-items:center;width:54px;height:54px;border-radius:17px;background:rgba(120,120,120,.08);font-size:23px}
     .sca-dm-empty strong{color:var(--text-color,inherit);font-size:14px}
     .sca-dm-empty p{max-width:300px;margin:0;font-size:12px;line-height:1.6}
-    .sca-dm-composer{display:flex;align-items:flex-end;gap:10px;padding:14px 16px;border-top:1px solid rgba(120,120,120,.14)}
+    .sca-dm-composer{display:flex;align-items:flex-end;gap:10px;padding:14px 16px;border-top:0!important;background:transparent!important;box-shadow:none!important}
     .sca-dm-composer textarea{flex:1;min-height:42px;max-height:110px;resize:vertical;padding:12px 14px;border:1px solid rgba(120,120,120,.2);border-radius:13px;background:transparent;color:inherit;font:13px inherit;outline:none}
     .sca-dm-composer button{height:42px;padding:0 16px;border:0;border-radius:12px;background:#4779bd;color:#fff;font-size:12px;font-weight:650;opacity:.55;cursor:not-allowed}
     .sca-dm-placeholder{padding:0 18px 12px;color:var(--muted-color,#999);font-size:10px;text-align:right}
@@ -518,7 +518,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       .sca-dm-friend-list{flex-direction:row;overflow-x:auto;overflow-y:hidden}
       .sca-dm-friend{width:150px;flex:0 0 150px}
     }
-.sca-dm-messages{display:flex;flex:1;flex-direction:column;gap:0;min-height:0;padding:18px 20px;overflow:auto}.sca-dm-bubble{max-width:min(72%,520px);padding:10px 13px;border-radius:15px;background:rgba(120,120,120,.10);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}.sca-dm-bubble.mine{align-self:flex-end;background:rgba(75,125,190,.15)}.sca-dm-bubble.theirs{align-self:flex-start}.sca-dm-bubble small{display:block;margin-top:5px;color:var(--muted-color,#888);font-size:10px;text-align:right}.sca-dm-composer{display:flex;align-items:center;padding:13px 16px;border-top:1px solid rgba(120,120,120,.14)}.sca-dm-input-wrap{display:flex;align-items:flex-end;gap:8px;width:100%;padding:6px;border:1px solid rgba(120,120,120,.22);border-radius:14px;background:var(--sca-surface,white)}.sca-dm-composer textarea{display:block;flex:1;min-width:0;min-height:38px;max-height:120px;resize:none;padding:8px 9px;border:0;border-radius:8px;background:transparent;color:inherit;font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;outline:none}.sca-dm-composer button{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:0;border:0;border-radius:10px;background:#4779bd;color:white;cursor:pointer;opacity:.45}.sca-dm-composer button:enabled{opacity:1}.sca-dm-composer button svg{width:18px;height:18px}.sca-dm-counter{align-self:center;color:var(--muted-color,#888);font-size:10px;white-space:nowrap}.sca-dm-counter[hidden]{display:none!important}@media(max-width:720px){.sca-dm-layout{grid-template-columns:180px minmax(0,1fr)}.sca-dm-sidebar-head{padding:14px 10px}.sca-dm-friend{padding:8px 5px;gap:6px}.sca-dm-messages{padding:12px}.sca-dm-composer{padding:10px}}</style>
+.sca-dm-messages{display:flex;flex:1;flex-direction:column;gap:0;min-height:0;padding:18px 20px;overflow:auto}.sca-dm-bubble{max-width:min(72%,520px);padding:10px 13px;border-radius:15px;background:rgba(120,120,120,.10);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}.sca-dm-bubble.mine{align-self:flex-end;background:rgba(75,125,190,.15)}.sca-dm-bubble.theirs{align-self:flex-start}.sca-dm-bubble small{display:block;margin-top:5px;color:var(--muted-color,#888);font-size:10px;text-align:right}.sca-dm-composer{display:flex;align-items:center;padding:13px 16px;border-top:0!important;background:transparent!important;box-shadow:none!important}.sca-dm-input-wrap{display:flex;align-items:flex-end;gap:8px;width:100%;padding:6px;border:1px solid rgba(120,120,120,.22);border-radius:14px;background:var(--sca-surface,white)}.sca-dm-composer textarea{display:block;flex:1;min-width:0;min-height:38px;max-height:120px;resize:none;padding:8px 9px;border:0;border-radius:8px;background:transparent;color:inherit;font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;outline:none}.sca-dm-composer button{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:0;border:0;border-radius:10px;background:#4779bd;color:white;cursor:pointer;opacity:.45}.sca-dm-composer button:enabled{opacity:1}.sca-dm-composer button svg{width:18px;height:18px}.sca-dm-counter{align-self:center;color:var(--muted-color,#888);font-size:10px;white-space:nowrap}.sca-dm-counter[hidden]{display:none!important}@media(max-width:720px){.sca-dm-layout{grid-template-columns:180px minmax(0,1fr)}.sca-dm-sidebar-head{padding:14px 10px}.sca-dm-friend{padding:8px 5px;gap:6px}.sca-dm-messages{padding:12px}.sca-dm-composer{padding:10px}}</style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
 <body>
@@ -745,7 +745,8 @@ async function openScaConversation(friend,picture){
    const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs")+(sameSender?" same-sender":"");
    previousSenderId=message.sender_id;
    const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
-   if(!sameSender){const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);avatar.append(avatarElement);}
+   const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);
+   avatar.append(avatarElement);
    const bubble=document.createElement("div");bubble.className="sca-dm-message-group "+(mine?"mine":"theirs");
    const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=message.id;line.textContent=message.clearText??"";
    bubble.append(line);
