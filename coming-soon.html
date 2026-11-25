@@ -71,6 +71,35 @@ main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
     html.dark-mode .sca-bazaar-button svg{color:#d2b36d}
     .sca-main{width:calc(100vw - 256px);max-width:none;margin-right:0;min-width:0;grid-template-columns:minmax(0,1fr);padding-right:108px}
     .sca-workspace.is-expanded .sca-main{width:calc(100vw - 134px);grid-template-columns:minmax(0,1fr);padding-right:108px}
+    .sca-sidebar:hover{width:190px!important}
+    .sca-sidebar:hover .sca-nav-item{justify-content:flex-start!important;padding:0 15px!important}
+    .sca-sidebar:hover .sca-nav-item span{display:inline!important}
+    .sca-bazaar-entry{top:calc(50% - 230px)!important}
+    .sca-workspace.is-expanded .sca-bazaar-entry{top:calc(50% - 230px)!important}
+    .sca-friends-rail{top:82px!important;bottom:104px!important;width:64px;transition:width .22s ease;overflow:hidden}
+    .sca-friends-rail.is-open{width:min(330px,calc(100vw - 120px));align-items:stretch;padding:12px}
+    .sca-friends-rail.is-open .sca-add-friend{align-self:flex-start}
+    .sca-friend-search{display:grid;gap:10px;min-width:0}
+    .sca-friend-search[hidden]{display:none}
+    .sca-friend-search input{width:100%;height:40px;padding:0 12px;border:1px solid #ddd;border-radius:10px;background:rgba(255,255,255,.92);color:#222;font:13px Inter,ui-sans-serif,system-ui,sans-serif;outline:none}
+    .sca-friend-search input:focus{border-color:#91b5e9;box-shadow:0 0 0 3px rgba(91,145,220,.12)}
+    .sca-friend-results{display:grid;gap:7px;max-height:min(55vh,480px);overflow:auto}
+    .sca-friend-hint{margin:2px 0;color:#888;font-size:12px}
+    .sca-friend-result{display:flex;align-items:center;gap:9px;padding:8px;border:1px solid rgba(0,0,0,.06);border-radius:11px;background:rgba(245,245,245,.75);min-width:0}
+    .sca-friend-result img,.sca-friend-avatar{width:34px;height:34px;flex:none;border-radius:50%;object-fit:cover;background:#e7e7e7}
+    .sca-friend-result strong{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+    .sca-friend-result button{flex:none;padding:7px 10px;border:1px solid #4779bd;border-radius:8px;background:#4779bd;color:#fff;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .sca-friend-result button.pending{border-color:#d6b65f;background:rgba(218,183,102,.18);color:#80621f;cursor:default}
+    .sca-friend-avatars{display:grid;justify-items:center;gap:9px;width:100%;overflow:auto}
+    .sca-friend-avatars img{width:38px;height:38px;border:2px solid rgba(255,255,255,.9);border-radius:50%;object-fit:cover;background:#e7e7e7}
+    .sca-workspace.is-expanded .sca-friends-rail:not(.is-open){width:64px}
+    html.dark-mode .sca-friend-search input{background:#292929;color:#eee;border-color:#555}
+    html.dark-mode .sca-friend-result{background:#303030;border-color:#484848}
+    @media(max-width:620px){
+      .sca-bazaar-entry{top:auto!important;bottom:calc(100% - 40px);left:10px}
+      .sca-friends-rail{top:78px!important;bottom:94px!important;right:12px}
+      .sca-friends-rail.is-open{width:min(300px,calc(100vw - 92px))}
+    }
     .sca-friends-rail{position:fixed;z-index:10;right:24px;top:164px;bottom:104px;width:64px;padding:10px 8px;border:1px solid rgba(0,0,0,.08);border-radius:24px;background:rgba(255,255,255,.84);box-shadow:0 8px 28px rgba(0,0,0,.09);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;flex-direction:column;align-items:center;gap:10px}
     .sca-add-friend{width:42px;height:42px;flex:none;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(70,120,190,.2);background:rgba(80,135,210,.09);color:#4779bd;cursor:pointer;transition:background .18s ease,transform .18s ease}
     .sca-add-friend:hover{background:rgba(80,135,210,.16);transform:scale(1.05)}
@@ -289,10 +318,15 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       <span>Guild</span>
     </button>
   </aside>
-  <aside class="sca-friends-rail" aria-label="Friends list">
-    <button class="sca-add-friend" type="button" aria-label="Add friend" title="Add friend">
+  <aside class="sca-friends-rail" id="sca-friends-rail" aria-label="Friends list">
+    <button class="sca-add-friend" id="sca-add-friend" type="button" aria-label="Add friend" title="Add friend">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
     </button>
+    <div class="sca-friend-search" id="sca-friend-search" hidden>
+      <input id="sca-friend-search-input" type="search" autocomplete="off" placeholder="Search username…" aria-label="Search users by username">
+      <div class="sca-friend-results" id="sca-friend-results"><p class="sca-friend-hint">Type at least 2 characters.</p></div>
+    </div>
+    <div class="sca-friend-avatars" id="sca-friend-avatars"></div>
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
     <section class="sca-panel" id="sca-primary-panel"></section>
@@ -345,6 +379,79 @@ function openScaSection(section){
 }
 scaButtons.forEach(button=>button.addEventListener("click",()=>openScaSection(button.dataset.scaSection)));
 openScaSection("bazaar");
+
+const friendRail=document.getElementById("sca-friends-rail");
+const addFriendButton=document.getElementById("sca-add-friend");
+const friendSearch=document.getElementById("sca-friend-search");
+const friendSearchInput=document.getElementById("sca-friend-search-input");
+const friendResults=document.getElementById("sca-friend-results");
+const friendAvatars=document.getElementById("sca-friend-avatars");
+let friendSearchRequest=0;
+let friendSearchTimer=0;
+function closeFriendSearch(){
+  friendRail.classList.remove("is-open");
+  friendSearch.hidden=true;
+  friendSearchInput.value="";
+  friendResults.replaceChildren();
+}
+function showFriendHint(message){
+  const p=document.createElement("p");p.className="sca-friend-hint";p.textContent=message;friendResults.replaceChildren(p);
+}
+async function loadScaFriends(){
+  const {data,error}=await supabase.rpc("coolanas_friend_list");
+  if(error)throw error;
+  friendAvatars.replaceChildren();
+  for(const friend of data||[]){
+    const img=document.createElement("img");
+    img.className="sca-friend-avatar";img.alt=friend.username||"Friend";img.title=friend.username||"Friend";
+    img.src=friend.google_avatar||"";
+    img.onerror=()=>{img.style.display="none";};
+    friendAvatars.append(img);
+  }
+}
+async function searchScaUsers(query){
+  const request=++friendSearchRequest;
+  if(query.trim().length<2){showFriendHint("Type at least 2 characters.");return;}
+  showFriendHint("Searching…");
+  const {data,error}=await supabase.rpc("coolanas_friend_search",{p_query:query.trim()});
+  if(request!==friendSearchRequest)return;
+  if(error){showFriendHint(error.message||"Search failed.");return;}
+  friendResults.replaceChildren();
+  if(!data?.length){showFriendHint("No users found.");return;}
+  for(const person of data){
+    const row=document.createElement("div");row.className="sca-friend-result";
+    const avatar=document.createElement("span");avatar.className="sca-friend-avatar";avatar.textContent=(person.username||"?").slice(0,1).toUpperCase();
+    const name=document.createElement("strong");name.textContent=person.username||"User";
+    const add=document.createElement("button");add.type="button";add.textContent="Add friend";
+    add.addEventListener("click",async()=>{
+      add.disabled=true;
+      try{
+        const {error:requestError}=await supabase.rpc("coolanas_friend_request",{p_recipient_id:person.user_id});
+        if(requestError)throw requestError;
+        add.textContent="Pending";add.classList.add("pending");add.disabled=true;
+      }catch(error){add.disabled=false;add.textContent="Add friend";showScaFriendError(error.message||"Could not send friend request.");}
+    });
+    row.append(avatar,name,add);friendResults.append(row);
+  }
+}
+function showScaFriendError(message){showFriendHint(message);}
+addFriendButton.addEventListener("click",()=>{
+  const opening=!friendRail.classList.contains("is-open");
+  friendRail.classList.toggle("is-open",opening);
+  friendSearch.hidden=!opening;
+  if(opening){friendSearchInput.focus();showFriendHint("Type at least 2 characters.");}
+});
+friendSearchInput.addEventListener("input",()=>{
+  clearTimeout(friendSearchTimer);
+  const value=friendSearchInput.value;
+  friendSearchTimer=setTimeout(()=>searchScaUsers(value),220);
+});
+document.addEventListener("click",event=>{
+  if(friendRail.classList.contains("is-open")&&!friendRail.contains(event.target))closeFriendSearch();
+});
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&friendRail.classList.contains("is-open"))closeFriendSearch();});
+loadScaFriends().catch(error=>console.warn("Could not load SCA friends:",error.message));
+
 const {data:profile}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();
 const displayName=profile?.username||user.user_metadata?.full_name||user.email||"Account";
 document.getElementById("profile-name").textContent=displayName;
