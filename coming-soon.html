@@ -751,7 +751,7 @@ async function openScaConversation(friend,picture){
    const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=message.id;line.textContent=message.clearText??"";
    bubble.append(line);
    row.append(avatar,bubble);
-   if(mine&&!message.read_at){const status=document.createElement("span");status.className="sca-dm-message-status";status.textContent="✓";status.setAttribute("aria-label","Sent, not viewed");status.title="Sent, not viewed";row.append(status);}
+   if(mine&&!message.read_at&&!friendViewingConversation){const status=document.createElement("span");status.className="sca-dm-message-status";status.textContent="✓";status.setAttribute("aria-label","Sent, not viewed");status.title="Sent, not viewed";row.append(status);}
    messages.append(row);
   }
   messages.scrollTop=messages.scrollHeight;
@@ -798,11 +798,17 @@ async function openScaConversation(friend,picture){
    await markIncomingMessagesRead();
   }finally{messagesLoading=false;}
  }
+ let friendViewingConversation=false;
  let cachedRows=[];
  try{cachedRows=await getScaCachedMessages(conversationId);if(cachedRows.length)renderMessageRows(cachedRows);}catch(e){console.warn("Could not read cached messages:",e);}
  messages.scrollTop=messages.scrollHeight;
  await loadMessages();if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
- scaDmChannel=supabase.channel("sca-dm-"+conversationId)
+ scaDmChannel=supabase.channel("sca-dm-"+conversationId,{config:{presence:{key:user.id}}})
+  .on("presence",{event:"sync"},()=>{
+   const presence=scaDmChannel.presenceState();
+   const viewing=Object.entries(presence).some(([key,metas])=>key!==user.id&&(metas||[]).some(meta=>meta.viewingConversation===true));
+   if(viewing!==friendViewingConversation){friendViewingConversation=viewing;renderMessageRows(cachedRows);}
+  })
   .on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},()=>loadMessages().catch(console.warn))
   .on("postgres_changes",{event:"UPDATE",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},payload=>{
    const updated=payload.new,index=cachedRows.findIndex(item=>item.id===updated.id);
@@ -810,7 +816,11 @@ async function openScaConversation(friend,picture){
    cachedRows[index]={...cachedRows[index],read_at:updated.read_at||null};
    setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
    renderMessageRows(cachedRows);
-  }).subscribe();
+  }).subscribe(async status=>{
+   if(status==="SUBSCRIBED"){
+    try{await scaDmChannel.track({viewingConversation:true});}catch(error){console.warn("Could not publish chat presence:",error);}
+   }
+  });
  // Realtime UPDATE delivery can be delayed by client connection state; poll
  // receipt metadata while this conversation is open so the sender sees views
  // without waiting for another message.
