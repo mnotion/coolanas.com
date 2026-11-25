@@ -2284,25 +2284,31 @@ async function uploadEntries(entries, parentId = currentFolderId) {
       return;
     }
 
-    for (let index = 0; index < prepared.length; index++) {
-      if (signal.aborted) break;
-      const task = prepared[index];
-      setUploadProgress(
-          processed, entries.length,
-          "Uploading " + (index + 1) + " of " + prepared.length + " · " + task.fileName);
-      try {
-        await saveFile(task.file, task.parentId, task.fileName, signal);
-        completed++;
-      } catch (error) {
-        if (signal.aborted || error?.name === "AbortError") break;
-        failed.push({name:task.fileName,error:error?.message || "Upload failed."});
+    let uploadCursor = 0;
+    async function uploadWorker() {
+      while (!signal.aborted) {
+        const index = uploadCursor++;
+        if (index >= prepared.length) return;
+        const task = prepared[index];
+        setUploadProgress(
+            processed, entries.length,
+            "Uploading " + (index + 1) + " of " + prepared.length + " · " + task.fileName);
+        try {
+          await saveFile(task.file, task.parentId, task.fileName, signal);
+          completed++;
+        } catch (error) {
+          if (signal.aborted || error?.name === "AbortError") return;
+          failed.push({name:task.fileName,error:error?.message || "Upload failed."});
+        }
+        processed++;
+        setUploadProgress(
+            processed, entries.length,
+            failed.length ? completed + " uploaded · " + failed.length + " failed" :
+              completed + " of " + prepared.length + " uploaded");
       }
-      processed++;
-      setUploadProgress(
-          processed, entries.length,
-          failed.length ? completed + " uploaded · " + failed.length + " failed" :
-            completed + " of " + prepared.length + " uploaded");
     }
+    await Promise.all(
+        Array.from({length:Math.min(3,prepared.length)},()=>uploadWorker()));
 
     renderItems();
     if (currentFolderId !== exhibitionRootId) {
