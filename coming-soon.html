@@ -56,13 +56,13 @@ main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
     .bottom-nav{z-index:10}
 
     /* Social Coolanas navigation and workspace */
-    .sca-forum-entry{position:fixed;z-index:12;left:18px;top:calc(50% - 151px);width:190px}
+    .sca-bazaar-entry{position:fixed;z-index:12;left:18px;top:calc(50% - 151px);width:190px}
     .sca-sidebar{position:fixed;z-index:11;left:18px;top:50%;transform:translateY(-50%);width:190px;padding:8px;border:1px solid rgba(255,255,255,.12);border-radius:17px;background:rgba(38,38,38,.88);box-shadow:0 10px 32px rgba(0,0,0,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:grid;gap:5px;transition:width .22s ease}
-    .sca-nav-item,.sca-forum-button{width:100%;min-height:58px;display:flex;align-items:center;gap:13px;padding:0 15px;border:1px solid transparent;border-radius:11px;background:transparent;color:#d5d5d5;text-align:left;font:600 14px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
-    .sca-nav-item svg,.sca-forum-button svg{width:20px;height:20px;flex:none;opacity:.88}
-    .sca-nav-item:hover,.sca-forum-button:hover{background:rgba(255,255,255,.07);color:#fff}
-    .sca-nav-item[aria-current="page"],.sca-forum-button[aria-current="page"]{background:rgba(78,125,194,.22);border-color:rgba(112,159,229,.34);color:#fff}
-    .sca-nav-item[aria-current="page"] svg,.sca-forum-button[aria-current="page"] svg{color:#9bc2ff;opacity:1}
+    .sca-nav-item,.sca-bazaar-button{width:100%;min-height:58px;display:flex;align-items:center;gap:13px;padding:0 15px;border:1px solid transparent;border-radius:11px;background:transparent;color:#d5d5d5;text-align:left;font:600 14px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease}
+    .sca-nav-item svg,.sca-bazaar-button svg{width:20px;height:20px;flex:none;opacity:.88}
+    .sca-nav-item:hover,.sca-bazaar-button:hover{background:rgba(255,255,255,.07);color:#fff}
+    .sca-nav-item[aria-current="page"],.sca-bazaar-button[aria-current="page"]{background:rgba(78,125,194,.22);border-color:rgba(112,159,229,.34);color:#fff}
+    .sca-nav-item[aria-current="page"] svg,.sca-bazaar-button[aria-current="page"] svg{color:#9bc2ff;opacity:1}
     .sca-main{min-height:100vh;margin-left:226px;padding:34px 30px 100px;display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:18px;align-items:stretch;transition:margin-left .22s ease}
     .sca-panel{min-width:0;min-height:calc(100vh - 134px);padding:26px;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(38,38,38,.78);box-shadow:0 10px 32px rgba(0,0,0,.12);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#eee}
     .sca-panel h1{margin:0 0 8px;font-size:23px;letter-spacing:-.035em}
@@ -70,28 +70,28 @@ main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
     .sca-empty-state{min-height:55vh;display:grid;place-content:center;text-align:center;color:#999}
     .sca-empty-state strong{display:block;margin-bottom:6px;color:#ddd;font-size:15px}
     .sca-workspace.is-expanded .sca-sidebar{width:68px}
-    .sca-workspace.is-expanded .sca-forum-entry{width:68px}
-    .sca-workspace.is-expanded .sca-nav-item,.sca-workspace.is-expanded .sca-forum-button{justify-content:center;padding:0}
-    .sca-workspace.is-expanded .sca-nav-item span,.sca-workspace.is-expanded .sca-forum-button span{display:none}
+    .sca-workspace.is-expanded .sca-bazaar-entry{width:68px}
+    .sca-workspace.is-expanded .sca-nav-item,.sca-workspace.is-expanded .sca-bazaar-button{justify-content:center;padding:0}
+    .sca-workspace.is-expanded .sca-nav-item span,.sca-workspace.is-expanded .sca-bazaar-button span{display:none}
     .sca-workspace.is-expanded .sca-main{margin-left:104px}
     html:not(.dark-mode) .sca-sidebar,html:not(.dark-mode) .sca-panel{background:rgba(255,255,255,.9);border-color:rgba(0,0,0,.1);color:#222}
-    html:not(.dark-mode) .sca-nav-item,html:not(.dark-mode) .sca-forum-button{color:#555}
-    html:not(.dark-mode) .sca-nav-item:hover,html:not(.dark-mode) .sca-forum-button:hover{background:rgba(0,0,0,.045);color:#111}
-    html:not(.dark-mode) .sca-nav-item[aria-current="page"],html:not(.dark-mode) .sca-forum-button[aria-current="page"]{background:#edf4ff;border-color:#c9dcfb;color:#1e4f91}
+    html:not(.dark-mode) .sca-nav-item,html:not(.dark-mode) .sca-bazaar-button{color:#555}
+    html:not(.dark-mode) .sca-nav-item:hover,html:not(.dark-mode) .sca-bazaar-button:hover{background:rgba(0,0,0,.045);color:#111}
+    html:not(.dark-mode) .sca-nav-item[aria-current="page"],html:not(.dark-mode) .sca-bazaar-button[aria-current="page"]{background:#edf4ff;border-color:#c9dcfb;color:#1e4f91}
     html:not(.dark-mode) .sca-panel-subtitle{color:#777}
     html:not(.dark-mode) .sca-empty-state{color:#777}
     html:not(.dark-mode) .sca-empty-state strong{color:#333}
     @media(max-width:760px){.sca-main{grid-template-columns:minmax(0,1fr) 220px;padding:20px 14px 100px;gap:12px}.sca-panel{padding:20px}}
     @media(max-width:620px){
-      .sca-forum-entry{left:10px;top:auto;bottom:140px;width:calc(100% - 20px)}
+      .sca-bazaar-entry{left:10px;top:auto;bottom:140px;width:calc(100% - 20px)}
       .sca-sidebar{left:10px;top:auto;bottom:74px;transform:none;width:calc(100% - 20px);grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:5px;border-radius:14px}
       .sca-nav-item{min-height:52px;justify-content:center;gap:7px;padding:0 5px;font-size:12px}
-      .sca-nav-item svg,.sca-forum-button svg{width:18px;height:18px}
-      .sca-forum-button{min-height:46px;justify-content:center}
+      .sca-nav-item svg,.sca-bazaar-button svg{width:18px;height:18px}
+      .sca-bazaar-button{min-height:46px;justify-content:center}
       .sca-workspace.is-expanded .sca-sidebar{width:calc(100% - 20px)}
-      .sca-workspace.is-expanded .sca-forum-entry{width:calc(100% - 20px)}
-      .sca-workspace.is-expanded .sca-nav-item,.sca-workspace.is-expanded .sca-forum-button{justify-content:center;padding:0 5px}
-      .sca-workspace.is-expanded .sca-nav-item span,.sca-workspace.is-expanded .sca-forum-button span{display:inline}
+      .sca-workspace.is-expanded .sca-bazaar-entry{width:calc(100% - 20px)}
+      .sca-workspace.is-expanded .sca-nav-item,.sca-workspace.is-expanded .sca-bazaar-button{justify-content:center;padding:0 5px}
+      .sca-workspace.is-expanded .sca-nav-item span,.sca-workspace.is-expanded .sca-bazaar-button span{display:inline}
       .sca-workspace.is-expanded .sca-main{margin-left:0}
       .sca-main{margin-left:0;padding:18px 10px 210px;grid-template-columns:minmax(0,1fr) 125px;gap:8px}
       .sca-panel{min-height:52vh;padding:14px;border-radius:14px}
@@ -99,7 +99,7 @@ main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
       .sca-panel-subtitle{font-size:11px}
     }
     @media(max-width:390px){.sca-main{grid-template-columns:minmax(0,1fr) 105px}.sca-panel{padding:11px}}
-    @media(prefers-reduced-motion:reduce){.sca-nav-item,.sca-forum-button,.sca-sidebar,.sca-main{transition:none}}
+    @media(prefers-reduced-motion:reduce){.sca-nav-item,.sca-bazaar-button,.sca-sidebar,.sca-main{transition:none}}
 
     .selection-marquee{position:fixed;z-index:40;pointer-events:none;border:1px solid #3985ed;background:rgba(59,130,246,.18);border-radius:2px}
 .selection-actions{position:fixed;z-index:45;display:flex;align-items:center;gap:5px;padding:0;background:transparent;pointer-events:auto;transform:translate(8px,-50%)}
@@ -238,10 +238,10 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 </button>
 <section class="mail-popover" id="mail-popover" aria-label="Mail" hidden><h2>Mail</h2><div class="mail-notifications" id="mail-notifications"><p class="mail-empty">Loading mail…</p></div></section>
 <div class="sca-workspace" id="sca-workspace">
-  <div class="sca-forum-entry">
-    <button class="sca-forum-button" type="button" data-sca-section="forum" aria-current="page">
+  <div class="sca-bazaar-entry">
+    <button class="sca-bazaar-button" type="button" data-sca-section="bazaar" aria-current="page">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-5-5 17-4-7-9-5Z"/><path d="m12 16 4-5"/></svg>
-      <span>Forum</span>
+      <span>Bazaar</span>
     </button>
   </div>
   <aside class="sca-sidebar" aria-label="Social Coolanas navigation">
@@ -259,7 +259,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     </button>
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
-    <section class="sca-panel" id="sca-primary-panel"><h1>Forum</h1><p class="sca-panel-subtitle">Study discussions and updates from the Coolanas community</p><div class="sca-empty-state"><div><strong>The forum is getting ready</strong>Community discussions will appear here.</div></div></section>
+    <section class="sca-panel" id="sca-primary-panel"><h1>Bazaar</h1><p class="sca-panel-subtitle">Study discussions and updates from the Coolanas community</p><div class="sca-empty-state"><div><strong>The bazaar is getting ready</strong>Community discussions will appear here.</div></div></section>
     <aside class="sca-panel" id="sca-secondary-panel"><h1>Highlights</h1><p class="sca-panel-subtitle">A quick look at what's happening</p></aside>
   </main>
 </div>
@@ -305,7 +305,7 @@ function openScaSection(section){
   scaWorkspace.classList.toggle("is-expanded",section==="friends");
   scaMain.dataset.section=section;
   const content={
-    forum:{title:"Forum",subtitle:"Study discussions and updates from the Coolanas community",sideTitle:"Highlights",sideSubtitle:"A quick look at what's happening",emptyTitle:"The forum is getting ready",emptyText:"Community discussions will appear here."},
+    bazaar:{title:"Bazaar",subtitle:"Study discussions and updates from the Coolanas community",sideTitle:"Highlights",sideSubtitle:"A quick look at what's happening",emptyTitle:"The bazaar is getting ready",emptyText:"Community discussions will appear here."},
     friends:{title:"Friends",subtitle:"Your study connections and their activity",sideTitle:"Friend activity",sideSubtitle:"See who's studying",emptyTitle:"Your friends will appear here",emptyText:"Add friends to see their study activity."},
     profile:{title:"Profile",subtitle:"Your Social Coolanas profile",sideTitle:"Your activity",sideSubtitle:"Your study presence",emptyTitle:"Profile setup is coming next",emptyText:"Your profile details will appear here."},
     guild:{title:"Guild",subtitle:"Study groups and shared communities",sideTitle:"Guild activity",sideSubtitle:"Updates from your guilds",emptyTitle:"Guilds are coming next",emptyText:"Your guilds and group activity will appear here."}
@@ -314,7 +314,7 @@ function openScaSection(section){
   scaSecondary.innerHTML="<h1>"+content.sideTitle+"</h1><p class=\"sca-panel-subtitle\">"+content.sideSubtitle+"</p>";
 }
 scaButtons.forEach(button=>button.addEventListener("click",()=>openScaSection(button.dataset.scaSection)));
-openScaSection("forum");
+openScaSection("bazaar");
 const {data:profile}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();
 const displayName=profile?.username||user.user_metadata?.full_name||user.email||"Account";
 document.getElementById("profile-name").textContent=displayName;
