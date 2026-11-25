@@ -898,6 +898,8 @@ async function openScaConversation(friend,picture){
  let typingBroadcastTimer=0,lastTypingBroadcast=0;
  function broadcastTyping(typing){
   if(!scaDmChannel)return;
+  if(typing){clearTimeout(typingBroadcastTimer);typingBroadcastTimer=setTimeout(()=>broadcastTyping(false),1500);}
+  else clearTimeout(typingBroadcastTimer);
   const now=Date.now();if(typing&&now-lastTypingBroadcast<700)return;
   lastTypingBroadcast=now;
   scaDmChannel.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing}}).catch(()=>{});
