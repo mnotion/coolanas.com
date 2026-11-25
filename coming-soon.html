@@ -332,6 +332,20 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-workspace.is-expanded .sca-main{width:calc(100vw - 192px)!important;margin-left:104px;margin-right:88px;padding-right:24px}
     .sca-workspace.is-expanded .sca-friends-rail.is-open{width:min(330px,calc(100vw - 150px))}
     .sca-workspace.is-expanded:has(.sca-friends-rail.is-open) .sca-main{width:calc(100vw - 104px - 378px)!important;margin-right:378px}
+    /* Collapsed rail always keeps the add control visible */
+    .sca-friends-rail{width:64px!important;min-width:64px!important;align-items:center!important;padding:10px 8px!important;overflow:hidden!important}
+    .sca-friends-rail .sca-add-friend{display:grid!important;width:42px!important;height:42px!important;flex:0 0 42px!important;place-items:center!important;border:1px solid rgba(70,120,190,.22)!important;border-radius:50%!important;background:rgba(80,135,210,.10)!important;color:#4779bd!important;cursor:pointer!important}
+    .sca-friends-rail .sca-add-friend svg{display:block!important;width:20px!important;height:20px!important}
+    .sca-friend-expanded-content{display:none;width:100%;min-width:0;flex-direction:column;gap:10px}
+    .sca-friends-rail.is-open{width:min(330px,calc(100vw - 150px))!important;align-items:stretch!important;padding:12px!important}
+    .sca-friends-rail.is-open .sca-friend-expanded-content{display:flex}
+    .sca-friends-rail.is-open .sca-add-friend{align-self:flex-start!important}
+    .sca-friend-tabs{display:grid!important}
+    .sca-friend-search{display:grid!important}
+    .sca-friends-rail:not(.is-open) .sca-friend-tabs,.sca-friends-rail:not(.is-open) .sca-friend-expanded-content{display:none!important}
+    .sca-friends-rail:not(.is-open) .sca-friend-avatars{display:grid!important}
+    .sca-friend-avatars{margin-top:2px}
+    html.dark-mode .sca-friends-rail .sca-add-friend{background:rgba(100,150,220,.12)!important;color:#a9cbff!important}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -362,6 +376,10 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     </button>
   </aside>
   <aside class="sca-friends-rail" id="sca-friends-rail" aria-label="Friends and requests">
+    <button type="button" class="sca-add-friend" id="sca-add-friend" aria-label="Add friend" title="Add friend">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <div class="sca-friend-expanded-content">
     <div class="sca-friend-tabs">
       <button type="button" class="sca-friend-tab active" data-friend-tab="requests">Requests</button>
       <button type="button" class="sca-friend-tab" data-friend-tab="pending">Pending</button>
@@ -372,6 +390,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     </div>
     <div class="sca-friend-request-list" id="sca-friend-request-list" hidden></div>
     <div class="sca-friend-avatars" id="sca-friend-avatars"></div>
+    </div>
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
     <section class="sca-panel" id="sca-primary-panel"></section>
@@ -417,7 +436,7 @@ function openScaSection(section){
     else button.removeAttribute("aria-current");
   });
   scaWorkspace.classList.toggle("is-expanded",section==="friends");
-  if(section==="friends"){friendRail.classList.add("is-open");friendRail.dataset.tab="search";}
+  if(section==="friends"){friendRail.classList.remove("is-open");friendRail.dataset.tab="search";}
   scaMain.dataset.section=section;
   scaMain.hidden=section!=="friends";
   if(section!=="friends"){scaPrimary.replaceChildren();return;}
@@ -428,6 +447,8 @@ openScaSection("bazaar");
 
 const friendRail=document.getElementById("sca-friends-rail");
 const friendTabs=[...document.querySelectorAll("[data-friend-tab]")];
+const addFriendButton=document.getElementById("sca-add-friend");
+addFriendButton.addEventListener("click",()=>{const opening=!friendRail.classList.contains("is-open");friendRail.classList.toggle("is-open",opening);if(opening){friendRail.dataset.tab="search";friendSearchInput.focus();}else friendRail.dataset.tab="";});
 const friendSearch=document.getElementById("sca-friend-search");
 const friendSearchInput=document.getElementById("sca-friend-search-input");
 const friendResults=document.getElementById("sca-friend-results");
