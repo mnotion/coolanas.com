@@ -542,8 +542,8 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 .sca-dm-messages{display:flex;flex:1;flex-direction:column;gap:0;min-height:0;padding:18px 20px;overflow:auto}.sca-dm-bubble{max-width:min(72%,520px);padding:10px 13px;border-radius:15px;background:rgba(120,120,120,.10);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}.sca-dm-bubble.mine{align-self:flex-end;background:rgba(75,125,190,.15)}.sca-dm-bubble.theirs{align-self:flex-start}.sca-dm-bubble small{display:block;margin-top:5px;color:var(--muted-color,#888);font-size:10px;text-align:right}.sca-dm-composer{display:flex;align-items:center;padding:13px 16px;border-top:0!important;background:transparent!important;box-shadow:none!important}.sca-dm-input-wrap{display:flex;align-items:flex-end;gap:8px;width:100%;padding:6px;border:1px solid rgba(120,120,120,.22);border-radius:14px;background:var(--sca-surface,white)}.sca-dm-composer textarea{display:block;flex:1;min-width:0;min-height:38px;max-height:120px;resize:none;padding:8px 9px;border:0;border-radius:8px;background:transparent;color:inherit;font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;outline:none}.sca-dm-composer button{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:0;border:0;border-radius:10px;background:#4779bd;color:white;cursor:pointer;opacity:.45}.sca-dm-composer button:enabled{opacity:1}.sca-dm-composer button svg{width:18px;height:18px}.sca-dm-counter{align-self:center;color:var(--muted-color,#888);font-size:10px;white-space:nowrap}.sca-dm-counter[hidden]{display:none!important}@media(max-width:720px){.sca-dm-layout{grid-template-columns:180px minmax(0,1fr)}.sca-dm-sidebar-head{padding:14px 10px}.sca-dm-friend{padding:8px 5px;gap:6px}.sca-dm-messages{padding:12px}.sca-dm-composer{padding:10px}}
 /* SCA typing indicator: Uiverse curly-wombat loader, scoped to direct messages */
 .sca-dm-conversation{position:relative;isolation:isolate}
-.sca-dm-typing-indicator{display:flex;align-items:center;gap:9px;width:max-content;max-width:calc(100% - 32px);height:auto;overflow:visible;opacity:0;pointer-events:none;transform:translateY(18px);transition:opacity .28s ease,transform .34s cubic-bezier(.2,.75,.25,1);position:absolute;left:16px;bottom:42px;z-index:1}
-.sca-dm-typing-indicator.is-visible{opacity:1;transform:translateY(0)}
+.sca-dm-typing-indicator{display:flex;align-items:center;gap:9px;width:max-content;max-width:calc(100% - 32px);height:auto;overflow:visible;opacity:0;pointer-events:none;transform:translate(-50%,calc(-50% + 18px));transition:opacity .28s ease,transform .34s cubic-bezier(.2,.75,.25,1);position:absolute;left:50%;top:50%;bottom:auto;z-index:4}
+.sca-dm-typing-indicator.is-visible{opacity:1;transform:translate(-50%,-50%)}
 .sca-dm-typing-preview{display:none;max-width:min(360px,calc(100vw - 130px));padding:9px 13px;border-radius:16px;background:rgba(125,125,125,.14);color:var(--sca-text,#333);font-size:13px;line-height:1.4;overflow-wrap:anywhere;white-space:pre-wrap;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .sca-dm-typing-preview.has-text{display:block}
 html.dark-mode .sca-dm-typing-preview{background:rgba(255,255,255,.09);color:#eee}
@@ -788,8 +788,8 @@ async function openScaConversation(friend,picture){
  typePlaceholder();
  const count=document.createElement("small");count.className="sca-dm-counter";count.hidden=true;
  const send=document.createElement("button");send.type="submit";send.disabled=true;send.setAttribute("aria-label","Send message");send.title="Send message";send.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.7 2.3 14.1 21.1a1.35 1.35 0 0 1-2.5-.05L8.1 13.1 1.9 9.6a1.35 1.35 0 0 1 .15-2.45L20.1 1.4a1.35 1.35 0 0 1 1.6.9Z"/><path d="m8.1 13.1 6.1-6.2"/></svg>';
- wrap.append(input,count,send);composer.append(wrap);
- panel.append(messages,typingIndicator,composer);
+ wrap.append(input,count,send);composer.append(wrap,typingIndicator);
+ panel.append(messages,composer);
  input.addEventListener("input",()=>{const n=input.value.length;count.hidden=n<=275;count.textContent=n+" / 300";send.disabled=!input.value.trim()||n>300;input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";});
  input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
  function renderMessageRows(rows){
@@ -905,20 +905,14 @@ async function openScaConversation(friend,picture){
  scaDmReadPoll=setInterval(()=>{
   if(document.visibilityState==="visible")syncCachedReadStatuses().catch(console.warn);
  },1500);
- let typingBroadcastTimer=0,typingDebounceTimer=0;
  function broadcastTyping(typing,textValue=""){
   if(!scaDmChannel)return;
-  clearTimeout(typingBroadcastTimer);
-  if(typing)typingBroadcastTimer=setTimeout(()=>broadcastTyping(false),4000);
   scaDmChannel.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing,text:typing?textValue.slice(0,300):""}}).catch(()=>{});
  }
  input.addEventListener("input",()=>{
-  clearTimeout(typingDebounceTimer);
   const draft=input.value;
-  if(!draft.trim()){broadcastTyping(false);return;}
-  typingDebounceTimer=setTimeout(()=>broadcastTyping(true,draft),80);
+  broadcastTyping(draft.length>0,draft);
  });
- input.addEventListener("blur",()=>{clearTimeout(typingDebounceTimer);broadcastTyping(false);});
  let pendingSendCount=0;
  composer.addEventListener("submit",event=>{
   event.preventDefault();
