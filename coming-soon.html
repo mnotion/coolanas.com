@@ -293,7 +293,44 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .profile-actions #change-pfp,.profile-actions #remove-pfp,.profile-actions #theme-toggle{display:none!important}
     .profile-actions .menu-item{display:flex;align-items:center;gap:12px}
     .profile-actions .menu-item svg{width:19px;height:19px;flex:0 0 19px}
-  </style>
+      /* SCA friend panel: compact tabs, stable avatars and non-overlapping workspace */
+    .sca-friends-rail{top:82px!important;bottom:104px!important;right:24px;width:64px;transition:width .22s ease;overflow:hidden}
+    .sca-friends-rail.is-open{width:min(330px,calc(100vw - 150px));align-items:stretch;padding:12px}
+    .sca-friend-tabs{display:none;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;flex:none}
+    .sca-friends-rail.is-open .sca-friend-tabs{display:grid}
+    .sca-friend-tab{min-width:0;padding:9px 4px;border:1px solid #e4e4e4;border-radius:9px;background:#f7f7f7;color:#666;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .sca-friend-tab.active{background:#edf4ff;border-color:#c9dcfb;color:#1e4f91}
+    .sca-friend-search{display:none;gap:10px;min-width:0;width:100%}
+    .sca-friends-rail.is-open[data-tab="search"] .sca-friend-search{display:grid}
+    .sca-friend-search input{width:100%;height:40px;padding:0 12px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#222;font:13px Inter,ui-sans-serif,system-ui,sans-serif}
+    .sca-friend-results,.sca-friend-request-list{display:grid;align-content:start;gap:8px;width:100%;max-height:calc(100vh - 260px);overflow:auto}
+    .sca-friend-request-list{display:none}
+    .sca-friends-rail.is-open[data-tab="requests"] .sca-friend-request-list,.sca-friends-rail.is-open[data-tab="pending"] .sca-friend-request-list{display:grid}
+    .sca-friends-rail.is-open[data-tab="requests"] .sca-friend-search,.sca-friends-rail.is-open[data-tab="pending"] .sca-friend-search{display:none}
+    .sca-friend-hint{margin:2px 0;color:#888;font-size:12px}
+    .sca-friend-result{display:flex;align-items:center;gap:10px;min-width:0;padding:9px;border:1px solid rgba(0,0,0,.07);border-radius:11px;background:#fafafa}
+    .sca-friend-avatar{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;overflow:hidden;border-radius:50%;background:#e8edf5;color:#53657e;font-size:14px;font-weight:700;line-height:1}
+    .sca-friend-avatar img,.sca-friend-result img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+    .sca-friend-result strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+    .sca-friend-result button{flex:none;padding:7px 10px;border:1px solid #4779bd;border-radius:8px;background:#4779bd;color:white;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
+    .sca-friend-result button.pending{border-color:#d6b65f;background:rgba(218,183,102,.18);color:#80621f;cursor:pointer}
+    .sca-friend-avatars{display:grid;justify-items:center;gap:9px;width:100%;overflow:auto}
+    .sca-friend-avatars .sca-friend-avatar{width:38px;height:38px}
+    .sca-workspace.is-expanded .sca-main{width:calc(100vw - 104px - 430px)!important;max-width:none;margin-left:104px;margin-right:430px;padding-right:24px;grid-template-columns:minmax(0,1fr)}
+    .sca-workspace.is-expanded .sca-friends-rail.is-open{width:min(330px,calc(100vw - 150px))}
+    html.dark-mode .sca-friend-tab{background:#303030;border-color:#505050;color:#bbb}
+    html.dark-mode .sca-friend-tab.active{background:#1e2a3d;border-color:#3b5d8f;color:#b9d3ff}
+    html.dark-mode .sca-friend-search input{background:#292929;color:#eee;border-color:#555}
+    html.dark-mode .sca-friend-result{background:#303030;border-color:#484848}
+    @media(max-width:760px){
+      .sca-workspace.is-expanded .sca-main{width:calc(100vw - 104px - 330px)!important;margin-right:330px;padding-right:10px}
+      .sca-friends-rail.is-open{width:min(300px,calc(100vw - 110px))}
+    }
+    @media(max-width:620px){
+      .sca-workspace.is-expanded .sca-main{width:calc(100vw - 20px)!important;margin:0;padding-right:78px}
+      .sca-friends-rail.is-open{width:min(300px,calc(100vw - 92px))}
+    }
+</style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
 <body>
@@ -388,80 +425,133 @@ scaButtons.forEach(button=>button.addEventListener("click",()=>openScaSection(bu
 openScaSection("bazaar");
 
 const friendRail=document.getElementById("sca-friends-rail");
-const addFriendButton=document.getElementById("sca-add-friend");
+const friendTabs=[...document.querySelectorAll("[data-friend-tab]")];
 const friendSearch=document.getElementById("sca-friend-search");
 const friendSearchInput=document.getElementById("sca-friend-search-input");
 const friendResults=document.getElementById("sca-friend-results");
+const friendRequestList=document.getElementById("sca-friend-request-list");
 const friendAvatars=document.getElementById("sca-friend-avatars");
-let friendSearchRequest=0;
-let friendSearchTimer=0;
-function closeFriendSearch(){
-  friendRail.classList.remove("is-open");
-  friendSearch.hidden=true;
-  friendSearchInput.value="";
-  friendResults.replaceChildren();
+let friendSearchRequest=0,friendSearchTimer=0;
+function friendHint(target,message){const p=document.createElement("p");p.className="sca-friend-hint";p.textContent=message;target.replaceChildren(p);}
+function avatarNode(username,url){
+ const holder=document.createElement("span");holder.className="sca-friend-avatar";
+ if(url){const img=document.createElement("img");img.alt="";img.src=url;img.onerror=()=>{holder.textContent=(username||"?").slice(0,1).toUpperCase();};holder.append(img);}
+ else holder.textContent=(username||"?").slice(0,1).toUpperCase();
+ return holder;
 }
-function showFriendHint(message){
-  const p=document.createElement("p");p.className="sca-friend-hint";p.textContent=message;friendResults.replaceChildren(p);
+function openFriendTab(tab){
+ friendRail.classList.add("is-open");friendRail.dataset.tab=tab;
+ friendTabs.forEach(button=>button.classList.toggle("active",button.dataset.friendTab===tab));
+ if(tab==="requests")loadFriendRequests("incoming");
+ if(tab==="pending")loadFriendRequests("outgoing");
+ if(tab==="search"&&!friendSearchInput.value)friendHint(friendResults,"Type at least 2 characters.");
 }
+friendTabs.forEach(button=>button.addEventListener("click",()=>openFriendTab(button.dataset.friendTab)));
 async function loadScaFriends(){
-  const {data,error}=await supabase.rpc("coolanas_friend_list");
-  if(error)throw error;
-  friendAvatars.replaceChildren();
-  for(const friend of data||[]){
-    if(friend.google_avatar){
-      const img=document.createElement("img");
-      img.className="sca-friend-avatar";img.alt=friend.username||"Friend";img.title=friend.username||"Friend";
-      img.src=friend.google_avatar;
-      img.onerror=()=>{const fallback=document.createElement("span");fallback.className="sca-friend-avatar";fallback.textContent=(friend.username||"?").slice(0,1).toUpperCase();img.replaceWith(fallback);};
-      friendAvatars.append(img);
-    }else{
-      const fallback=document.createElement("span");fallback.className="sca-friend-avatar";fallback.textContent=(friend.username||"?").slice(0,1).toUpperCase();fallback.title=friend.username||"Friend";fallback.style.display="grid";fallback.style.placeItems="center";fallback.style.fontWeight="650";
-      friendAvatars.append(fallback);
-    }
+ const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
+ friendAvatars.replaceChildren();
+ for(const friend of data||[]){const node=avatarNode(friend.username,friend.google_avatar);node.title=friend.username||"Friend";friendAvatars.append(node);}
+}
+async function loadFriendRequests(direction){
+ friendRequestList.replaceChildren();friendHint(friendRequestList,"Loading…");
+ const {data,error}=await supabase.rpc("coolanas_friend_requests");
+ if(error){friendHint(friendRequestList,error.message||"Could not load requests.");return;}
+ const rows=(data||[]).filter(item=>item.direction===direction);
+ friendRequestList.replaceChildren();
+ if(!rows.length){friendHint(friendRequestList,direction==="incoming"?"No new friend requests.":"No pending requests.");return;}
+ for(const item of rows){
+  const row=document.createElement("div");row.className="sca-friend-result";
+  row.append(avatarNode(item.username,item.google_avatar));
+  const name=document.createElement("strong");name.textContent=item.username||"User";row.append(name);
+  const action=document.createElement("button");action.type="button";
+  if(direction==="incoming"){
+   action.textContent="Accept";
+   action.addEventListener("click",async()=>{
+    action.disabled=true;
+    const {error:respondError}=await supabase.rpc("coolanas_friend_respond",{p_friendship_id:item.friendship_id,p_response:"accept"});
+    if(respondError){action.disabled=false;action.textContent="Retry";return;}
+    await loadFriendRequests("incoming");await loadScaFriends();
+   });
+   const decline=document.createElement("button");decline.type="button";decline.className="pending";decline.textContent="Decline";
+   decline.addEventListener("click",async()=>{
+    decline.disabled=true;
+    const {error:respondError}=await supabase.rpc("coolanas_friend_respond",{p_friendship_id:item.friendship_id,p_response:"decline"});
+    if(respondError){decline.disabled=false;return;}await loadFriendRequests("incoming");
+   });
+   row.append(action,decline);
+  }else{
+   action.textContent="Cancel";action.className="pending";
+   action.addEventListener("click",async()=>{
+    action.disabled=true;
+    const {error:cancelError}=await supabase.rpc("coolanas_friend_cancel",{p_friendship_id:item.friendship_id});
+    if(cancelError){action.disabled=false;action.textContent="Retry";return;}
+    await loadFriendRequests("outgoing");
+    if(friendSearchInput.value.trim().length>=2)searchScaUsers(friendSearchInput.value);
+   });
+   row.append(action);
   }
+  friendRequestList.append(row);
+ }
 }
 async function searchScaUsers(query){
-  const request=++friendSearchRequest;
-  if(query.trim().length<2){showFriendHint("Type at least 2 characters.");return;}
-  showFriendHint("Searching…");
-  const {data,error}=await supabase.rpc("coolanas_friend_search",{p_query:query.trim()});
-  if(request!==friendSearchRequest)return;
-  if(error){showFriendHint(error.message||"Search failed.");return;}
-  friendResults.replaceChildren();
-  if(!data?.length){showFriendHint("No users found.");return;}
-  for(const person of data){
-    const row=document.createElement("div");row.className="sca-friend-result";
-    const avatar=document.createElement("span");avatar.className="sca-friend-avatar";avatar.textContent=(person.username||"?").slice(0,1).toUpperCase();
-    const name=document.createElement("strong");name.textContent=person.username||"User";
-    const add=document.createElement("button");add.type="button";add.textContent="Add friend";
-    add.addEventListener("click",async()=>{
-      add.disabled=true;
-      try{
-        const {error:requestError}=await supabase.rpc("coolanas_friend_request",{p_recipient_id:person.user_id});
-        if(requestError)throw requestError;
-        add.textContent="Pending";add.classList.add("pending");add.disabled=true;
-      }catch(error){add.disabled=false;add.textContent="Add friend";showScaFriendError(error.message||"Could not send friend request.");}
-    });
-    row.append(avatar,name,add);friendResults.append(row);
-  }
+ const request=++friendSearchRequest;
+ if(query.trim().length<2){friendHint(friendResults,"Type at least 2 characters.");return;}
+ friendHint(friendResults,"Searching…");
+ const {data,error}=await supabase.rpc("coolanas_friend_search",{p_query:query.trim()});
+ if(request!==friendSearchRequest)return;
+ if(error){friendHint(friendResults,error.message||"Search failed.");return;}
+ friendResults.replaceChildren();
+ if(!data?.length){friendHint(friendResults,"No users found.");return;}
+ for(const person of data){
+  const row=document.createElement("div");row.className="sca-friend-result";
+  row.append(avatarNode(person.username,person.google_avatar));
+  const name=document.createElement("strong");name.textContent=person.username||"User";row.append(name);
+  const action=document.createElement("button");action.type="button";
+  if(person.friendship_status==="pending"){
+   action.textContent="Pending";action.className="pending";
+   action.addEventListener("click",async()=>{
+    action.disabled=true;
+    const {data:requests,error:requestsError}=await supabase.rpc("coolanas_friend_requests");
+    const pending=(requests||[]).find(item=>item.direction==="outgoing"&&item.user_id===person.user_id);
+    if(requestsError||!pending){action.disabled=false;return;}
+    const {error:cancelError}=await supabase.rpc("coolanas_friend_cancel",{p_friendship_id:pending.friendship_id});
+    if(cancelError){action.disabled=false;return;}
+    action.textContent="Add friend";action.classList.remove("pending");action.disabled=false;
+    action.onclick=null;
+    action.addEventListener("click",()=>sendFriendRequest(person,action));
+   });
+  }else{action.textContent="Add friend";action.addEventListener("click",()=>sendFriendRequest(person,action));}
+  row.append(action);friendResults.append(row);
+ }
 }
-function showScaFriendError(message){showFriendHint(message);}
-addFriendButton.addEventListener("click",()=>{
-  const opening=!friendRail.classList.contains("is-open");
-  friendRail.classList.toggle("is-open",opening);
-  friendSearch.hidden=!opening;
-  if(opening){friendSearchInput.focus();showFriendHint("Type at least 2 characters.");}
-});
+async function sendFriendRequest(person,button){
+ button.disabled=true;
+ const {error}=await supabase.rpc("coolanas_friend_request",{p_recipient_id:person.user_id});
+ if(error){button.disabled=false;button.textContent="Add friend";return;}
+ button.textContent="Pending";button.classList.add("pending");button.disabled=false;
+ button.onclick=null;
+ button.addEventListener("click",async()=>{
+  const {data:requests}=await supabase.rpc("coolanas_friend_requests");
+  const pending=(requests||[]).find(item=>item.direction==="outgoing"&&item.user_id===person.user_id);
+  if(!pending)return;
+  const {error:cancelError}=await supabase.rpc("coolanas_friend_cancel",{p_friendship_id:pending.friendship_id});
+  if(cancelError)return;
+  button.textContent="Add friend";button.classList.remove("pending");button.onclick=null;
+  button.replaceWith(button.cloneNode(true));
+  const replacement=friendResults.querySelector(".sca-friend-result:last-child button");
+  if(replacement)replacement.addEventListener("click",()=>sendFriendRequest(person,replacement));
+ });
+}
 friendSearchInput.addEventListener("input",()=>{
-  clearTimeout(friendSearchTimer);
-  const value=friendSearchInput.value;
-  friendSearchTimer=setTimeout(()=>searchScaUsers(value),220);
+ clearTimeout(friendSearchTimer);const value=friendSearchInput.value;
+ friendSearchTimer=setTimeout(()=>searchScaUsers(value),220);
 });
 document.addEventListener("click",event=>{
-  if(friendRail.classList.contains("is-open")&&!friendRail.contains(event.target))closeFriendSearch();
+ if(friendRail.classList.contains("is-open")&&!friendRail.contains(event.target)){
+  friendRail.classList.remove("is-open");friendRail.dataset.tab="";
+ }
 });
-document.addEventListener("keydown",event=>{if(event.key==="Escape"&&friendRail.classList.contains("is-open"))closeFriendSearch();});
+document.addEventListener("keydown",event=>{if(event.key==="Escape"){friendRail.classList.remove("is-open");friendRail.dataset.tab="";}});
 loadScaFriends().catch(error=>console.warn("Could not load SCA friends:",error.message));
 
 const {data:profile}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();
