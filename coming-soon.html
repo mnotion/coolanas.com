@@ -455,8 +455,8 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-input-wrap{border:0!important;background:transparent!important;box-shadow:0 3px 14px rgba(0,0,0,.075),0 0 0 1px rgba(120,120,120,.10)!important;padding:7px!important}
     html.dark-mode .sca-dm-input-wrap{box-shadow:0 3px 14px rgba(0,0,0,.24),0 0 0 1px rgba(255,255,255,.10)!important}
     .sca-dm-message-row{display:flex;align-items:flex-end;gap:8px;max-width:100%}
-    .sca-dm-message-row.mine{align-self:flex-end;flex-direction:row-reverse}
-    .sca-dm-message-row.theirs{align-self:flex-start;flex-direction:row}
+    .sca-dm-message-row.mine{align-self:flex-start;flex-direction:row-reverse}
+    .sca-dm-message-row.theirs{align-self:flex-end;flex-direction:row}
     .sca-dm-message-row .sca-dm-bubble{max-width:min(72%,520px)}
     .sca-dm-message-avatar{width:27px;height:27px;flex:0 0 27px;border-radius:50%;overflow:hidden;align-self:flex-start;margin-top:2px}
     .sca-dm-message-avatar{width:22px;height:22px;flex:0 0 22px;overflow:visible}
@@ -683,10 +683,8 @@ async function decryptScaMessage(envelope,friendId,conversationId){
 }
 async function renderScaMessagesDraft(){
  scaPrimary.classList.add("sca-messaging-active");
- scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-sidebar-head"><button type="button" class="active" data-dm-list="groups">Groups</button><button type="button" data-dm-list="archived">Archived</button></div><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong></div></section></div>';
+ scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong></div></section></div>';
  const list=document.getElementById("sca-dm-friend-list");
- const listTabs=[...scaPrimary.querySelectorAll("[data-dm-list]")];
- listTabs.forEach(tab=>tab.addEventListener("click",()=>{listTabs.forEach(x=>x.classList.toggle("active",x===tab));if(tab.dataset.dmList==="archived"){list.replaceChildren();const empty=document.createElement("p");empty.className="sca-dm-no-friends";empty.textContent="No archived conversations.";list.append(empty);}else{loadFriendConversationList();}}));
  await loadFriendConversationList();
  async function loadFriendConversationList(){
   const {data,error}=await supabase.rpc("coolanas_friend_list");
