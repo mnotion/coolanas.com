@@ -704,7 +704,6 @@ async function openScaConversation(friend,picture){
  if(scaDmReadVisibilityHandler){document.removeEventListener("visibilitychange",scaDmReadVisibilityHandler);scaDmReadVisibilityHandler=null;}
  const panel=document.getElementById("sca-dm-conversation");panel.replaceChildren();
  const {data:conversationId,error}=await supabase.rpc("coolanas_dm_open_conversation",{p_friend_id:friend.friend_id});if(error)throw error;await ensureScaPublicKey();
- const header=document.createElement("div");header.className="sca-dm-header";header.append(avatarNode(friend.username,picture));const copy=document.createElement("div");copy.className="sca-dm-header-copy";const name=document.createElement("strong");name.textContent=friend.username||"Friend";copy.append(name);header.append(copy);
  let ownProfilePicture=user.user_metadata?.avatar_url||user.user_metadata?.picture||"";
  try{const {data:ownProfile}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();if(ownProfile?.username){const directory=await getFriendPictureDirectory();const saved=directory.get(ownProfile.username);ownProfilePicture=saved?.pictureUrl||saved?.googleAvatar||ownProfilePicture;}}catch(e){console.warn("Could not load saved profile picture:",e);}
  const messages=document.createElement("div");messages.className="sca-dm-messages";messages.setAttribute("aria-live","polite");
@@ -733,7 +732,7 @@ async function openScaConversation(friend,picture){
  const count=document.createElement("small");count.className="sca-dm-counter";count.hidden=true;
  const send=document.createElement("button");send.type="submit";send.disabled=true;send.setAttribute("aria-label","Send message");send.title="Send message";send.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>';
  wrap.append(input,count,send);composer.append(wrap);
- panel.append(header,messages,composer);
+ panel.append(messages,composer);
  input.addEventListener("input",()=>{const n=input.value.length;count.hidden=n<=275;count.textContent=n+" / 300";send.disabled=!input.value.trim()||n>300;input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";});
  input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
  function renderMessageRows(rows){
