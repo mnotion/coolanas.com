@@ -491,12 +491,13 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-friend .sca-friend-avatar{width:40px;height:40px;flex:0 0 40px}
     .sca-dm-friend-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
     .sca-dm-friend-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-    .sca-dm-friend-copy{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px}
-    .sca-dm-friend-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;transition:color .15s}
+    .sca-dm-friend-copy{flex:1;min-width:0;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:7px}
+    .sca-dm-friend-name{display:block;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:600;transition:color .15s}
     .sca-dm-friend.has-unread .sca-dm-friend-name{color:#b85a5a}
     .sca-dm-friend.has-heavy-unread .sca-dm-friend-name{color:#d13d3d}
-    .sca-dm-unread-count{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#c95b5b;color:#fff;font-size:10px;font-weight:700;line-height:1;box-sizing:border-box}
-    .sca-dm-friend.has-heavy-unread .sca-dm-unread-count{background:#d83232}
+    .sca-dm-unread-count{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:18px;height:18px;overflow:visible}
+    .sca-dm-unread-count svg{display:block;width:18px;height:18px;overflow:visible}
+    .sca-dm-unread-count[hidden]{display:none!important}
     .sca-dm-friend-copy small{display:none}
     .sca-dm-conversation{display:flex;flex-direction:column;min-width:0;min-height:0;background:transparent}
     .sca-dm-header{display:flex;align-items:center;gap:11px;min-height:72px;padding:12px 20px;border-bottom:1px solid rgba(120,120,120,.14)}
@@ -715,7 +716,7 @@ async function renderScaMessagesDraft(){
    const {data,error}=await supabase.from("coolanas_dm_messages").select("sender_id").in("sender_id",friendIds).is("read_at",null);
    if(error){console.warn("Could not refresh unread DM counts:",error.message);return;}
    const counts=new Map();for(const item of data||[])counts.set(item.sender_id,(counts.get(item.sender_id)||0)+1);
-   for(const friend of friends){const count=counts.get(friend.friend_id)||0;const entry=friendButtons.get(friend.friend_id);if(!entry)continue;entry.unread.hidden=count===0;entry.unread.textContent=count>9?"9+":String(count);entry.unread.setAttribute("aria-label",count+" unseen messages");entry.button.classList.toggle("has-unread",count>0);entry.button.classList.toggle("has-heavy-unread",count>9);}
+   for(const friend of friends){const count=counts.get(friend.friend_id)||0;const entry=friendButtons.get(friend.friend_id);if(!entry)continue;entry.unread.hidden=count===0;entry.unread.setAttribute("aria-label",count+" unseen messages");entry.unread.title=count+" unseen messages";if(count===1){entry.unread.innerHTML='<svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="4" fill="#c95b5b"/></svg>';}else if(count>1){const label=count>9?"9+":String(count);const width=label.length>1?22:18;entry.unread.innerHTML='<svg viewBox="0 0 '+width+' 18" aria-hidden="true"><rect x="1" y="1" width="'+(width-2)+'" height="16" rx="8" fill="'+(count>9?"#d83232":"#c95b5b")+'"/><text x="'+(width/2)+'" y="12.2" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#fff">'+label+'</text></svg>';}else{entry.unread.replaceChildren();}entry.button.classList.toggle("has-unread",count>0);entry.button.classList.toggle("has-heavy-unread",count>9);}
   }
   await refreshFriendUnreadCounts();
   setInterval(()=>refreshFriendUnreadCounts(),5000);
