@@ -479,7 +479,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       .sca-dm-friend-list{flex-direction:row;overflow-x:auto;overflow-y:hidden}
       .sca-dm-friend{width:150px;flex:0 0 150px}
     }
-</style>
+.sca-dm-messages{display:flex;flex:1;flex-direction:column;gap:9px;min-height:0;padding:18px 20px;overflow:auto}.sca-dm-bubble{max-width:min(72%,520px);padding:10px 13px;border-radius:15px;background:rgba(120,120,120,.10);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}.sca-dm-bubble.mine{align-self:flex-end;background:rgba(75,125,190,.15)}.sca-dm-bubble.theirs{align-self:flex-start}.sca-dm-bubble small{display:block;margin-top:5px;color:var(--muted-color,#888);font-size:10px;text-align:right}.sca-dm-composer{display:flex;align-items:flex-end;gap:9px;padding:14px 16px;border-top:1px solid rgba(120,120,120,.14)}.sca-dm-composer textarea{flex:1;min-width:0;resize:none;max-height:120px;padding:11px 13px;border:1px solid rgba(120,120,120,.22);border-radius:13px;background:var(--sca-surface,white);color:inherit;font:13px inherit;outline:none}.sca-dm-composer button{padding:11px 17px;border:0;border-radius:11px;background:#4779bd;color:white;font-weight:650;cursor:pointer}.sca-dm-counter{color:var(--muted-color,#888);font-size:10px;white-space:nowrap}@media(max-width:720px){.sca-dm-layout{grid-template-columns:180px minmax(0,1fr)}.sca-dm-sidebar-head{padding:14px 10px}.sca-dm-friend{padding:8px 5px;gap:6px}.sca-dm-messages{padding:12px}.sca-dm-composer{padding:10px}}</style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
 <body>
@@ -610,49 +610,66 @@ function openFriendTab(tab){
 friendTabs.forEach(button=>button.addEventListener("click",()=>openFriendTab(button.dataset.friendTab)));
 friendRail.dataset.tab="search";
 friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";friendTabs.forEach(button=>button.classList.remove("active"));});
-async function renderScaMessagesDraft(){
- scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-sidebar-head"><h2>Messages</h2><p>Your friends</p></div><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong><p>Choose someone from the list to open your conversation.</p></div></section></div>';
- const list=document.getElementById("sca-dm-friend-list");
- const {data,error}=await supabase.rpc("coolanas_friend_list");
- if(error){list.innerHTML='<p class="sca-dm-no-friends">Could not load your friends.</p>';return;}
- const friends=data||[];
- if(!friends.length){list.innerHTML='<p class="sca-dm-no-friends">You have no friends yet. Add friends to start a conversation.</p>';return;}
- let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn("Friend picture lookup failed:",error.message);}
- list.replaceChildren();
- for(const friend of friends){
-  const button=document.createElement("button");button.type="button";button.className="sca-dm-friend";
-  const avatar=avatarNode(friend.username,directory?.get(friend.username)?.pictureUrl||friend.google_avatar);
-  const copy=document.createElement("span");copy.className="sca-dm-friend-copy";
-  const username=document.createElement("strong");username.textContent=friend.username||"Friend";
-  const displayName=document.createElement("small");displayName.textContent=friend.username||"";
-  copy.append(username,displayName);button.append(avatar,copy);
-  button.addEventListener("click",()=>{
-   list.querySelectorAll(".sca-dm-friend").forEach(item=>item.classList.toggle("active",item===button));
-   openScaConversationDraft(friend,directory?.get(friend.username)?.pictureUrl||friend.google_avatar);
-  });
-  list.append(button);
- }
+let scaDmChannel=null;
+const scaDmDbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open("coolanas-sca-e2ee",1);r.onupgradeneeded=()=>r.result.createObjectStore("keys");r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+async function getScaDeviceKey(){
+ const db=await scaDmDbPromise;
+ const existing=await new Promise((resolve,reject)=>{const r=db.transaction("keys").objectStore("keys").get(user.id);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+ if(existing)return existing;
+ const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
+ const publicJwk=await crypto.subtle.exportKey("jwk",pair.publicKey),privateJwk=await crypto.subtle.exportKey("jwk",pair.privateKey);
+ const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
+ const stored={privateKey,publicJwk};
+ await new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").put(stored,user.id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+ const {error}=await supabase.from("coolanas_dm_keys").upsert({user_id:user.id,public_key:publicJwk,key_version:1},{onConflict:"user_id"});if(error)throw error;
+ return stored;
 }
-function openScaConversationDraft(friend,picture){
- const panel=document.getElementById("sca-dm-conversation");if(!panel)return;
- panel.replaceChildren();
- const header=document.createElement("div");header.className="sca-dm-header";
- header.append(avatarNode(friend.username,picture));
- const copy=document.createElement("div");copy.className="sca-dm-header-copy";
- const name=document.createElement("strong");name.textContent=friend.username||"Friend";
- const status=document.createElement("small");status.textContent="Direct message";
- copy.append(name,status);header.append(copy);
- const empty=document.createElement("div");empty.className="sca-dm-empty";
- const icon=document.createElement("div");icon.className="sca-dm-empty-icon";icon.textContent="✉";
- const title=document.createElement("strong");title.textContent="Your conversation starts here";
- const description=document.createElement("p");description.textContent="This is the draft messaging layout. Message history and delivery will be connected in the next stage.";
- empty.append(icon,title,description);
- const composer=document.createElement("div");composer.className="sca-dm-composer";
- const input=document.createElement("textarea");input.maxLength=300;input.placeholder="Write a message…";input.setAttribute("aria-label","Write a message");input.disabled=true;
- const send=document.createElement("button");send.type="button";send.textContent="Send";send.disabled=true;
- composer.append(input,send);
- const note=document.createElement("div");note.className="sca-dm-placeholder";note.textContent="Messaging not connected yet · 300 character limit";
- panel.append(header,empty,composer,note);
+async function ensureScaPublicKey(){
+ const local=await getScaDeviceKey();const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key").eq("user_id",user.id).maybeSingle();if(error)throw error;
+ if(!data){const r=await supabase.from("coolanas_dm_keys").upsert({user_id:user.id,public_key:local.publicJwk,key_version:1},{onConflict:"user_id"});if(r.error)throw r.error;}return local;
+}
+async function scaMessageKey(friendId,conversationId,salt){
+ const local=await ensureScaPublicKey();const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key").eq("user_id",friendId).maybeSingle();if(error)throw error;
+ if(!data?.public_key)throw new Error("Your friend needs to open SCA Messages once to register their encryption key.");
+ const peer=await crypto.subtle.importKey("jwk",data.public_key,{name:"ECDH",namedCurve:"P-256"},false,[]);
+ const bits=await crypto.subtle.deriveBits({name:"ECDH",public:peer},local.privateKey,256);
+ const material=await crypto.subtle.importKey("raw",bits,"HKDF",false,["deriveKey"]);
+ return crypto.subtle.deriveKey({name:"HKDF",hash:"SHA-256",salt,info:new TextEncoder().encode("Coolanas SCA DM v1:"+conversationId)},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+function scaB64(bytes){let s="";for(const b of bytes)s+=String.fromCharCode(b);return btoa(s);}
+function scaUnB64(value){return Uint8Array.from(atob(value),c=>c.charCodeAt(0));}
+async function encryptScaMessage(text,friendId,conversationId){
+ const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await scaMessageKey(friendId,conversationId,salt);
+ const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(text));
+ return {v:1,salt:scaB64(salt),iv:scaB64(iv),ciphertext:scaB64(new Uint8Array(encrypted))};
+}
+async function decryptScaMessage(envelope,friendId,conversationId){
+ if(!envelope||envelope.v!==1)throw new Error("Unsupported encrypted message.");
+ const key=await scaMessageKey(friendId,conversationId,scaUnB64(envelope.salt));
+ const clear=await crypto.subtle.decrypt({name:"AES-GCM",iv:scaUnB64(envelope.iv)},key,scaUnB64(envelope.ciphertext));return new TextDecoder().decode(clear);
+}
+async function renderScaMessagesDraft(){
+ scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-sidebar-head"><h2>Messages</h2><p>End-to-end encrypted · Friends only</p></div><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong><p>Choose a friend to open an encrypted conversation.</p></div></section></div>';
+ const list=document.getElementById("sca-dm-friend-list"),{data,error}=await supabase.rpc("coolanas_friend_list");
+ if(error){list.textContent="Could not load your friends.";return;}const friends=data||[];
+ if(!friends.length){list.textContent="You have no friends yet. Add friends to start a conversation.";return;}
+ let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn(error);}
+ for(const friend of friends){const button=document.createElement("button");button.type="button";button.className="sca-dm-friend";const picture=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;
+ const copy=document.createElement("span");copy.className="sca-dm-friend-copy";const username=document.createElement("strong");username.textContent=friend.username||"Friend";const sub=document.createElement("small");sub.textContent="Friend";copy.append(username,sub);button.append(avatarNode(friend.username,picture),copy);
+ button.addEventListener("click",()=>{list.querySelectorAll(".sca-dm-friend").forEach(x=>x.classList.toggle("active",x===button));openScaConversation(friend,picture).catch(e=>{document.getElementById("sca-dm-conversation").textContent=e.message||"Could not open conversation.";});});list.append(button);}
+}
+async function openScaConversation(friend,picture){
+ const panel=document.getElementById("sca-dm-conversation");panel.replaceChildren();
+ const {data:conversationId,error}=await supabase.rpc("coolanas_dm_open_conversation",{p_friend_id:friend.friend_id});if(error)throw error;await ensureScaPublicKey();
+ const header=document.createElement("div");header.className="sca-dm-header";header.append(avatarNode(friend.username,picture));const copy=document.createElement("div");copy.className="sca-dm-header-copy";const name=document.createElement("strong");name.textContent=friend.username||"Friend";const status=document.createElement("small");status.textContent="Encrypted conversation · 300 characters";copy.append(name,status);header.append(copy);
+ const messages=document.createElement("div");messages.className="sca-dm-messages";messages.setAttribute("aria-live","polite");
+ const composer=document.createElement("form");composer.className="sca-dm-composer";const input=document.createElement("textarea");input.maxLength=300;input.rows=2;input.placeholder="Write an encrypted message…";const send=document.createElement("button");send.type="submit";send.textContent="Send";const count=document.createElement("small");count.className="sca-dm-counter";count.textContent="0 / 300";input.addEventListener("input",()=>count.textContent=input.value.length+" / 300");composer.append(input,count,send);
+ const note=document.createElement("div");note.className="sca-dm-placeholder";note.textContent="Message text is encrypted in your browser before upload.";panel.append(header,messages,composer,note);
+ async function loadMessages(){const {data,error}=await supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).limit(200);if(error)throw error;messages.replaceChildren();
+ for(const item of data||[]){const bubble=document.createElement("div");bubble.className="sca-dm-bubble "+(item.sender_id===user.id?"mine":"theirs");try{bubble.textContent=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){bubble.textContent="Unable to decrypt on this device.";}const time=document.createElement("small");time.textContent=new Date(item.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});bubble.append(time);messages.append(bubble);}messages.scrollTop=messages.scrollHeight;}
+ await loadMessages();if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
+ scaDmChannel=supabase.channel("sca-dm-"+conversationId).on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},()=>loadMessages().catch(console.warn)).subscribe();
+ composer.addEventListener("submit",async event=>{event.preventDefault();const text=input.value.trim();if(!text||text.length>300)return;send.disabled=true;try{const ciphertext=await encryptScaMessage(text,friend.friend_id,conversationId);const result=await supabase.from("coolanas_dm_messages").insert({conversation_id:conversationId,sender_id:user.id,ciphertext});if(result.error)throw result.error;input.value="";count.textContent="0 / 300";await loadMessages();}catch(e){alert(e.message||"Could not send message.");}finally{send.disabled=false;input.focus();}});
 }
 async function loadScaFriends(){
  const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
