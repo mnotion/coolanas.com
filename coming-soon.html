@@ -642,7 +642,7 @@ function openFriendTab(tab){
 friendTabs.forEach(button=>button.addEventListener("click",()=>openFriendTab(button.dataset.friendTab)));
 friendRail.dataset.tab="search";
 friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";friendTabs.forEach(button=>button.classList.remove("active"));});
-let scaDmChannel=null,scaDmReadPoll=null;
+let scaDmChannel=null,scaDmReadPoll=null,scaDmReadVisibilityHandler=null;
 const scaDmDbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open("coolanas-sca-e2ee",2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains("keys"))db.createObjectStore("keys");if(!db.objectStoreNames.contains("messages"))db.createObjectStore("messages");};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
 async function getScaCachedMessages(conversationId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
 async function setScaCachedMessages(conversationId,rows){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("messages","readwrite");tx.objectStore("messages").put(rows,conversationId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
@@ -701,6 +701,7 @@ async function renderScaMessagesDraft(){
 }
 async function openScaConversation(friend,picture){
  if(scaDmReadPoll){clearInterval(scaDmReadPoll);scaDmReadPoll=null;}
+ if(scaDmReadVisibilityHandler){document.removeEventListener("visibilitychange",scaDmReadVisibilityHandler);scaDmReadVisibilityHandler=null;}
  const panel=document.getElementById("sca-dm-conversation");panel.replaceChildren();
  const {data:conversationId,error}=await supabase.rpc("coolanas_dm_open_conversation",{p_friend_id:friend.friend_id});if(error)throw error;await ensureScaPublicKey();
  const header=document.createElement("div");header.className="sca-dm-header";header.append(avatarNode(friend.username,picture));const copy=document.createElement("div");copy.className="sca-dm-header-copy";const name=document.createElement("strong");name.textContent=friend.username||"Friend";copy.append(name);header.append(copy);
@@ -772,6 +773,7 @@ async function openScaConversation(friend,picture){
   if(changed){await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);}
  }
  async function markIncomingMessagesRead(){
+  if(document.visibilityState!=="visible"||!panel.isConnected)return;
   const {data,error}=await supabase.from("coolanas_dm_messages").update({read_at:new Date().toISOString()}).eq("conversation_id",conversationId).neq("sender_id",user.id).is("read_at",null).select("id,read_at");
   if(error)throw error;
   if(data?.length){
@@ -812,6 +814,13 @@ async function openScaConversation(friend,picture){
  // Realtime UPDATE delivery can be delayed by client connection state; poll
  // receipt metadata while this conversation is open so the sender sees views
  // without waiting for another message.
+ scaDmReadVisibilityHandler=()=>{
+  if(document.visibilityState==="visible"){
+   markIncomingMessagesRead().catch(console.warn);
+   syncCachedReadStatuses().catch(console.warn);
+  }
+ };
+ document.addEventListener("visibilitychange",scaDmReadVisibilityHandler);
  scaDmReadPoll=setInterval(()=>{
   if(document.visibilityState==="visible")syncCachedReadStatuses().catch(console.warn);
  },1500);
