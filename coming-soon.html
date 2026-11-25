@@ -57,20 +57,29 @@ main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
 
     /* Social Coolanas navigation and workspace */
     /* SCA layout refinements */
-    .sca-bazaar-entry{top:calc(50% - 220px);width:190px}
+    .sca-bazaar-entry{top:calc(50% - 166px);width:190px;transition:width .22s ease,top .22s ease}
     .sca-bazaar-button,.sca-bazaar-button[aria-current="page"]{
-      min-height:58px;background:linear-gradient(135deg,#8c6b20,#d4ad4c 52%,#f0d88a);
-      border:1px solid rgba(255,224,145,.8);color:#241b08;
-      box-shadow:0 5px 18px rgba(173,132,42,.28),inset 0 1px 0 rgba(255,255,255,.45);
-      font-weight:750;letter-spacing:.01em
+      min-height:58px;background:rgba(218,183,102,.075);
+      border:1px solid rgba(191,151,65,.22);color:inherit;
+      box-shadow:0 3px 12px rgba(157,123,49,.055),inset 0 1px 0 rgba(255,255,255,.18);
+      font-weight:750;letter-spacing:.01em;transition:all .22s ease
     }
-    .sca-bazaar-button svg{color:#3c2c0b;opacity:1}
-    .sca-bazaar-button:hover{background:linear-gradient(135deg,#a27c28,#e2bd5e 52%,#f6e2a0);color:#211805;transform:translateY(-1px)}
-    .sca-bazaar-button[aria-current="page"]{outline:2px solid rgba(225,187,91,.28);outline-offset:2px}
-    .sca-main{width:calc(100vw - 256px);max-width:none;margin-right:0;min-width:0}
-    .sca-workspace.is-expanded .sca-main{width:calc(100vw - 134px)}
+    .sca-bazaar-button svg{color:#b18a3e;opacity:1}
+    .sca-bazaar-button:hover{background:rgba(218,183,102,.13);border-color:rgba(191,151,65,.34);transform:translateY(-1px)}
+    .sca-bazaar-button[aria-current="page"]{background:rgba(218,183,102,.12);border-color:rgba(191,151,65,.34);outline:none}
+    html.dark-mode .sca-bazaar-button,html.dark-mode .sca-bazaar-button[aria-current="page"]{color:#eee;background:rgba(218,183,102,.09);border-color:rgba(191,151,65,.24)}
+    html.dark-mode .sca-bazaar-button svg{color:#d2b36d}
+    .sca-main{width:calc(100vw - 256px);max-width:none;margin-right:0;min-width:0;grid-template-columns:minmax(0,1fr);padding-right:108px}
+    .sca-workspace.is-expanded .sca-main{width:calc(100vw - 134px);grid-template-columns:minmax(0,1fr);padding-right:108px}
+    .sca-friends-rail{position:fixed;z-index:10;right:24px;top:164px;bottom:104px;width:64px;padding:10px 8px;border:1px solid rgba(0,0,0,.08);border-radius:24px;background:rgba(255,255,255,.84);box-shadow:0 8px 28px rgba(0,0,0,.09);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;flex-direction:column;align-items:center;gap:10px}
+    .sca-add-friend{width:42px;height:42px;flex:none;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(70,120,190,.2);background:rgba(80,135,210,.09);color:#4779bd;cursor:pointer;transition:background .18s ease,transform .18s ease}
+    .sca-add-friend:hover{background:rgba(80,135,210,.16);transform:scale(1.05)}
+    .sca-add-friend svg{width:20px;height:20px}
+    .sca-workspace:not(.is-expanded) .sca-friends-rail{display:none}
+    html.dark-mode .sca-friends-rail{background:rgba(38,38,38,.9);border-color:rgba(255,255,255,.12)}
+    html.dark-mode .sca-add-friend{background:rgba(100,150,220,.12);border-color:rgba(130,175,235,.25);color:#a9cbff}
     .sca-main[hidden]{display:none!important}
-    html:not(.dark-mode) .sca-bazaar-button,html:not(.dark-mode) .sca-bazaar-button[aria-current="page"]{color:#241b08;background:linear-gradient(135deg,#8c6b20,#d4ad4c 52%,#f0d88a);border-color:rgba(255,224,145,.8)}
+    html:not(.dark-mode) .sca-bazaar-button,html:not(.dark-mode) .sca-bazaar-button[aria-current="page"]{color:#51452c;background:rgba(218,183,102,.10);border-color:rgba(191,151,65,.24)}
     @media(max-width:620px){
       .sca-bazaar-entry{top:auto;bottom:140px;width:calc(100% - 20px)}
       .sca-main,.sca-workspace.is-expanded .sca-main{width:calc(100vw - 20px);max-width:none}
@@ -104,6 +113,8 @@ main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
     @media(max-width:760px){.sca-main{grid-template-columns:minmax(0,1fr) 220px;padding:20px 14px 100px;gap:12px}.sca-panel{padding:20px}}
     @media(max-width:620px){
       .sca-bazaar-entry{left:10px;top:auto;bottom:140px;width:calc(100% - 20px)}
+      .sca-friends-rail{right:12px;top:112px;bottom:104px;width:54px;border-radius:20px}
+      .sca-main,.sca-workspace.is-expanded .sca-main{padding-right:78px}
       .sca-sidebar{left:10px;top:auto;bottom:74px;transform:none;width:calc(100% - 20px);grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:5px;border-radius:14px}
       .sca-nav-item{min-height:52px;justify-content:center;gap:7px;padding:0 5px;font-size:12px}
       .sca-nav-item svg,.sca-bazaar-button svg{width:18px;height:18px}
@@ -260,7 +271,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 <div class="sca-workspace" id="sca-workspace">
   <div class="sca-bazaar-entry">
     <button class="sca-bazaar-button" type="button" data-sca-section="bazaar" aria-current="page">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 18-5-5 17-4-7-9-5Z"/><path d="m12 16 4-5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11v2a2 2 0 0 0 2 2h2l10 5V4L7 9H5a2 2 0 0 0-2 2Z"/><path d="m7 15 2 6h4l-2.7-4.65M21 9v6"/></svg>
       <span>Bazaar</span>
     </button>
   </div>
@@ -278,9 +289,14 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       <span>Guild</span>
     </button>
   </aside>
+  <aside class="sca-friends-rail" aria-label="Friends list">
+    <button class="sca-add-friend" type="button" aria-label="Add friend" title="Add friend">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
-    <section class="sca-panel" id="sca-primary-panel"><h1>Bazaar</h1><p class="sca-panel-subtitle">Study discussions and updates from the Coolanas community</p><div class="sca-empty-state"><div><strong>The bazaar is getting ready</strong>Community discussions will appear here.</div></div></section>
-    <aside class="sca-panel" id="sca-secondary-panel"><h1>Highlights</h1><p class="sca-panel-subtitle">A quick look at what's happening</p></aside>
+    <section class="sca-panel" id="sca-primary-panel"></section>
+
   </main>
 </div>
 <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
@@ -315,7 +331,6 @@ const user=session.user;
 const scaWorkspace=document.getElementById("sca-workspace");
 const scaMain=document.getElementById("sca-main");
 const scaPrimary=document.getElementById("sca-primary-panel");
-const scaSecondary=document.getElementById("sca-secondary-panel");
 const scaButtons=[...document.querySelectorAll("[data-sca-section]")];
 function openScaSection(section){
   scaButtons.forEach(button=>{
@@ -324,21 +339,9 @@ function openScaSection(section){
   });
   scaWorkspace.classList.toggle("is-expanded",section==="friends");
   scaMain.dataset.section=section;
-  const showFriends=section==="friends";
-  scaMain.hidden=!showFriends;
-  if(!showFriends){
-    scaPrimary.innerHTML="";
-    scaSecondary.innerHTML="";
-    return;
-  }
-  const content={
-    bazaar:{title:"Bazaar",subtitle:"Study discussions and updates from the Coolanas community",sideTitle:"Highlights",sideSubtitle:"A quick look at what's happening",emptyTitle:"The bazaar is getting ready",emptyText:"Community discussions will appear here."},
-    friends:{title:"Friends",subtitle:"Your study connections and their activity",sideTitle:"Friend activity",sideSubtitle:"See who's studying",emptyTitle:"Your friends will appear here",emptyText:"Add friends to see their study activity."},
-    profile:{title:"Profile",subtitle:"Your Social Coolanas profile",sideTitle:"Your activity",sideSubtitle:"Your study presence",emptyTitle:"Profile setup is coming next",emptyText:"Your profile details will appear here."},
-    guild:{title:"Guild",subtitle:"Study groups and shared communities",sideTitle:"Guild activity",sideSubtitle:"Updates from your guilds",emptyTitle:"Guilds are coming next",emptyText:"Your guilds and group activity will appear here."}
-  }[section];
-  scaPrimary.innerHTML="<h1>"+content.title+"</h1><p class=\"sca-panel-subtitle\">"+content.subtitle+"</p><div class=\"sca-empty-state\"><div><strong>"+content.emptyTitle+"</strong>"+content.emptyText+"</div></div>";
-  scaSecondary.innerHTML="<h1>"+content.sideTitle+"</h1><p class=\"sca-panel-subtitle\">"+content.sideSubtitle+"</p>";
+  scaMain.hidden=section!=="friends";
+  if(section!=="friends"){scaPrimary.replaceChildren();return;}
+  scaPrimary.innerHTML='<h1>Friends</h1><p class="sca-panel-subtitle">Your study connections and their activity</p>';
 }
 scaButtons.forEach(button=>button.addEventListener("click",()=>openScaSection(button.dataset.scaSection)));
 openScaSection("bazaar");
