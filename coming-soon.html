@@ -448,6 +448,8 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     @media(max-width:760px){.sca-main[data-section="friends"]{padding:34px 88px 112px 14px!important}.sca-main[data-section="friends"] .sca-panel{height:calc(100dvh - 150px)}}
     @media(max-width:620px){.sca-main[data-section="friends"]{padding:30px 76px 180px 10px!important}.sca-main[data-section="friends"] .sca-panel{height:calc(100dvh - 230px)}}
 /* SCA message polish */
+    html:has(.sca-panel.sca-messaging-active),html:has(.sca-panel.sca-messaging-active) body{height:100%;overflow:hidden!important}
+    html:has(.sca-panel.sca-messaging-active) body{overscroll-behavior:none}
     .sca-dm-header{border:0!important;box-shadow:none!important}
     .sca-dm-messages{--sca-dm-pattern-color:rgba(80,80,80,.045);background-color:#fff;background-image:linear-gradient(0deg,transparent 24%,var(--sca-dm-pattern-color) 25%,var(--sca-dm-pattern-color) 26%,transparent 27%,transparent 74%,var(--sca-dm-pattern-color) 75%,var(--sca-dm-pattern-color) 76%,transparent 77%,transparent),linear-gradient(90deg,transparent 24%,var(--sca-dm-pattern-color) 25%,var(--sca-dm-pattern-color) 26%,transparent 27%,transparent 74%,var(--sca-dm-pattern-color) 75%,var(--sca-dm-pattern-color) 76%,transparent 77%,transparent);background-size:55px 55px;scrollbar-width:none;-ms-overflow-style:none}
     html.dark-mode .sca-dm-messages{--sca-dm-pattern-color:rgba(255,255,255,.035);background-color:#222}
