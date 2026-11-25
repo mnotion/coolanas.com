@@ -346,6 +346,41 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-friends-rail:not(.is-open) .sca-friend-avatars{display:grid!important}
     .sca-friend-avatars{margin-top:2px}
     html.dark-mode .sca-friends-rail .sca-add-friend{background:rgba(100,150,220,.12)!important;color:#a9cbff!important}
+
+    /* Smooth SCA workspace reflow without expensive backdrop filters */
+    .sca-main{
+      box-sizing:border-box;
+      transition:
+        width 420ms cubic-bezier(.22,.8,.25,1),
+        margin 420ms cubic-bezier(.22,.8,.25,1),
+        padding 420ms cubic-bezier(.22,.8,.25,1),
+        transform 420ms cubic-bezier(.22,.8,.25,1),
+        opacity 260ms ease;
+      transform:translate3d(0,0,0);
+      will-change:width,margin,transform;
+      backface-visibility:hidden;
+    }
+    .sca-workspace.is-expanded .sca-main{
+      transform:translate3d(-8px,0,0);
+    }
+    .sca-friends-rail{
+      transition:width 420ms cubic-bezier(.22,.8,.25,1),right 420ms cubic-bezier(.22,.8,.25,1),top 420ms cubic-bezier(.22,.8,.25,1),transform 420ms cubic-bezier(.22,.8,.25,1);
+      will-change:width,transform;
+      backdrop-filter:none!important;
+      -webkit-backdrop-filter:none!important;
+    }
+    .sca-panel{
+      backdrop-filter:none!important;
+      -webkit-backdrop-filter:none!important;
+      contain:layout paint;
+    }
+    .sca-friends-rail.is-open{
+      box-sizing:border-box;
+      box-shadow:0 8px 26px rgba(0,0,0,.09);
+    }
+    @media(prefers-reduced-motion:reduce){
+      .sca-main,.sca-friends-rail{transition:none!important;transform:none!important}
+    }
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
