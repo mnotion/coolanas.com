@@ -460,7 +460,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-message-group{display:flex;flex:0 1 auto;flex-direction:column;gap:0;min-width:0;width:fit-content;max-width:min(50%,520px);box-sizing:border-box;padding:9px 12px;border-radius:15px;background:rgba(75,125,190,.15);overflow-wrap:anywhere;word-break:normal;hyphens:manual;white-space:pre-wrap;text-align:left;font-size:13px;line-height:1.45}
     .sca-dm-message-group.theirs{background:rgba(120,120,120,.10)}
     .sca-dm-message-line{margin:0;padding:0;text-indent:0;white-space:pre-wrap}
-    .sca-dm-message-group.mine .sca-dm-message-status{align-self:flex-end;margin-top:3px;font-size:11px;line-height:1;color:var(--muted-color,#7d8b9a);opacity:.8}
+    .sca-dm-message-status{flex:0 0 auto;align-self:flex-end;margin:0 2px 3px 0;font-size:11px;line-height:1;color:var(--muted-color,#7d8b9a);opacity:.85}
     .sca-dm-message-row{gap:4px;margin-top:10px}.sca-dm-message-row:first-child{margin-top:0}.sca-dm-message-row.same-sender{margin-top:3px}
     .sca-dm-message-row.mine .sca-dm-message-group{border-top-right-radius:5px}
     .sca-dm-message-row.theirs .sca-dm-message-group{border-top-left-radius:5px}
@@ -642,7 +642,7 @@ function openFriendTab(tab){
 friendTabs.forEach(button=>button.addEventListener("click",()=>openFriendTab(button.dataset.friendTab)));
 friendRail.dataset.tab="search";
 friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";friendTabs.forEach(button=>button.classList.remove("active"));});
-let scaDmChannel=null;
+let scaDmChannel=null,scaDmReadPoll=null;
 const scaDmDbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open("coolanas-sca-e2ee",2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains("keys"))db.createObjectStore("keys");if(!db.objectStoreNames.contains("messages"))db.createObjectStore("messages");};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
 async function getScaCachedMessages(conversationId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
 async function setScaCachedMessages(conversationId,rows){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("messages","readwrite");tx.objectStore("messages").put(rows,conversationId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
@@ -700,6 +700,7 @@ async function renderScaMessagesDraft(){
  }
 }
 async function openScaConversation(friend,picture){
+ if(scaDmReadPoll){clearInterval(scaDmReadPoll);scaDmReadPoll=null;}
  const panel=document.getElementById("sca-dm-conversation");panel.replaceChildren();
  const {data:conversationId,error}=await supabase.rpc("coolanas_dm_open_conversation",{p_friend_id:friend.friend_id});if(error)throw error;await ensureScaPublicKey();
  const header=document.createElement("div");header.className="sca-dm-header";header.append(avatarNode(friend.username,picture));const copy=document.createElement("div");copy.className="sca-dm-header-copy";const name=document.createElement("strong");name.textContent=friend.username||"Friend";copy.append(name);header.append(copy);
@@ -748,8 +749,9 @@ async function openScaConversation(friend,picture){
    const bubble=document.createElement("div");bubble.className="sca-dm-message-group "+(mine?"mine":"theirs");
    const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=message.id;line.textContent=message.clearText??"";
    bubble.append(line);
-   if(mine&&!message.read_at){const status=document.createElement("span");status.className="sca-dm-message-status";status.textContent="✓";status.setAttribute("aria-label","Sent, not viewed");status.title="Sent, not viewed";bubble.append(status);}
-   row.append(avatar,bubble);messages.append(row);
+   row.append(avatar,bubble);
+   if(mine&&!message.read_at){const status=document.createElement("span");status.className="sca-dm-message-status";status.textContent="✓";status.setAttribute("aria-label","Sent, not viewed");status.title="Sent, not viewed";row.append(status);}
+   messages.append(row);
   }
   messages.scrollTop=messages.scrollHeight;
  }
@@ -807,6 +809,15 @@ async function openScaConversation(friend,picture){
    setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
    renderMessageRows(cachedRows);
   }).subscribe();
+ // Realtime UPDATE delivery can be delayed by client connection state; poll
+ // receipt metadata while this conversation is open so the sender sees views
+ // without waiting for another message.
+ scaDmReadPoll=setInterval(()=>{
+  if(document.visibilityState==="visible")syncCachedReadStatuses().catch(console.warn);
+ },1500);
+ document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="visible")syncCachedReadStatuses().catch(console.warn);
+ });
  let sendingMessage=false;
  composer.addEventListener("submit",async event=>{
   event.preventDefault();
