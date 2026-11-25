@@ -455,8 +455,14 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-input-wrap{border:0!important;background:transparent!important;box-shadow:0 3px 14px rgba(0,0,0,.075),0 0 0 1px rgba(120,120,120,.10)!important;padding:7px!important}
     html.dark-mode .sca-dm-input-wrap{box-shadow:0 3px 14px rgba(0,0,0,.24),0 0 0 1px rgba(255,255,255,.10)!important}
     .sca-dm-message-row{display:flex;align-items:flex-end;gap:8px;max-width:100%}
-    .sca-dm-message-row.mine{align-self:flex-start;flex-direction:row-reverse}
-    .sca-dm-message-row.theirs{align-self:flex-end;flex-direction:row}
+    .sca-dm-message-row.mine{align-self:flex-end;flex-direction:row-reverse}
+    .sca-dm-message-row.theirs{align-self:flex-start;flex-direction:row}
+    .sca-dm-message-group{display:flex;flex-direction:column;gap:0;min-width:0;max-width:min(72%,520px);padding:9px 12px;border-radius:15px;background:rgba(75,125,190,.15);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}
+    .sca-dm-message-group.theirs{background:rgba(120,120,120,.10)}
+    .sca-dm-message-line{margin:0;padding:0;text-indent:0;white-space:pre-wrap}
+    .sca-dm-message-row{gap:8px;margin:2px 0}
+    .sca-dm-message-row.mine .sca-dm-message-group{border-top-right-radius:5px}
+    .sca-dm-message-row.theirs .sca-dm-message-group{border-top-left-radius:5px}
     .sca-dm-message-row .sca-dm-bubble{max-width:min(72%,520px)}
     .sca-dm-message-avatar{width:27px;height:27px;flex:0 0 27px;border-radius:50%;overflow:hidden;align-self:flex-start;margin-top:2px}
     .sca-dm-message-avatar{width:22px;height:22px;flex:0 0 22px;overflow:visible}
@@ -734,16 +740,21 @@ async function openScaConversation(friend,picture){
  input.addEventListener("input",()=>{const n=input.value.length;count.hidden=n<=275;count.textContent=n+" / 300";send.disabled=!input.value.trim()||n>300;input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";});
  input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
  function renderMessageRows(rows){
-  const known=new Set([...messages.querySelectorAll("[data-message-id]")].map(node=>node.dataset.messageId));
-  for(let index=0;index<rows.length;index++){
-   const item=rows[index];if(known.has(item.id))continue;
-   const mine=item.sender_id===user.id,previous=rows[index-1],showAvatar=!previous||previous.sender_id!==item.sender_id;
-   const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs");row.dataset.messageId=item.id;
+  messages.replaceChildren();
+  let index=0;
+  while(index<rows.length){
+   const first=rows[index],mine=first.sender_id===user.id;
+   let last=index+1;
+   while(last<rows.length&&rows[last].sender_id===first.sender_id)last++;
+   const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs");
    const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
-   if(showAvatar){const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);avatar.append(avatarElement);}
-   const bubble=document.createElement("div");bubble.className="sca-dm-bubble "+(mine?"mine":"theirs");
-   try{bubble.textContent=item.clearText??"";}catch(e){bubble.textContent="Unable to decrypt on this device.";}
-   row.append(avatar,bubble);messages.append(row);known.add(item.id);
+   const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);
+   avatar.append(avatarElement);
+   const group=document.createElement("div");group.className="sca-dm-message-group "+(mine?"mine":"theirs");
+   for(let messageIndex=index;messageIndex<last;messageIndex++){
+    const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=rows[messageIndex].id;line.textContent=rows[messageIndex].clearText??"";group.append(line);
+   }
+   row.append(avatar,group);messages.append(row);index=last;
   }
   messages.scrollTop=messages.scrollHeight;
  }
