@@ -322,14 +322,17 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       <span>Guild</span>
     </button>
   </aside>
-  <aside class="sca-friends-rail" id="sca-friends-rail" aria-label="Friends list">
-    <button class="sca-add-friend" id="sca-add-friend" type="button" aria-label="Add friend" title="Add friend">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
-    <div class="sca-friend-search" id="sca-friend-search" hidden>
+  <aside class="sca-friends-rail" id="sca-friends-rail" aria-label="Friends and requests">
+    <div class="sca-friend-tabs">
+      <button type="button" class="sca-friend-tab active" data-friend-tab="search">Add</button>
+      <button type="button" class="sca-friend-tab" data-friend-tab="requests">Requests</button>
+      <button type="button" class="sca-friend-tab" data-friend-tab="pending">Pending</button>
+    </div>
+    <div class="sca-friend-search" id="sca-friend-search">
       <input id="sca-friend-search-input" type="search" autocomplete="off" placeholder="Search username…" aria-label="Search users by username">
       <div class="sca-friend-results" id="sca-friend-results"><p class="sca-friend-hint">Type at least 2 characters.</p></div>
     </div>
+    <div class="sca-friend-request-list" id="sca-friend-request-list" hidden></div>
     <div class="sca-friend-avatars" id="sca-friend-avatars"></div>
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
