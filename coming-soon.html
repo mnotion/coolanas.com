@@ -417,6 +417,7 @@ function openScaSection(section){
     else button.removeAttribute("aria-current");
   });
   scaWorkspace.classList.toggle("is-expanded",section==="friends");
+  if(section==="friends"){friendRail.classList.add("is-open");friendRail.dataset.tab="search";}else if(typeof friendRail!=="undefined"){friendRail.classList.remove("is-open");friendRail.dataset.tab="";}
   scaMain.dataset.section=section;
   scaMain.hidden=section!=="friends";
   if(section!=="friends"){scaPrimary.replaceChildren();return;}
