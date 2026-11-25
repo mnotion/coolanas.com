@@ -539,7 +539,16 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       .sca-dm-friend-list{flex-direction:row;overflow-x:auto;overflow-y:hidden}
       .sca-dm-friend{width:150px;flex:0 0 150px}
     }
-.sca-dm-messages{display:flex;flex:1;flex-direction:column;gap:0;min-height:0;padding:18px 20px;overflow:auto}.sca-dm-bubble{max-width:min(72%,520px);padding:10px 13px;border-radius:15px;background:rgba(120,120,120,.10);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}.sca-dm-bubble.mine{align-self:flex-end;background:rgba(75,125,190,.15)}.sca-dm-bubble.theirs{align-self:flex-start}.sca-dm-bubble small{display:block;margin-top:5px;color:var(--muted-color,#888);font-size:10px;text-align:right}.sca-dm-composer{display:flex;align-items:center;padding:13px 16px;border-top:0!important;background:transparent!important;box-shadow:none!important}.sca-dm-input-wrap{display:flex;align-items:flex-end;gap:8px;width:100%;padding:6px;border:1px solid rgba(120,120,120,.22);border-radius:14px;background:var(--sca-surface,white)}.sca-dm-composer textarea{display:block;flex:1;min-width:0;min-height:38px;max-height:120px;resize:none;padding:8px 9px;border:0;border-radius:8px;background:transparent;color:inherit;font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;outline:none}.sca-dm-composer button{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:0;border:0;border-radius:10px;background:#4779bd;color:white;cursor:pointer;opacity:.45}.sca-dm-composer button:enabled{opacity:1}.sca-dm-composer button svg{width:18px;height:18px}.sca-dm-counter{align-self:center;color:var(--muted-color,#888);font-size:10px;white-space:nowrap}.sca-dm-counter[hidden]{display:none!important}@media(max-width:720px){.sca-dm-layout{grid-template-columns:180px minmax(0,1fr)}.sca-dm-sidebar-head{padding:14px 10px}.sca-dm-friend{padding:8px 5px;gap:6px}.sca-dm-messages{padding:12px}.sca-dm-composer{padding:10px}}</style>
+.sca-dm-messages{display:flex;flex:1;flex-direction:column;gap:0;min-height:0;padding:18px 20px;overflow:auto}.sca-dm-bubble{max-width:min(72%,520px);padding:10px 13px;border-radius:15px;background:rgba(120,120,120,.10);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}.sca-dm-bubble.mine{align-self:flex-end;background:rgba(75,125,190,.15)}.sca-dm-bubble.theirs{align-self:flex-start}.sca-dm-bubble small{display:block;margin-top:5px;color:var(--muted-color,#888);font-size:10px;text-align:right}.sca-dm-composer{display:flex;align-items:center;padding:13px 16px;border-top:0!important;background:transparent!important;box-shadow:none!important}.sca-dm-input-wrap{display:flex;align-items:flex-end;gap:8px;width:100%;padding:6px;border:1px solid rgba(120,120,120,.22);border-radius:14px;background:var(--sca-surface,white)}.sca-dm-composer textarea{display:block;flex:1;min-width:0;min-height:38px;max-height:120px;resize:none;padding:8px 9px;border:0;border-radius:8px;background:transparent;color:inherit;font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;outline:none}.sca-dm-composer button{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:0;border:0;border-radius:10px;background:#4779bd;color:white;cursor:pointer;opacity:.45}.sca-dm-composer button:enabled{opacity:1}.sca-dm-composer button svg{width:18px;height:18px}.sca-dm-counter{align-self:center;color:var(--muted-color,#888);font-size:10px;white-space:nowrap}.sca-dm-counter[hidden]{display:none!important}@media(max-width:720px){.sca-dm-layout{grid-template-columns:180px minmax(0,1fr)}.sca-dm-sidebar-head{padding:14px 10px}.sca-dm-friend{padding:8px 5px;gap:6px}.sca-dm-messages{padding:12px}.sca-dm-composer{padding:10px}}
+/* SCA typing indicator: Uiverse curly-wombat loader, scoped to direct messages */
+.sca-dm-typing-indicator{display:flex;align-items:flex-start;align-self:flex-start;width:100%;height:0;overflow:visible;opacity:0;pointer-events:none;transform:translateY(18px);transition:opacity .28s ease,transform .34s cubic-bezier(.2,.75,.25,1);margin:0 0 0 26px;position:relative;z-index:1}
+.sca-dm-typing-indicator.is-visible{height:78px;opacity:1;transform:translateY(0);margin-top:8px}
+.sca-dm-uiverse-loader{width:64px;height:64px;flex:0 0 64px;border-radius:50%;margin:0;background-color:#ccc;background-image:radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0);background-position:24px center,8px center,-8px center,-24px center;background-repeat:no-repeat;position:relative;box-shadow:0 0 5px rgba(0,0,0,.15) inset;animation:scaDmFlash 1s linear infinite}
+.sca-dm-uiverse-loader:before,.sca-dm-uiverse-loader:after{content:"";position:absolute;border:1px solid #ccc;border-top-color:transparent;left:50%;top:100%;transform:translateX(-50%);width:9px;height:10px;background:#fff}
+.sca-dm-uiverse-loader:before{width:0;height:27px;transform:translate(-50%,10px)}
+@keyframes scaDmFlash{0%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0)}25%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}50%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}75%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}100%{background-image:radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}}
+@media(prefers-reduced-motion:reduce){.sca-dm-typing-indicator,.sca-dm-uiverse-loader{transition:none;animation:none}}
+</style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
 <body>
@@ -748,6 +757,7 @@ async function openScaConversation(friend,picture){
  let ownProfilePicture=user.user_metadata?.avatar_url||user.user_metadata?.picture||"";
  try{const {data:ownProfile}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();if(ownProfile?.username){const directory=await getFriendPictureDirectory();const saved=directory.get(ownProfile.username);ownProfilePicture=saved?.pictureUrl||saved?.googleAvatar||ownProfilePicture;}}catch(e){console.warn("Could not load saved profile picture:",e);}
  const messages=document.createElement("div");messages.className="sca-dm-messages";messages.setAttribute("aria-live","polite");
+ const typingIndicator=document.createElement("div");typingIndicator.className="sca-dm-typing-indicator";typingIndicator.setAttribute("aria-label",friend.username+" is typing");typingIndicator.setAttribute("aria-hidden","true");const typingLoader=document.createElement("div");typingLoader.className="sca-dm-uiverse-loader";typingIndicator.append(typingLoader);
  const composer=document.createElement("form");composer.className="sca-dm-composer";const wrap=document.createElement("div");wrap.className="sca-dm-input-wrap";
  const input=document.createElement("textarea");input.maxLength=300;input.rows=1;input.placeholder="";input.setAttribute("aria-label","Write a message");
  const placeholderPhrases=[
@@ -773,7 +783,7 @@ async function openScaConversation(friend,picture){
  const count=document.createElement("small");count.className="sca-dm-counter";count.hidden=true;
  const send=document.createElement("button");send.type="submit";send.disabled=true;send.setAttribute("aria-label","Send message");send.title="Send message";send.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.7 2.3 14.1 21.1a1.35 1.35 0 0 1-2.5-.05L8.1 13.1 1.9 9.6a1.35 1.35 0 0 1 .15-2.45L20.1 1.4a1.35 1.35 0 0 1 1.6.9Z"/><path d="m8.1 13.1 6.1-6.2"/></svg>';
  wrap.append(input,count,send);composer.append(wrap);
- panel.append(messages,composer);
+ panel.append(messages,typingIndicator,composer);
  input.addEventListener("input",()=>{const n=input.value.length;count.hidden=n<=275;count.textContent=n+" / 300";send.disabled=!input.value.trim()||n>300;input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";});
  input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
  function renderMessageRows(rows){
@@ -797,8 +807,21 @@ async function openScaConversation(friend,picture){
  }
  async function decryptRows(rows){
   const result=[];
-  for(const item of rows){let clearText="";try{clearText=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){clearText="Unable to decrypt on this device.";}result.push({...item,clearText});}
+  for(const item of rows){let clearText="";try{clearText=item.ciphertext?.v===0?String(item.ciphertext.plaintext??""):await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){clearText="Unable to decrypt on this device.";}result.push({...item,clearText});}
   return result;
+ }
+ async function encryptViewedPlainMessages(){
+  const pending=cachedRows.filter(item=>item.sender_id===user.id&&item.read_at&&item.ciphertext?.v===0);
+  for(const item of pending){
+   try{
+    const envelope=await encryptScaMessage(item.clearText??item.ciphertext.plaintext,friend.friend_id,conversationId);
+    const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:envelope}).eq("id",item.id).eq("sender_id",user.id).not("read_at","is",null);
+    if(error)throw error;
+    cachedRows=cachedRows.map(row=>row.id===item.id?{...row,ciphertext:envelope}:row);
+    await setScaCachedMessages(conversationId,cachedRows);
+   }catch(error){console.warn("Could not encrypt viewed first-contact message yet:",error.message);}
+  }
+  if(pending.length)renderMessageRows(cachedRows);
  }
  let messagesLoading=false,messagesReloadQueued=false;
  async function syncCachedReadStatuses(){
@@ -810,6 +833,7 @@ async function openScaConversation(friend,picture){
   let changed=false;
   cachedRows=cachedRows.map(item=>{if(!statuses.has(item.id))return item;const readAt=statuses.get(item.id)||null;if((item.read_at||null)===readAt)return item;changed=true;return {...item,read_at:readAt};});
   if(changed){await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);}
+  await encryptViewedPlainMessages();
  }
  async function markIncomingMessagesRead(){
   if(document.visibilityState!=="visible"||!panel.isConnected)return;
@@ -843,12 +867,20 @@ async function openScaConversation(friend,picture){
  await loadMessages();if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  scaDmChannel=supabase.channel("sca-dm-"+conversationId)
   .on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},()=>loadMessages().catch(console.warn))
-  .on("postgres_changes",{event:"UPDATE",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},payload=>{
+  .on("postgres_changes",{event:"UPDATE",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},async payload=>{
    const updated=payload.new,index=cachedRows.findIndex(item=>item.id===updated.id);
    if(index<0)return;
-   cachedRows[index]={...cachedRows[index],read_at:updated.read_at||null};
-   setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
+   cachedRows[index]={...cachedRows[index],read_at:updated.read_at||null,ciphertext:updated.ciphertext??cachedRows[index].ciphertext};
+   if(updated.ciphertext?.v===1){try{cachedRows[index].clearText=await decryptScaMessage(updated.ciphertext,friend.friend_id,conversationId);}catch(error){cachedRows[index].clearText="Unable to decrypt on this device.";}}
+   await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
    renderMessageRows(cachedRows);
+  })
+  .on("broadcast",{event:"typing"},({payload})=>{
+   if(payload?.userId===user.id)return;
+   const visible=payload?.typing===true;
+   typingIndicator.classList.toggle("is-visible",visible);
+   typingIndicator.setAttribute("aria-hidden",visible?"false":"true");
+   if(visible)messages.scrollTop=messages.scrollHeight;
   }).subscribe();
  // Realtime UPDATE delivery can be delayed by client connection state; poll
  // receipt metadata while this conversation is open so the sender sees views
@@ -863,20 +895,32 @@ async function openScaConversation(friend,picture){
  scaDmReadPoll=setInterval(()=>{
   if(document.visibilityState==="visible")syncCachedReadStatuses().catch(console.warn);
  },1500);
- let sendingMessage=false;
- composer.addEventListener("submit",async event=>{
+ let typingBroadcastTimer=0,lastTypingBroadcast=0;
+ function broadcastTyping(typing){
+  if(!scaDmChannel)return;
+  const now=Date.now();if(typing&&now-lastTypingBroadcast<700)return;
+  lastTypingBroadcast=now;
+  scaDmChannel.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing}}).catch(()=>{});
+ }
+ input.addEventListener("input",()=>broadcastTyping(Boolean(input.value.trim())));
+ input.addEventListener("blur",()=>broadcastTyping(false));
+ let pendingSendCount=0;
+ composer.addEventListener("submit",event=>{
   event.preventDefault();
-  if(sendingMessage)return;
   const text=input.value.trim();if(!text||text.length>300)return;
-  sendingMessage=true;send.disabled=true;input.disabled=true;input.value="";count.hidden=true;count.textContent="";input.style.height="";
-  try{
-   const ciphertext=await encryptScaMessage(text,friend.friend_id,conversationId);
-   const messageId=crypto.randomUUID();
-   const result=await supabase.from("coolanas_dm_messages").insert({id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext});
+  const messageId=crypto.randomUUID(),createdAt=new Date().toISOString();
+  const optimistic={id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:{v:0,plaintext:text},created_at:createdAt,read_at:null,clearText:text};
+  cachedRows=[...cachedRows,optimistic];setScaCachedMessages(conversationId,cachedRows).catch(console.warn);renderMessageRows(cachedRows);
+  input.value="";count.hidden=true;count.textContent="";input.style.height="";send.disabled=true;
+  broadcastTyping(false);input.focus();pendingSendCount++;
+  supabase.from("coolanas_dm_messages").insert({id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:optimistic.ciphertext}).then(async result=>{
    if(result.error)throw result.error;
-   await loadMessages();
-  }catch(e){input.value=text;alert(e.message||"Could not send message.");}
-  finally{sendingMessage=false;input.disabled=false;send.disabled=!input.value.trim();input.focus();}
+  }).catch(async error=>{
+   cachedRows=cachedRows.filter(item=>item.id!==messageId);
+   await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);renderMessageRows(cachedRows);
+   if(!input.value){input.value=text;send.disabled=false;input.focus();}
+   alert(error.message||"Could not send message.");
+  }).finally(()=>{pendingSendCount=Math.max(0,pendingSendCount-1);});
  });
 }
 async function loadScaFriends(){
