@@ -747,8 +747,7 @@ async function openScaConversation(friend,picture){
    const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs")+(sameSender?" same-sender":"");
    previousSenderId=message.sender_id;
    const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
-   const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);
-   avatar.append(avatarElement);
+   if(!sameSender){const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);avatar.append(avatarElement);}
    const bubble=document.createElement("div");bubble.className="sca-dm-message-group "+(mine?"mine":"theirs");
    const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=message.id;line.textContent=message.clearText??"";
    bubble.append(line);
