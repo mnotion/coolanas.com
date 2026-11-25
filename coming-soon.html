@@ -459,7 +459,9 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-message-row.theirs{align-self:flex-start;flex-direction:row}
     .sca-dm-message-row .sca-dm-bubble{max-width:min(72%,520px)}
     .sca-dm-message-avatar{width:27px;height:27px;flex:0 0 27px;border-radius:50%;overflow:hidden;align-self:flex-start;margin-top:2px}
-    .sca-dm-message-avatar img{display:block;width:100%;height:100%;object-fit:cover}
+    .sca-dm-message-avatar{width:22px;height:22px;flex:0 0 22px;overflow:visible}
+    .sca-dm-message-avatar .sca-friend-avatar{display:block;width:22px!important;height:22px!important;min-width:22px;min-height:22px;border-radius:50%;overflow:hidden}
+    .sca-dm-message-avatar img{display:block;width:100%;height:100%;object-fit:contain!important;border-radius:50%}
     .sca-dm-message-avatar:empty{visibility:hidden}
     .sca-dm-message-row.mine .sca-dm-message-avatar{margin-left:1px}
     .sca-dm-message-row.theirs .sca-dm-message-avatar{margin-right:1px}
@@ -729,28 +731,50 @@ async function openScaConversation(friend,picture){
  panel.append(header,messages,composer);
  input.addEventListener("input",()=>{const n=input.value.length;count.hidden=n<=275;count.textContent=n+" / 300";send.disabled=!input.value.trim()||n>300;input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";});
  input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
+ let messagesLoading=false,messagesReloadQueued=false;
  async function loadMessages(){
-  const {data,error}=await supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).limit(200);if(error)throw error;
-  const known=new Set([...messages.querySelectorAll("[data-message-id]")].map(node=>node.dataset.messageId));
-  const rows=data||[];
-  for(let index=0;index<rows.length;index++){
-   const item=rows[index];if(known.has(item.id))continue;
-   const mine=item.sender_id===user.id,previous=rows[index-1],showAvatar=!previous||previous.sender_id!==item.sender_id;
-   const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs");row.dataset.messageId=item.id;
-   const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
-   if(showAvatar){
-    const avatarElement=mine?avatarNode(user.user_metadata?.preferred_username||user.email||"You",user.user_metadata?.avatar_url||user.user_metadata?.picture||""):avatarNode(friend.username,picture);
-    avatar.append(avatarElement);
-   }
-   const bubble=document.createElement("div");bubble.className="sca-dm-bubble "+(mine?"mine":"theirs");
-   try{bubble.textContent=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){bubble.textContent="Unable to decrypt on this device.";}
-   row.append(avatar,bubble);messages.append(row);
-  }
-  messages.scrollTop=messages.scrollHeight;
+  if(messagesLoading){messagesReloadQueued=true;return;}
+  messagesLoading=true;
+  try{
+   do{
+    messagesReloadQueued=false;
+    const {data,error}=await supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).limit(200);if(error)throw error;
+    const known=new Set([...messages.querySelectorAll("[data-message-id]")].map(node=>node.dataset.messageId));
+    const rows=data||[];
+    for(let index=0;index<rows.length;index++){
+     const item=rows[index];if(known.has(item.id))continue;
+     const mine=item.sender_id===user.id,previous=rows[index-1],showAvatar=!previous||previous.sender_id!==item.sender_id;
+     const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs");row.dataset.messageId=item.id;
+     const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
+     if(showAvatar){
+      const avatarElement=mine?avatarNode(user.user_metadata?.preferred_username||user.email||"You",user.user_metadata?.avatar_url||user.user_metadata?.picture||""):avatarNode(friend.username,picture);
+      avatar.append(avatarElement);
+     }
+     const bubble=document.createElement("div");bubble.className="sca-dm-bubble "+(mine?"mine":"theirs");
+     try{bubble.textContent=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){bubble.textContent="Unable to decrypt on this device.";}
+     row.append(avatar,bubble);messages.append(row);known.add(item.id);
+    }
+    messages.scrollTop=messages.scrollHeight;
+   }while(messagesReloadQueued);
+  }finally{messagesLoading=false;}
  }
  await loadMessages();if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  scaDmChannel=supabase.channel("sca-dm-"+conversationId).on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},()=>loadMessages().catch(console.warn)).subscribe();
- composer.addEventListener("submit",async event=>{event.preventDefault();const text=input.value.trim();if(!text||text.length>300)return;send.disabled=true;try{const ciphertext=await encryptScaMessage(text,friend.friend_id,conversationId);const result=await supabase.from("coolanas_dm_messages").insert({conversation_id:conversationId,sender_id:user.id,ciphertext});if(result.error)throw result.error;input.value="";count.hidden=true;count.textContent="";input.style.height="";send.disabled=true;await loadMessages();}catch(e){alert(e.message||"Could not send message.");send.disabled=!input.value.trim();}finally{input.focus();}});
+ let sendingMessage=false;
+ composer.addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(sendingMessage)return;
+  const text=input.value.trim();if(!text||text.length>300)return;
+  sendingMessage=true;send.disabled=true;input.disabled=true;input.value="";count.hidden=true;count.textContent="";input.style.height="";
+  try{
+   const ciphertext=await encryptScaMessage(text,friend.friend_id,conversationId);
+   const messageId=crypto.randomUUID();
+   const result=await supabase.from("coolanas_dm_messages").insert({id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext});
+   if(result.error)throw result.error;
+   await loadMessages();
+  }catch(e){input.value=text;alert(e.message||"Could not send message.");}
+  finally{sendingMessage=false;input.disabled=false;send.disabled=!input.value.trim();input.focus();}
+ });
 }
 async function loadScaFriends(){
  const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
