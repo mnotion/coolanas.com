@@ -815,9 +815,6 @@ async function openScaConversation(friend,picture){
  scaDmReadPoll=setInterval(()=>{
   if(document.visibilityState==="visible")syncCachedReadStatuses().catch(console.warn);
  },1500);
- document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState==="visible")syncCachedReadStatuses().catch(console.warn);
- });
  let sendingMessage=false;
  composer.addEventListener("submit",async event=>{
   event.preventDefault();
