@@ -408,6 +408,25 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     html.dark-mode .sca-friend-result.is-exact-match{
       border-color:rgba(190,151,70,.38)!important;background:rgba(218,183,102,.055)!important;
     }
+
+    .sca-friend-list-divider{height:1px;width:100%;background:rgba(120,120,120,.2);margin:4px 0 2px;flex:none}
+    .sca-friends-rail.is-open #sca-friend-avatars{display:grid!important;grid-template-columns:minmax(0,1fr);align-content:start;justify-items:stretch;gap:7px;width:100%;max-height:calc(100vh - 340px);overflow:auto;padding:0}
+    .sca-friends-rail.is-open #sca-friend-avatars:empty{display:none!important}
+    .sca-friend-card{display:flex;align-items:center;gap:9px;width:100%;min-width:0;box-sizing:border-box;padding:7px 8px;border:1px solid rgba(0,0,0,.07);border-radius:11px;background:rgba(248,248,248,.8)}
+    .sca-friend-card .sca-friend-avatar{width:36px!important;height:36px!important;flex:0 0 36px!important}
+    .sca-friend-card strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+    .sca-friend-settings-wrap{position:relative;flex:none}
+    .sca-friend-settings{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:9px;background:transparent;color:#777;cursor:pointer}
+    .sca-friend-settings:hover{background:rgba(120,120,120,.1);color:#333}
+    .sca-friend-settings svg{width:17px;height:17px}
+    .sca-friend-menu{position:absolute;right:0;top:36px;z-index:5;min-width:130px;padding:5px;border:1px solid rgba(0,0,0,.1);border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+    .sca-friend-menu button{width:100%;padding:8px 10px;border:0;border-radius:7px;background:transparent;text-align:left;color:#b23b3b;font-size:12px;cursor:pointer}
+    .sca-friend-menu button:hover{background:rgba(180,50,50,.07)}
+    .sca-friend-result.is-exact-match{border-color:rgba(190,151,70,.42)!important;box-shadow:0 0 0 1px rgba(190,151,70,.10),0 2px 8px rgba(190,151,70,.06)}
+    html.dark-mode .sca-friend-card,html.dark-mode .sca-friend-menu{background:#303030;border-color:#484848}
+    html.dark-mode .sca-friend-settings{color:#bbb}
+    html.dark-mode .sca-friend-menu button{color:#ff9b9b}
+    @media(max-width:620px){.sca-friends-rail.is-open #sca-friend-avatars{max-height:calc(100vh - 300px)}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -539,7 +558,30 @@ friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";
 async function loadScaFriends(){
  const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
  friendAvatars.replaceChildren();
- let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn("Could not load friend pictures:",error.message);}for(const friend of data||[]){const profileImage=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;const node=avatarNode(friend.username,profileImage);node.title=friend.username||"Friend";friendAvatars.append(node);}
+ const friends=data||[];
+ if(friends.length){
+  const divider=document.createElement("div");divider.className="sca-friend-list-divider";divider.setAttribute("aria-hidden","true");friendAvatars.append(divider);
+ }
+ let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn("Could not load friend pictures:",error.message);}
+ for(const friend of friends){
+  const profileImage=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;
+  const card=document.createElement("div");card.className="sca-friend-card";
+  const avatar=avatarNode(friend.username,profileImage);avatar.title=friend.username||"Friend";
+  const name=document.createElement("strong");name.textContent=friend.username||"Friend";
+  const wrap=document.createElement("div");wrap.className="sca-friend-settings-wrap";
+  const settings=document.createElement("button");settings.type="button";settings.className="sca-friend-settings";settings.setAttribute("aria-label","Friend settings");
+  settings.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1-.1 1.8Z"/></svg>';
+  const menu=document.createElement("div");menu.className="sca-friend-menu";menu.hidden=true;
+  const remove=document.createElement("button");remove.type="button";remove.textContent="Remove friend";
+  remove.addEventListener("click",async()=>{
+   remove.disabled=true;
+   const {error:removeError}=await supabase.rpc("coolanas_friend_remove",{p_friend_id:friend.friend_id});
+   if(removeError){remove.disabled=false;return;}
+   await loadScaFriends();
+  });
+  menu.append(remove);settings.addEventListener("click",event=>{event.stopPropagation();menu.hidden=!menu.hidden;});
+  wrap.append(settings,menu);card.append(avatar,name,wrap);friendAvatars.append(card);
+ }
 }
 async function loadFriendRequests(direction){
  friendRequestList.replaceChildren();friendHint(friendRequestList,"Loading…");
@@ -592,10 +634,10 @@ async function searchScaUsers(query){
  friendResults.replaceChildren();
  if(!data?.length){friendHint(friendResults,"No users found.");return;}
  const normalizedQuery=query.trim().toLocaleLowerCase();
+ const matches=data;
  const exactMatches=data.filter(person=>(person.username||"").toLocaleLowerCase()===normalizedQuery);
- const matches=exactMatches.length?exactMatches:data;
  for(const person of matches){
-  const row=document.createElement("div");row.className="sca-friend-result";if(exactMatches.length)row.classList.add("is-exact-match");
+  const row=document.createElement("div");row.className="sca-friend-result";if((person.username||"").toLocaleLowerCase()===normalizedQuery)row.classList.add("is-exact-match");
   let profileImage=person.google_avatar;try{const directory=await getFriendPictureDirectory();profileImage=directory.get(person.username)?.pictureUrl||profileImage;}catch(error){console.warn("Could not load profile picture:",error.message);}row.append(avatarNode(person.username,profileImage));
   const name=document.createElement("strong");name.textContent=person.username||"User";row.append(name);
   const action=document.createElement("button");action.type="button";
