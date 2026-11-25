@@ -296,17 +296,16 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       /* SCA friend panel: compact tabs, stable avatars and non-overlapping workspace */
     .sca-friends-rail{top:82px!important;bottom:104px!important;right:24px;width:64px;transition:width .22s ease;overflow:hidden}
     .sca-friends-rail.is-open{width:min(330px,calc(100vw - 150px));align-items:stretch;padding:12px}
-    .sca-friend-tabs{display:none;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%;flex:none}
+    .sca-friend-tabs{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;width:100%;flex:none}
     .sca-friends-rail.is-open .sca-friend-tabs{display:grid}
     .sca-friend-tab{min-width:0;padding:9px 4px;border:1px solid #e4e4e4;border-radius:9px;background:#f7f7f7;color:#666;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}
     .sca-friend-tab.active{background:#edf4ff;border-color:#c9dcfb;color:#1e4f91}
-    .sca-friend-search{display:none;gap:10px;min-width:0;width:100%}
-    .sca-friends-rail.is-open[data-tab="search"] .sca-friend-search{display:grid}
+    .sca-friend-search{display:grid;gap:10px;min-width:0;width:100%}
     .sca-friend-search input{width:100%;height:40px;padding:0 12px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#222;font:13px Inter,ui-sans-serif,system-ui,sans-serif}
     .sca-friend-results,.sca-friend-request-list{display:grid;align-content:start;gap:8px;width:100%;max-height:calc(100vh - 260px);overflow:auto}
+    .sca-friends-rail.is-open[data-tab="requests"] .sca-friend-results,.sca-friends-rail.is-open[data-tab="pending"] .sca-friend-results{display:none}
     .sca-friend-request-list{display:none}
     .sca-friends-rail.is-open[data-tab="requests"] .sca-friend-request-list,.sca-friends-rail.is-open[data-tab="pending"] .sca-friend-request-list{display:grid}
-    .sca-friends-rail.is-open[data-tab="requests"] .sca-friend-search,.sca-friends-rail.is-open[data-tab="pending"] .sca-friend-search{display:none}
     .sca-friend-hint{margin:2px 0;color:#888;font-size:12px}
     .sca-friend-result{display:flex;align-items:center;gap:10px;min-width:0;padding:9px;border:1px solid rgba(0,0,0,.07);border-radius:11px;background:#fafafa}
     .sca-friend-avatar{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;overflow:hidden;border-radius:50%;background:#e8edf5;color:#53657e;font-size:14px;font-weight:700;line-height:1}
@@ -332,7 +331,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     }
     .sca-workspace.is-expanded .sca-main{width:calc(100vw - 192px)!important;margin-left:104px;margin-right:88px;padding-right:24px}
     .sca-workspace.is-expanded .sca-friends-rail.is-open{width:min(330px,calc(100vw - 150px))}
-    .sca-workspace.is-expanded .sca-main:has(+ .sca-friends-rail.is-open){width:calc(100vw - 104px - 378px)!important;margin-right:378px}
+    .sca-workspace.is-expanded:has(.sca-friends-rail.is-open) .sca-main{width:calc(100vw - 104px - 378px)!important;margin-right:378px}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -364,8 +363,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
   </aside>
   <aside class="sca-friends-rail" id="sca-friends-rail" aria-label="Friends and requests">
     <div class="sca-friend-tabs">
-      <button type="button" class="sca-friend-tab active" data-friend-tab="search">Add</button>
-      <button type="button" class="sca-friend-tab" data-friend-tab="requests">Requests</button>
+      <button type="button" class="sca-friend-tab active" data-friend-tab="requests">Requests</button>
       <button type="button" class="sca-friend-tab" data-friend-tab="pending">Pending</button>
     </div>
     <div class="sca-friend-search" id="sca-friend-search">
