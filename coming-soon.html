@@ -435,9 +435,9 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-friends-rail.is-open .sca-friend-avatar-rail{display:none}
 
     /* SCA direct-message draft layout */
-    .sca-dm-layout{display:grid;grid-template-columns:260px minmax(0,1fr);width:100%;height:100%;min-height:560px;overflow:hidden;border:1px solid rgba(120,120,120,.14);border-radius:20px;background:var(--sca-surface,rgba(255,255,255,.72))}
+    .sca-panel.sca-messaging-active{padding:0;overflow:hidden}.sca-dm-layout{display:grid;grid-template-columns:260px minmax(0,1fr);width:100%;height:calc(100vh - 68px);min-height:560px;overflow:hidden;border:0;border-radius:0;background:transparent}
     .sca-dm-sidebar{display:flex;flex-direction:column;min-width:0;border-right:1px solid rgba(120,120,120,.16);background:rgba(120,120,120,.035)}
-    .sca-dm-sidebar-head{padding:20px 16px 14px}
+    .sca-dm-sidebar-head{display:flex;gap:8px;padding:18px 14px 14px}.sca-dm-sidebar-head button{flex:1;min-width:0;padding:9px 8px;border:1px solid rgba(120,120,120,.18);border-radius:10px;background:transparent;color:inherit;font:600 12px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}.sca-dm-sidebar-head button.active{background:rgba(75,125,190,.13);border-color:rgba(75,125,190,.3)}
     .sca-dm-sidebar-head h2{margin:0;font-size:17px;font-weight:700}
     .sca-dm-sidebar-head p{margin:5px 0 0;color:var(--muted-color,#888);font-size:12px}
     .sca-dm-friend-list{display:flex;flex-direction:column;gap:4px;padding:0 9px 12px;overflow:auto}
@@ -447,7 +447,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-friend .sca-friend-avatar{width:40px;height:40px;flex:0 0 40px}
     .sca-dm-friend-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
     .sca-dm-friend-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-    .sca-dm-friend-copy small{color:var(--muted-color,#888);font-size:11px}
+    .sca-dm-friend-copy small{display:none}
     .sca-dm-conversation{display:flex;flex-direction:column;min-width:0;min-height:0;background:transparent}
     .sca-dm-header{display:flex;align-items:center;gap:11px;min-height:72px;padding:12px 20px;border-bottom:1px solid rgba(120,120,120,.14)}
     .sca-dm-header .sca-friend-avatar{width:42px;height:42px;flex:0 0 42px}
@@ -479,7 +479,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
       .sca-dm-friend-list{flex-direction:row;overflow-x:auto;overflow-y:hidden}
       .sca-dm-friend{width:150px;flex:0 0 150px}
     }
-.sca-dm-messages{display:flex;flex:1;flex-direction:column;gap:9px;min-height:0;padding:18px 20px;overflow:auto}.sca-dm-bubble{max-width:min(72%,520px);padding:10px 13px;border-radius:15px;background:rgba(120,120,120,.10);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}.sca-dm-bubble.mine{align-self:flex-end;background:rgba(75,125,190,.15)}.sca-dm-bubble.theirs{align-self:flex-start}.sca-dm-bubble small{display:block;margin-top:5px;color:var(--muted-color,#888);font-size:10px;text-align:right}.sca-dm-composer{display:flex;align-items:flex-end;gap:9px;padding:14px 16px;border-top:1px solid rgba(120,120,120,.14)}.sca-dm-composer textarea{flex:1;min-width:0;resize:none;max-height:120px;padding:11px 13px;border:1px solid rgba(120,120,120,.22);border-radius:13px;background:var(--sca-surface,white);color:inherit;font:13px inherit;outline:none}.sca-dm-composer button{padding:11px 17px;border:0;border-radius:11px;background:#4779bd;color:white;font-weight:650;cursor:pointer}.sca-dm-counter{color:var(--muted-color,#888);font-size:10px;white-space:nowrap}@media(max-width:720px){.sca-dm-layout{grid-template-columns:180px minmax(0,1fr)}.sca-dm-sidebar-head{padding:14px 10px}.sca-dm-friend{padding:8px 5px;gap:6px}.sca-dm-messages{padding:12px}.sca-dm-composer{padding:10px}}</style>
+.sca-dm-messages{display:flex;flex:1;flex-direction:column;gap:9px;min-height:0;padding:18px 20px;overflow:auto}.sca-dm-bubble{max-width:min(72%,520px);padding:10px 13px;border-radius:15px;background:rgba(120,120,120,.10);overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px;line-height:1.45}.sca-dm-bubble.mine{align-self:flex-end;background:rgba(75,125,190,.15)}.sca-dm-bubble.theirs{align-self:flex-start}.sca-dm-bubble small{display:block;margin-top:5px;color:var(--muted-color,#888);font-size:10px;text-align:right}.sca-dm-composer{display:flex;align-items:center;padding:13px 16px;border-top:1px solid rgba(120,120,120,.14)}.sca-dm-input-wrap{display:flex;align-items:flex-end;gap:8px;width:100%;padding:6px;border:1px solid rgba(120,120,120,.22);border-radius:14px;background:var(--sca-surface,white)}.sca-dm-composer textarea{display:block;flex:1;min-width:0;min-height:38px;max-height:120px;resize:none;padding:8px 9px;border:0;border-radius:8px;background:transparent;color:inherit;font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;outline:none}.sca-dm-composer button{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:0;border:0;border-radius:10px;background:#4779bd;color:white;cursor:pointer;opacity:.45}.sca-dm-composer button:enabled{opacity:1}.sca-dm-composer button svg{width:18px;height:18px}.sca-dm-counter{align-self:center;color:var(--muted-color,#888);font-size:10px;white-space:nowrap}.sca-dm-counter[hidden]{display:none!important}@media(max-width:720px){.sca-dm-layout{grid-template-columns:180px minmax(0,1fr)}.sca-dm-sidebar-head{padding:14px 10px}.sca-dm-friend{padding:8px 5px;gap:6px}.sca-dm-messages{padding:12px}.sca-dm-composer{padding:10px}}</style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
 <body>
@@ -649,27 +649,49 @@ async function decryptScaMessage(envelope,friendId,conversationId){
  const clear=await crypto.subtle.decrypt({name:"AES-GCM",iv:scaUnB64(envelope.iv)},key,scaUnB64(envelope.ciphertext));return new TextDecoder().decode(clear);
 }
 async function renderScaMessagesDraft(){
- scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-sidebar-head"><h2>Messages</h2><p>End-to-end encrypted · Friends only</p></div><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong><p>Choose a friend to open an encrypted conversation.</p></div></section></div>';
- const list=document.getElementById("sca-dm-friend-list"),{data,error}=await supabase.rpc("coolanas_friend_list");
- if(error){list.textContent="Could not load your friends.";return;}const friends=data||[];
- if(!friends.length){list.textContent="You have no friends yet. Add friends to start a conversation.";return;}
- let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn(error);}
- for(const friend of friends){const button=document.createElement("button");button.type="button";button.className="sca-dm-friend";const picture=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;
- const copy=document.createElement("span");copy.className="sca-dm-friend-copy";const username=document.createElement("strong");username.textContent=friend.username||"Friend";const sub=document.createElement("small");sub.textContent="Friend";copy.append(username,sub);button.append(avatarNode(friend.username,picture),copy);
- button.addEventListener("click",()=>{list.querySelectorAll(".sca-dm-friend").forEach(x=>x.classList.toggle("active",x===button));openScaConversation(friend,picture).catch(e=>{document.getElementById("sca-dm-conversation").textContent=e.message||"Could not open conversation.";});});list.append(button);}
+ scaPrimary.classList.add("sca-messaging-active");
+ scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-sidebar-head"><button type="button" class="active" data-dm-list="groups">Groups</button><button type="button" data-dm-list="archived">Archived</button></div><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong></div></section></div>';
+ const list=document.getElementById("sca-dm-friend-list");
+ const listTabs=[...scaPrimary.querySelectorAll("[data-dm-list]")];
+ listTabs.forEach(tab=>tab.addEventListener("click",()=>{listTabs.forEach(x=>x.classList.toggle("active",x===tab));if(tab.dataset.dmList==="archived"){list.replaceChildren();const empty=document.createElement("p");empty.className="sca-dm-no-friends";empty.textContent="No archived conversations.";list.append(empty);}else{loadFriendConversationList();}}));
+ await loadFriendConversationList();
+ async function loadFriendConversationList(){
+  const {data,error}=await supabase.rpc("coolanas_friend_list");
+  if(error){list.textContent="Could not load your friends.";return;}
+  const friends=data||[];list.replaceChildren();
+  if(!friends.length){list.textContent="You have no friends yet. Add friends to start a conversation.";return;}
+  let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn(error);}
+  for(const friend of friends){const button=document.createElement("button");button.type="button";button.className="sca-dm-friend";const picture=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;
+   const copy=document.createElement("span");copy.className="sca-dm-friend-copy";const username=document.createElement("strong");username.textContent=friend.username||"Friend";copy.append(username);button.append(avatarNode(friend.username,picture),copy);
+   button.addEventListener("click",()=>{list.querySelectorAll(".sca-dm-friend").forEach(x=>x.classList.toggle("active",x===button));openScaConversation(friend,picture).catch(e=>{document.getElementById("sca-dm-conversation").textContent=e.message||"Could not open conversation.";});});list.append(button);
+  }
+ }
 }
 async function openScaConversation(friend,picture){
  const panel=document.getElementById("sca-dm-conversation");panel.replaceChildren();
  const {data:conversationId,error}=await supabase.rpc("coolanas_dm_open_conversation",{p_friend_id:friend.friend_id});if(error)throw error;await ensureScaPublicKey();
- const header=document.createElement("div");header.className="sca-dm-header";header.append(avatarNode(friend.username,picture));const copy=document.createElement("div");copy.className="sca-dm-header-copy";const name=document.createElement("strong");name.textContent=friend.username||"Friend";const status=document.createElement("small");status.textContent="Encrypted conversation · 300 characters";copy.append(name,status);header.append(copy);
+ const header=document.createElement("div");header.className="sca-dm-header";header.append(avatarNode(friend.username,picture));const copy=document.createElement("div");copy.className="sca-dm-header-copy";const name=document.createElement("strong");name.textContent=friend.username||"Friend";copy.append(name);header.append(copy);
  const messages=document.createElement("div");messages.className="sca-dm-messages";messages.setAttribute("aria-live","polite");
- const composer=document.createElement("form");composer.className="sca-dm-composer";const input=document.createElement("textarea");input.maxLength=300;input.rows=2;input.placeholder="Write an encrypted message…";const send=document.createElement("button");send.type="submit";send.textContent="Send";const count=document.createElement("small");count.className="sca-dm-counter";count.textContent="0 / 300";input.addEventListener("input",()=>count.textContent=input.value.length+" / 300");composer.append(input,count,send);
- const note=document.createElement("div");note.className="sca-dm-placeholder";note.textContent="Message text is encrypted in your browser before upload.";panel.append(header,messages,composer,note);
- async function loadMessages(){const {data,error}=await supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).limit(200);if(error)throw error;messages.replaceChildren();
- for(const item of data||[]){const bubble=document.createElement("div");bubble.className="sca-dm-bubble "+(item.sender_id===user.id?"mine":"theirs");try{bubble.textContent=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){bubble.textContent="Unable to decrypt on this device.";}const time=document.createElement("small");time.textContent=new Date(item.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});bubble.append(time);messages.append(bubble);}messages.scrollTop=messages.scrollHeight;}
+ const composer=document.createElement("form");composer.className="sca-dm-composer";const wrap=document.createElement("div");wrap.className="sca-dm-input-wrap";
+ const input=document.createElement("textarea");input.maxLength=300;input.rows=1;input.placeholder="Write a message…";input.setAttribute("aria-label","Write a message");
+ const count=document.createElement("small");count.className="sca-dm-counter";count.hidden=true;
+ const send=document.createElement("button");send.type="submit";send.disabled=true;send.setAttribute("aria-label","Send message");send.title="Send message";send.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>';
+ wrap.append(input,count,send);composer.append(wrap);
+ panel.append(header,messages,composer);
+ input.addEventListener("input",()=>{const n=input.value.length;count.hidden=n<=275;count.textContent=n+" / 300";send.disabled=!input.value.trim()||n>300;input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";});
+ input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
+ async function loadMessages(){
+  const {data,error}=await supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).limit(200);if(error)throw error;
+  const known=new Set([...messages.children].map(node=>node.dataset.messageId));
+  for(const item of data||[]){if(known.has(item.id))continue;const bubble=document.createElement("div");bubble.dataset.messageId=item.id;bubble.className="sca-dm-bubble "+(item.sender_id===user.id?"mine":"theirs");
+   try{bubble.textContent=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){bubble.textContent="Unable to decrypt on this device.";}
+   const time=document.createElement("small");time.textContent=new Date(item.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});bubble.append(time);messages.append(bubble);
+  }
+  messages.scrollTop=messages.scrollHeight;
+ }
  await loadMessages();if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  scaDmChannel=supabase.channel("sca-dm-"+conversationId).on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},()=>loadMessages().catch(console.warn)).subscribe();
- composer.addEventListener("submit",async event=>{event.preventDefault();const text=input.value.trim();if(!text||text.length>300)return;send.disabled=true;try{const ciphertext=await encryptScaMessage(text,friend.friend_id,conversationId);const result=await supabase.from("coolanas_dm_messages").insert({conversation_id:conversationId,sender_id:user.id,ciphertext});if(result.error)throw result.error;input.value="";count.textContent="0 / 300";await loadMessages();}catch(e){alert(e.message||"Could not send message.");}finally{send.disabled=false;input.focus();}});
+ composer.addEventListener("submit",async event=>{event.preventDefault();const text=input.value.trim();if(!text||text.length>300)return;send.disabled=true;try{const ciphertext=await encryptScaMessage(text,friend.friend_id,conversationId);const result=await supabase.from("coolanas_dm_messages").insert({conversation_id:conversationId,sender_id:user.id,ciphertext});if(result.error)throw result.error;input.value="";count.hidden=true;count.textContent="";input.style.height="";send.disabled=true;await loadMessages();}catch(e){alert(e.message||"Could not send message.");send.disabled=!input.value.trim();}finally{input.focus();}});
 }
 async function loadScaFriends(){
  const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
