@@ -72,6 +72,9 @@ main{width:min(760px,calc(100% - 32px));margin:0 auto;padding:72px 0 110px}
     .sca-main{width:calc(100vw - 256px);max-width:none;margin-right:0;min-width:0;grid-template-columns:minmax(0,1fr);padding-right:108px}
     .sca-workspace.is-expanded .sca-main{width:calc(100vw - 134px);grid-template-columns:minmax(0,1fr);padding-right:108px}
     .sca-sidebar:hover{width:190px!important}
+    .sca-workspace.is-expanded .sca-sidebar:hover{width:190px!important}
+    .sca-workspace.is-expanded .sca-sidebar:hover .sca-nav-item{justify-content:flex-start!important;padding:0 15px!important}
+    .sca-workspace.is-expanded .sca-sidebar:hover .sca-nav-item span{display:inline!important}
     .sca-sidebar:hover .sca-nav-item{justify-content:flex-start!important;padding:0 15px!important}
     .sca-sidebar:hover .sca-nav-item span{display:inline!important}
     .sca-bazaar-entry{top:calc(50% - 230px)!important}
@@ -375,7 +378,7 @@ function openScaSection(section){
   scaMain.dataset.section=section;
   scaMain.hidden=section!=="friends";
   if(section!=="friends"){scaPrimary.replaceChildren();return;}
-  scaPrimary.innerHTML='<h1>Friends</h1><p class="sca-panel-subtitle">Your study connections and their activity</p>';
+  scaPrimary.replaceChildren();
 }
 scaButtons.forEach(button=>button.addEventListener("click",()=>openScaSection(button.dataset.scaSection)));
 openScaSection("bazaar");
@@ -473,6 +476,26 @@ async function refreshMail(){
    const message=document.createElement("p");message.textContent=notification.message||"";
    card.append(title,message);
    const status=notification.payload?.invitation_status;
+   if(notification.type==="friend_request"&&notification.payload?.friendship_status==="pending"&&notification.payload?.friendship_id){
+    const actions=document.createElement("div");actions.className="mail-notification-actions";
+    const accept=document.createElement("button");accept.type="button";accept.textContent="Accept";
+    const decline=document.createElement("button");decline.type="button";decline.className="secondary";decline.textContent="Decline";
+    const respond=async(response)=>{
+     accept.disabled=true;decline.disabled=true;
+     try{
+      const {error:respondError}=await supabase.rpc("coolanas_friend_respond",{p_friendship_id:notification.payload.friendship_id,p_response:response});
+      if(respondError)throw respondError;
+      await refreshMail();
+      await loadScaFriends();
+     }catch(error){
+      const feedback=document.createElement("span");feedback.className="mail-notification-status";feedback.textContent=error.message||"Could not respond to friend request.";card.append(feedback);
+      accept.disabled=false;decline.disabled=false;
+     }
+    };
+    accept.addEventListener("click",()=>respond("accept"));
+    decline.addEventListener("click",()=>respond("decline"));
+    actions.append(accept,decline);card.append(actions);
+   }
    if(notification.type==="bucket_invitation"&&status==="pending"&&notification.invitation_id){
     const actions=document.createElement("div");actions.className="mail-notification-actions";
     const accept=document.createElement("button");accept.type="button";accept.textContent="Accept";
