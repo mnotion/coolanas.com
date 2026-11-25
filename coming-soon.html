@@ -459,7 +459,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-message-row.mine{align-self:stretch;flex-direction:row-reverse;justify-content:flex-start}
     .sca-dm-message-row.theirs{align-self:stretch;flex-direction:row;justify-content:flex-start}
     .sca-dm-message-group{display:flex;flex:0 1 auto;flex-direction:column;gap:0;min-width:0;width:fit-content;max-width:min(50%,520px);box-sizing:border-box;padding:9px 12px;border-radius:15px;background:rgba(75,125,190,.15);overflow-wrap:anywhere;word-break:normal;hyphens:manual;white-space:pre-wrap;text-align:left;font-size:13px;line-height:1.45}
-    .sca-dm-message-group.theirs{background:rgba(120,120,120,.10)}
+    .sca-dm-message-group,.sca-dm-message-group.theirs{background:transparent!important;box-shadow:none!important}
     .sca-dm-message-line{margin:0;padding:0;text-indent:0;white-space:pre-wrap}
     .sca-dm-message-status{flex:0 0 auto;align-self:flex-end;margin:0 2px 3px 0;font-size:11px;line-height:1;color:var(--muted-color,#7d8b9a);opacity:.85}
     .sca-dm-message-row{gap:4px;margin-top:10px}.sca-dm-message-row:first-child{margin-top:0}.sca-dm-message-row.same-sender{margin-top:3px}
@@ -745,8 +745,7 @@ async function openScaConversation(friend,picture){
    const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs")+(sameSender?" same-sender":"");
    previousSenderId=message.sender_id;
    const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
-   const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);
-   avatar.append(avatarElement);
+   if(!sameSender){const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);avatar.append(avatarElement);}
    const bubble=document.createElement("div");bubble.className="sca-dm-message-group "+(mine?"mine":"theirs");
    const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=message.id;line.textContent=message.clearText??"";
    bubble.append(line);
