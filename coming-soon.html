@@ -735,20 +735,16 @@ async function openScaConversation(friend,picture){
  input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
  function renderMessageRows(rows){
   messages.replaceChildren();
-  let index=0;
-  while(index<rows.length){
-   const first=rows[index],mine=first.sender_id===user.id;
-   let last=index+1;
-   while(last<rows.length&&rows[last].sender_id===first.sender_id)last++;
+  for(const message of rows){
+   const mine=message.sender_id===user.id;
    const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs");
    const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
    const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);
    avatar.append(avatarElement);
-   const group=document.createElement("div");group.className="sca-dm-message-group "+(mine?"mine":"theirs");
-   for(let messageIndex=index;messageIndex<last;messageIndex++){
-    const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=rows[messageIndex].id;line.textContent=rows[messageIndex].clearText??"";group.append(line);
-   }
-   row.append(avatar,group);messages.append(row);index=last;
+   const bubble=document.createElement("div");bubble.className="sca-dm-message-group "+(mine?"mine":"theirs");
+   const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=message.id;line.textContent=message.clearText??"";
+   bubble.append(line);
+   row.append(avatar,bubble);messages.append(row);
   }
   messages.scrollTop=messages.scrollHeight;
  }
