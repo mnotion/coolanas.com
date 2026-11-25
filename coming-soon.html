@@ -450,6 +450,8 @@ function openFriendTab(tab){
  if(tab==="search"&&!friendSearchInput.value)friendHint(friendResults,"Type at least 2 characters.");
 }
 friendTabs.forEach(button=>button.addEventListener("click",()=>openFriendTab(button.dataset.friendTab)));
+friendRail.dataset.tab="search";
+friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";friendTabs.forEach(button=>button.classList.remove("active"));});
 async function loadScaFriends(){
  const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
  friendAvatars.replaceChildren();
