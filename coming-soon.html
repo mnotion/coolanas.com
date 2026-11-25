@@ -452,10 +452,11 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-messages{--sca-dm-pattern-color:rgba(80,80,80,.045);background-color:#fff;background-image:linear-gradient(0deg,transparent 24%,var(--sca-dm-pattern-color) 25%,var(--sca-dm-pattern-color) 26%,transparent 27%,transparent 74%,var(--sca-dm-pattern-color) 75%,var(--sca-dm-pattern-color) 76%,transparent 77%,transparent),linear-gradient(90deg,transparent 24%,var(--sca-dm-pattern-color) 25%,var(--sca-dm-pattern-color) 26%,transparent 27%,transparent 74%,var(--sca-dm-pattern-color) 75%,var(--sca-dm-pattern-color) 76%,transparent 77%,transparent);background-size:55px 55px;scrollbar-width:none;-ms-overflow-style:none}
     html.dark-mode .sca-dm-messages{--sca-dm-pattern-color:rgba(255,255,255,.035);background-color:#222}
     .sca-dm-messages::-webkit-scrollbar{display:none;width:0;height:0}
-    .sca-dm-conversation .sca-dm-composer,.sca-dm-conversation .sca-dm-input-wrap{background:transparent!important;background-color:transparent!important;box-shadow:none!important;border-color:transparent!important}
-    .sca-dm-conversation .sca-dm-composer{border-top:0!important}
+    .sca-dm-conversation .sca-dm-composer{background:transparent!important;background-color:transparent!important;box-shadow:none!important;border-color:transparent!important;border-top:0!important}
+    .sca-dm-conversation .sca-dm-input-wrap{background:var(--sca-surface,#fff)!important;background-color:var(--sca-surface,#fff)!important;border:1px solid rgba(120,120,120,.18)!important;box-shadow:0 3px 14px rgba(0,0,0,.075)!important}
+    html.dark-mode .sca-dm-conversation .sca-dm-input-wrap{background:#292929!important;background-color:#292929!important;border-color:#505050!important;box-shadow:0 3px 14px rgba(0,0,0,.24)!important}
     .sca-dm-composer{border-top:0!important;padding:12px 16px 16px!important}
-    .sca-dm-input-wrap{border:0!important;background:transparent!important;box-shadow:0 3px 14px rgba(0,0,0,.075),0 0 0 1px rgba(120,120,120,.10)!important;padding:7px!important}
+    .sca-dm-input-wrap{border:1px solid rgba(120,120,120,.18)!important;background:var(--sca-surface,#fff)!important;box-shadow:0 3px 14px rgba(0,0,0,.075)!important;padding:7px!important}
     html.dark-mode .sca-dm-input-wrap{box-shadow:0 3px 14px rgba(0,0,0,.24),0 0 0 1px rgba(255,255,255,.10)!important}
     .sca-dm-message-row{display:flex;align-items:flex-end;gap:4px;width:100%;max-width:100%;box-sizing:border-box;justify-content:flex-start}
     .sca-dm-message-row.mine{align-self:stretch;flex-direction:row-reverse;justify-content:flex-start}
