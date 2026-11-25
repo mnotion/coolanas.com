@@ -477,7 +477,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     .sca-dm-sidebar-head{display:flex;gap:8px;padding:18px 14px 14px}.sca-dm-sidebar-head button{flex:1;min-width:0;padding:9px 8px;border:1px solid rgba(120,120,120,.18);border-radius:10px;background:transparent;color:inherit;font:600 12px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer}.sca-dm-sidebar-head button.active{background:rgba(75,125,190,.13);border-color:rgba(75,125,190,.3)}
     .sca-dm-sidebar-head h2{margin:0;font-size:17px;font-weight:700}
     .sca-dm-sidebar-head p{margin:5px 0 0;color:var(--muted-color,#888);font-size:12px}
-    .sca-dm-friend-list{display:flex;flex-direction:column;gap:4px;padding:0 9px 12px;overflow:auto}
+    .sca-dm-friend-list{display:flex;flex-direction:column;gap:4px;padding:14px 9px 12px;overflow:auto}
     .sca-dm-friend{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:12px;background:transparent;text-align:left;color:inherit;cursor:pointer}
     .sca-dm-friend:hover{background:rgba(120,120,120,.09)}
     .sca-dm-friend.active{background:rgba(75,125,190,.12)}
@@ -768,7 +768,7 @@ async function openScaConversation(friend,picture){
     if(cachedRows.length){const last=cachedRows[cachedRows.length-1];if(last.created_at)query=query.gt("created_at",last.created_at);}
     const {data,error}=await query;if(error)throw error;
     const fresh=await decryptRows(data||[]);
-    if(fresh.length){const known=new Set(cachedRows.map(item=>item.id));const additions=fresh.filter(item=>!known.has(item.id));cachedRows=[...cachedRows,...additions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(additions);}
+    if(fresh.length){const known=new Set(cachedRows.map(item=>item.id));const additions=fresh.filter(item=>!known.has(item.id));cachedRows=[...cachedRows,...additions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);}
    }while(messagesReloadQueued);
   }finally{messagesLoading=false;}
  }
