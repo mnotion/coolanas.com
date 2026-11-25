@@ -405,11 +405,16 @@ async function loadScaFriends(){
   if(error)throw error;
   friendAvatars.replaceChildren();
   for(const friend of data||[]){
-    const img=document.createElement("img");
-    img.className="sca-friend-avatar";img.alt=friend.username||"Friend";img.title=friend.username||"Friend";
-    img.src=friend.google_avatar||"";
-    img.onerror=()=>{img.style.display="none";};
-    friendAvatars.append(img);
+    if(friend.google_avatar){
+      const img=document.createElement("img");
+      img.className="sca-friend-avatar";img.alt=friend.username||"Friend";img.title=friend.username||"Friend";
+      img.src=friend.google_avatar;
+      img.onerror=()=>{const fallback=document.createElement("span");fallback.className="sca-friend-avatar";fallback.textContent=(friend.username||"?").slice(0,1).toUpperCase();img.replaceWith(fallback);};
+      friendAvatars.append(img);
+    }else{
+      const fallback=document.createElement("span");fallback.className="sca-friend-avatar";fallback.textContent=(friend.username||"?").slice(0,1).toUpperCase();fallback.title=friend.username||"Friend";fallback.style.display="grid";fallback.style.placeItems="center";fallback.style.fontWeight="650";
+      friendAvatars.append(fallback);
+    }
   }
 }
 async function searchScaUsers(query){
@@ -468,6 +473,7 @@ async function refreshMail(){
   if(error)throw error;
   if(data?.error)throw new Error(data.error);
   const notifications=data?.notifications||[];
+  if(notifications.some(item=>item.type==="friend_accepted"))loadScaFriends().catch(()=>{});
   mailNotifications.replaceChildren();
   if(!notifications.length){const empty=document.createElement("p");empty.className="mail-empty";empty.textContent="No new mails.";mailNotifications.append(empty);return;}
   for(const notification of notifications){
