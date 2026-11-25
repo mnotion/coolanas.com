@@ -381,6 +381,33 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
     @media(prefers-reduced-motion:reduce){
       .sca-main,.sca-friends-rail{transition:none!important;transform:none!important}
     }
+
+    /* Friend rail: hide add control while expanded; show actual friend avatars when collapsed */
+    .sca-friends-rail:not(.is-open)>.sca-add-friend{display:grid!important}
+    .sca-friends-rail.is-open>.sca-add-friend{display:none!important}
+    .sca-friends-rail:not(.is-open)>.sca-friend-expanded-content{display:none!important}
+    .sca-friends-rail:not(.is-open) #sca-friend-avatars{
+      display:flex!important;flex-direction:column;align-items:center;justify-content:flex-start;
+      gap:10px;width:100%;padding:8px 0;overflow-y:auto;overflow-x:hidden;
+    }
+    #sca-friend-avatars .sca-friend-avatar{
+      display:grid!important;place-items:center;width:42px!important;height:42px!important;
+      min-width:42px;min-height:42px;flex:0 0 42px!important;box-sizing:border-box;
+      border-radius:50%!important;overflow:hidden;background:#e9edf3;color:#52647a;
+      font-size:14px;font-weight:700;line-height:1;
+    }
+    #sca-friend-avatars .sca-friend-avatar img{
+      display:block!important;width:100%!important;height:100%!important;
+      border:0!important;border-radius:50%!important;object-fit:cover!important;
+    }
+    .sca-friend-result.is-exact-match{
+      border-color:rgba(190,151,70,.42)!important;
+      box-shadow:0 0 0 1px rgba(190,151,70,.10),0 2px 8px rgba(190,151,70,.06);
+      background:rgba(218,183,102,.045)!important;
+    }
+    html.dark-mode .sca-friend-result.is-exact-match{
+      border-color:rgba(190,151,70,.38)!important;background:rgba(218,183,102,.055)!important;
+    }
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -564,8 +591,11 @@ async function searchScaUsers(query){
  if(error){friendHint(friendResults,error.message||"Search failed.");return;}
  friendResults.replaceChildren();
  if(!data?.length){friendHint(friendResults,"No users found.");return;}
- for(const person of data){
-  const row=document.createElement("div");row.className="sca-friend-result";
+ const normalizedQuery=query.trim().toLocaleLowerCase();
+ const exactMatches=data.filter(person=>(person.username||"").toLocaleLowerCase()===normalizedQuery);
+ const matches=exactMatches.length?exactMatches:data;
+ for(const person of matches){
+  const row=document.createElement("div");row.className="sca-friend-result";if(exactMatches.length)row.classList.add("is-exact-match");
   let profileImage=person.google_avatar;try{const directory=await getFriendPictureDirectory();profileImage=directory.get(person.username)?.pictureUrl||profileImage;}catch(error){console.warn("Could not load profile picture:",error.message);}row.append(avatarNode(person.username,profileImage));
   const name=document.createElement("strong");name.textContent=person.username||"User";row.append(name);
   const action=document.createElement("button");action.type="button";
