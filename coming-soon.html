@@ -761,14 +761,16 @@ async function openScaConversation(friend,picture){
   try{
    do{
     messagesReloadQueued=false;
-    const {data,error}=await supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).limit(200);if(error)throw error;
-    const rows=await decryptRows(data||[]);
-    await setScaCachedMessages(conversationId,rows);
-    messages.replaceChildren();renderMessageRows(rows);
+    let query=supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).limit(200);
+    if(cachedRows.length){const last=cachedRows[cachedRows.length-1];if(last.created_at)query=query.gt("created_at",last.created_at);}
+    const {data,error}=await query;if(error)throw error;
+    const fresh=await decryptRows(data||[]);
+    if(fresh.length){const known=new Set(cachedRows.map(item=>item.id));const additions=fresh.filter(item=>!known.has(item.id));cachedRows=[...cachedRows,...additions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(additions);}
    }while(messagesReloadQueued);
   }finally{messagesLoading=false;}
  }
- try{const cached=await getScaCachedMessages(conversationId);if(cached.length)renderMessageRows(cached);}catch(e){console.warn("Could not read cached messages:",e);}
+ let cachedRows=[];
+ try{cachedRows=await getScaCachedMessages(conversationId);if(cachedRows.length)renderMessageRows(cachedRows);}catch(e){console.warn("Could not read cached messages:",e);}
  messages.scrollTop=messages.scrollHeight;
  await loadMessages();if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  scaDmChannel=supabase.channel("sca-dm-"+conversationId).on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},()=>loadMessages().catch(console.warn)).subscribe();
