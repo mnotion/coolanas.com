@@ -1042,7 +1042,8 @@ async function ensureScaPublicKey(){
  })();
  try{return await scaEnsuredDeviceKeyPromise;}catch(error){scaEnsuredDeviceKeyPromise=null;throw error;}
 }
-// Direct messages no longer provision or require encryption keys.
+// Provision or unlock the account message key immediately after authenticated page login.
+void ensureScaPublicKey().catch(error=>console.error("Automatic SCA account key unlock failed:",error));
 async function scaMessageKey(friendId,conversationId,salt){
  const local=await ensureScaPublicKey();const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key").eq("user_id",friendId).maybeSingle();if(error)throw error;
  if(!data?.public_key)throw new Error("Your friend needs to open SCA Messages once to register their encryption key.");
@@ -1152,7 +1153,38 @@ async function openScaConversation(friend,picture){
   messages.scrollTop=messages.scrollHeight;
  }
  async function decryptRows(rows){
-  return rows.map(item=>({...item,clearText:item.ciphertext?.v===0?String(item.ciphertext.plaintext??""):"[This message used the retired encryption system and cannot be displayed.]"}));
+  const result=[];
+  const needsPrivateKey=rows.some(item=>item.ciphertext?.v===1);
+  let keyReady=!needsPrivateKey;
+  if(needsPrivateKey){
+   try{await ensureScaPublicKey();keyReady=true;}
+   catch(error){console.warn("SCA message key is unavailable on this device:",error);}
+  }
+  for(const item of rows){
+   let clearText="";
+   try{
+    if(item.ciphertext?.v===0)clearText=String(item.ciphertext.plaintext??"");
+    else if(!keyReady)throw new Error("Message key recovery is required on this device.");
+    else clearText=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);
+   }catch(error){clearText="Unable to decrypt on this device.";}
+   result.push({...item,clearText});
+  }
+  return result;
+ }
+ async function encryptViewedPlainMessages(render=true){
+  const pending=cachedRows.filter(item=>item.read_at&&item.ciphertext?.v===0);
+  let changed=false;
+  for(const item of pending){
+   try{
+    const envelope=await encryptScaMessage(item.clearText??item.ciphertext.plaintext,friend.friend_id,conversationId);
+    const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:envelope}).eq("id",item.id).not("read_at","is",null);
+    if(error)throw error;
+    cachedRows=cachedRows.map(row=>row.id===item.id?{...row,ciphertext:envelope}:row);
+    await setScaCachedMessages(conversationId,cachedRows);changed=true;
+   }catch(error){console.warn("Could not encrypt viewed first-contact message yet:",error.message);}
+  }
+  if(changed&&render)renderMessageRows(cachedRows);
+  return changed;
  }
  let messagesLoading=false,messagesReloadQueued=false,historyLoaded=false;
  async function syncCachedReadStatuses(render=true){
@@ -1164,8 +1196,9 @@ async function openScaConversation(friend,picture){
   let changed=false;
   cachedRows=cachedRows.map(item=>{if(!statuses.has(item.id))return item;const readAt=statuses.get(item.id)||null;if((item.read_at||null)===readAt)return item;changed=true;return {...item,read_at:readAt};});
   if(changed)await setScaCachedMessages(conversationId,cachedRows);
+  const encrypted=await encryptViewedPlainMessages(render);
   if(changed&&render)renderMessageRows(cachedRows);
-   return changed;
+  return changed||encrypted;
  }
  async function markIncomingMessagesRead(render=true){
   if(document.visibilityState!=="visible"||!panel.isConnected)return false;
@@ -1175,6 +1208,7 @@ async function openScaConversation(friend,picture){
    const readAtById=new Map(data.map(item=>[item.id,item.read_at]));
    cachedRows=cachedRows.map(item=>readAtById.has(item.id)?{...item,read_at:readAtById.get(item.id)}:item);
    await setScaCachedMessages(conversationId,cachedRows);
+   await encryptViewedPlainMessages(render);
    if(render)renderMessageRows(cachedRows);
    return true;
   }
@@ -1271,7 +1305,7 @@ async function openScaConversation(friend,picture){
    if(resolvedId&&resolvedId!==conversationId)console.warn("Conversation id changed for cached friend; retaining the cached conversation until refreshed.");
   }).catch(error=>console.warn("Could not refresh conversation id:",error));
  }
- // Direct messages do not require an account encryption key.
+ ensureScaPublicKey().catch(error=>console.warn("Could not sync account message key:",error));
  await loadMessages();
  messages.classList.remove("sca-dm-cache-ready");if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  let remoteTypingExpiry=null;
@@ -1281,7 +1315,7 @@ async function openScaConversation(friend,picture){
    const updated=payload.new,index=cachedRows.findIndex(item=>item.id===updated.id);
    if(index<0)return;
    cachedRows[index]={...cachedRows[index],read_at:updated.read_at||null,ciphertext:updated.ciphertext??cachedRows[index].ciphertext};
-   if(updated.ciphertext?.v===1)cachedRows[index].clearText="[This message used the retired encryption system and cannot be displayed.]"
+   if(updated.ciphertext?.v===1){try{cachedRows[index].clearText=await decryptScaMessage(updated.ciphertext,friend.friend_id,conversationId);}catch(error){cachedRows[index].clearText="Unable to decrypt on this device.";}}
    await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
    renderMessageRows(cachedRows);
   })
@@ -1329,7 +1363,72 @@ async function openScaConversation(friend,picture){
    if(scaDmChannelReady)scaDmChannel?.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing:true}}).then(status=>{if(status!=="ok")console.warn("SCA typing heartbeat was not acknowledged:",status);}).catch(error=>console.warn("SCA typing heartbeat failed:",error));
   },2000);
  }
- input.addEventListener("input",()=>broadcastTyping(input.value.length>0));
+ let preparedDraftText="",preparedDraftEnvelope=null,preparedDraftPromise=Promise.resolve(null),draftPreparationVersion=0;
+ input.addEventListener("input",()=>{
+  const draft=input.value;
+  broadcastTyping(draft.length>0);
+  const version=++draftPreparationVersion;
+  preparedDraftText=draft;preparedDraftEnvelope=null;
+  if(!draft.length||!cachedRows.some(item=>item.ciphertext?.v===1)){preparedDraftPromise=Promise.resolve(null);return;}
+  // Prepare encryption locally as each character changes. Draft contents are
+  // never broadcast or written to the database before the user presses Enter.
+  preparedDraftPromise=encryptScaMessage(draft,friend.friend_id,conversationId).then(envelope=>{
+   if(version===draftPreparationVersion&&preparedDraftText===draft)preparedDraftEnvelope=envelope;
+   return envelope;
+  }).catch(error=>{if(version===draftPreparationVersion)console.warn("Could not prepare encrypted draft:",error);return null;});
+ });
+ let pendingSendCount=0;
+ composer.addEventListener("submit",event=>{
+  event.preventDefault();
+  const text=input.value.trim();if(!text||text.length>300)return;
+  const messageId=crypto.randomUUID(),createdAt=new Date().toISOString();
+  const useEncryption=cachedRows.some(item=>item.ciphertext?.v===1);
+  const draftPromise=preparedDraftText===input.value?preparedDraftPromise:Promise.resolve(null);
+  const draftEnvelope=preparedDraftText===input.value?preparedDraftEnvelope:null;
+  const optimistic={id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:{v:0,plaintext:text},created_at:createdAt,read_at:null,clearText:text};
+  cachedRows=[...cachedRows,optimistic];setScaCachedMessages(conversationId,cachedRows).catch(console.warn);renderMessageRows(cachedRows);
+  input.value="";count.hidden=true;count.textContent="";input.style.height="";send.disabled=true;
+  draftPreparationVersion++;preparedDraftText="";preparedDraftEnvelope=null;preparedDraftPromise=Promise.resolve(null);
+  broadcastTyping(false);input.focus();pendingSendCount++;
+  (async()=>{
+   const envelope=useEncryption?(draftEnvelope||await draftPromise||await encryptScaMessage(text,friend.friend_id,conversationId)):optimistic.ciphertext;
+   cachedRows=cachedRows.map(item=>item.id===messageId?{...item,ciphertext:envelope}:item);
+   await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);
+   const result=await supabase.from("coolanas_dm_messages").insert({id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:envelope});
+   if(result.error)throw result.error;
+  })().catch(async error=>{
+   cachedRows=cachedRows.filter(item=>item.id!==messageId);
+   await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);renderMessageRows(cachedRows);
+   if(!input.value){input.value=text;send.disabled=false;input.focus();}
+   alert(error.message||"Could not send message.");
+  }).finally(()=>{pendingSendCount=Math.max(0,pendingSendCount-1);});
+ });
+}
+async function loadScaFriends(){
+ const {data,error}=await supabase.rpc("coolanas_friend_list");if(error)throw error;
+ friendAvatars.replaceChildren();friendAvatarRail.replaceChildren();
+ const friends=data||[];
+ if(friends.length){
+  const divider=document.createElement("div");divider.className="sca-friend-list-divider";divider.setAttribute("aria-hidden","true");friendAvatars.append(divider);
+ }
+ let directory=null;try{directory=await getFriendPictureDirectory();}catch(error){console.warn("Could not load friend pictures:",error.message);}
+ for(const friend of friends){
+  const profileImage=directory?.get(friend.username)?.pictureUrl||friend.google_avatar;
+  const card=document.createElement("div");card.className="sca-friend-card";
+  const avatar=avatarNode(friend.username,profileImage);avatar.title=friend.username||"Friend";
+  const railAvatar=avatarNode(friend.username,profileImage);railAvatar.title=friend.username||"Friend";friendAvatarRail.append(railAvatar);
+  const name=document.createElement("strong");name.textContent=friend.username||"Friend";
+  const wrap=document.createElement("div");wrap.className="sca-friend-settings-wrap";
+  const settings=document.createElement("button");settings.type="button";settings.className="sca-friend-settings";settings.setAttribute("aria-label","Friend settings");
+  settings.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1-.1 1.8Z"/></svg>';
+  const menu=document.createElement("div");menu.className="sca-friend-menu";menu.hidden=true;
+  const remove=document.createElement("button");remove.type="button";remove.textContent="Remove friend";
+  remove.addEventListener("click",async()=>{
+   remove.disabled=true;
+   const {error:removeError}=await supabase.rpc("coolanas_friend_remove",{p_friend_id:friend.friend_id});
+   if(removeError){remove.disabled=false;return;}
+   await loadScaFriends();
+  });
   menu.append(remove);settings.addEventListener("click",event=>{event.stopPropagation();menu.hidden=!menu.hidden;});
   wrap.append(settings,menu);card.append(avatar,name,wrap);friendAvatars.append(card);
  }
