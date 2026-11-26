@@ -770,25 +770,25 @@ function requestScaRecoveryCode(){
 async function readScaRemoteKeyState(){
  const [keyResult,backupResult]=await Promise.all([
   supabase.from("coolanas_dm_keys").select("public_key,key_version").eq("user_id",user.id).maybeSingle(),
-  supabase.from("coolanas_dm_key_backups").select("backup").eq("user_id",user.id).maybeSingle()
+  supabase.from("coolanas_dm_key_backups").select("private_key").eq("user_id",user.id).maybeSingle()
  ]);
  if(keyResult.error)throw keyResult.error;if(backupResult.error)throw backupResult.error;
- return {key:keyResult.data||null,backup:backupResult.data?.backup||null};
+ return {key:keyResult.data||null,privateJwk:backupResult.data?.private_key||null};
 }
-async function saveScaKeyRecord(record){await putScaStoredKey(user.id,record);}
-async function restoreScaDeviceKey(backup){
- const prompt=await requestScaRecoveryCode();
- let payload;
- try{payload=await decryptScaEncryptedBackup(backup,prompt.code);}
- catch(error){prompt.close();alert("That recovery code is incorrect or the backup is damaged.");return restoreScaDeviceKey(backup);}
- prompt.close();
- const privateKey=await crypto.subtle.importKey("jwk",payload.privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
- const record={version:2,privateKey,publicJwk:payload.publicJwk};
- await saveScaKeyRecord(record);
- const {error}=await supabase.from("coolanas_dm_keys").upsert({user_id:user.id,public_key:record.publicJwk,key_version:2},{onConflict:"user_id"});
+async function saveScaAccountKey(privateJwk,publicJwk){
+ const {error}=await supabase.from("coolanas_dm_key_backups").upsert({user_id:user.id,private_key:privateJwk,backup:{v:2,storage:"account-json"}},{onConflict:"user_id"});
  if(error)throw error;
+ const {error:keyError}=await supabase.from("coolanas_dm_keys").upsert({user_id:user.id,public_key:publicJwk,key_version:2},{onConflict:"user_id"});
+ if(keyError)throw keyError;
+}
+async function importScaAccountKey(privateJwk,publicJwk){
+ const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
+ const record={version:2,privateKey,publicJwk};
+ await saveScaKeyRecord(record);
  return record;
 }
+async function saveScaKeyRecord(record){await putScaStoredKey(user.id,record);}
+async function restoreScaDeviceKey(privateJwk,publicJwk){return importScaAccountKey(privateJwk,publicJwk);}
 async function deriveScaMessageKeyWithPrivate(privateKey,peerPublicJwk,conversationId,salt){
  const peer=await crypto.subtle.importKey("jwk",peerPublicJwk,{name:"ECDH",namedCurve:"P-256"},false,[]);
  const bits=await crypto.subtle.deriveBits({name:"ECDH",public:peer},privateKey,256);
@@ -825,74 +825,51 @@ async function rotateScaLegacyDeviceKey(legacyRecord,expectedPublicKey){
    for(const row of rows||[]){
     if(row.ciphertext?.v===0){updates.push({id:row.id,ciphertext:row.ciphertext});continue;}
     if(row.ciphertext?.v!==1)throw new Error("A conversation contains a message format that cannot be migrated safely.");
-    if(!peer?.public_key)throw new Error("A friend is missing an encryption key. Their original device must be restored before key migration can continue.");
+    if(!peer?.public_key)throw new Error("A friend is missing an encryption key. Their original device must be available before key migration can continue.");
     const plaintext=await decryptScaMessageWithPrivate(row.ciphertext,legacyRecord.privateKey,peer.public_key,conversation.id);
-    const ciphertext=await encryptScaMessageWithPrivate(plaintext,privateKey,peer.public_key,conversation.id);
-    updates.push({id:row.id,ciphertext});
+    updates.push({id:row.id,ciphertext:await encryptScaMessageWithPrivate(plaintext,privateKey,peer.public_key,conversation.id)});
    }
-   offset+=(rows||[]).length;
-   if(!rows||rows.length<100)break;
+   offset+=(rows||[]).length;if(!rows||rows.length<100)break;
   }
  }
- const {code,backup}=await createScaEncryptedBackup(privateJwk,publicJwk);
- await showScaRecoveryCode(code);
- const pending={version:2,privateKey,publicJwk};
- await putScaStoredKey(user.id+":pending",pending);
- const {error:rotationError}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{p_public_key:publicJwk,p_backup:backup,p_updates:updates,p_expected_public_key:expectedPublicKey});
- if(rotationError){await deleteScaStoredKey(user.id+":pending");alert("The key migration did not complete, so the recovery code shown was not activated. Keep this device's browser data intact and retry after resolving the issue. "+(rotationError.message||""));throw rotationError;}
- await saveScaKeyRecord(pending);await deleteScaStoredKey(user.id+":pending");
- return pending;
+ for(const item of updates){
+  const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:item.ciphertext}).eq("id",item.id);
+  if(error)throw error;
+ }
+ await saveScaAccountKey(privateJwk,publicJwk);
+ const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
 }
-async function createFirstScaDeviceKey(expectedPublicKey=null){
+async function createFirstScaDeviceKey(){
  const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const publicJwk=await crypto.subtle.exportKey("jwk",pair.publicKey),privateJwk=await crypto.subtle.exportKey("jwk",pair.privateKey);
  const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
- const {code,backup}=await createScaEncryptedBackup(privateJwk,publicJwk);
- await showScaRecoveryCode(code);
- const pending={version:2,privateKey,publicJwk};
- await putScaStoredKey(user.id+":pending",pending);
- const {error}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{p_public_key:publicJwk,p_backup:backup,p_updates:[],p_expected_public_key:expectedPublicKey});
- if(error){await deleteScaStoredKey(user.id+":pending");alert("Encryption setup did not complete, so the recovery code shown was not activated. Retry setup and save the new code. "+(error.message||""));throw error;}
- await saveScaKeyRecord(pending);await deleteScaStoredKey(user.id+":pending");
- return pending;
+ await saveScaAccountKey(privateJwk,publicJwk);
+ const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
 }
 let scaDeviceKeyPromise=null;
 async function getScaDeviceKey(){
  if(scaDeviceKeyPromise)return scaDeviceKeyPromise;
  scaDeviceKeyPromise=(async()=>{
-  let remote=await readScaRemoteKeyState();
+  const remote=await readScaRemoteKeyState();
   const pending=await getScaStoredKey(user.id+":pending");
-  if(pending&&sameScaPublicKey(remote.key?.public_key,pending.publicJwk)){
-   await saveScaKeyRecord(pending);await deleteScaStoredKey(user.id+":pending");return pending;
-  }
   if(pending)await deleteScaStoredKey(user.id+":pending");
   const existing=await getScaStoredKey(user.id);
-  if(existing?.version===2){
-   if(remote.backup&&remote.key?.key_version===2){
-    if(sameScaPublicKey(remote.key.public_key,existing.publicJwk))return existing;
-    return restoreScaDeviceKey(remote.backup);
-   }
-   return rotateScaLegacyDeviceKey(existing,remote.key?.public_key||null);
+  if(remote.privateJwk&&remote.key?.public_key)return restoreScaDeviceKey(remote.privateJwk,remote.key.public_key);
+  if(existing?.version===2&&sameScaPublicKey(remote.key?.public_key,existing.publicJwk)){
+   const privateJwk=await crypto.subtle.exportKey("jwk",existing.privateKey).catch(()=>null);
+   if(privateJwk){await saveScaAccountKey(privateJwk,existing.publicJwk);return existing;}
+   throw new Error("Your account encryption key needs to be synced from the original device. Keep that device's browser data intact.");
   }
-  if(existing){
-   if(remote.backup&&remote.key?.key_version===2)return restoreScaDeviceKey(remote.backup);
-   return rotateScaLegacyDeviceKey(existing);
-  }
-  if(remote.backup)return restoreScaDeviceKey(remote.backup);
-  if(remote.key)throw new Error("This device does not have your original message key, and this account has no recovery backup yet. Open SCA Messages on a device that still has the original key to create one. Do not clear that device's browser data.");
-  return createFirstScaDeviceKey(remote.key?.public_key||null);
+  if(existing)return rotateScaLegacyDeviceKey(existing,remote.key?.public_key||null);
+  if(remote.key)throw new Error("Your account has an encryption key but its private key has not been synced yet. Open messages on the device that previously used this account.");
+  return createFirstScaDeviceKey();
  })();
  try{return await scaDeviceKeyPromise;}finally{scaDeviceKeyPromise=null;}
 }
 async function ensureScaPublicKey(){
  const local=await getScaDeviceKey();
  const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key,key_version").eq("user_id",user.id).maybeSingle();if(error)throw error;
- if(data&&!sameScaPublicKey(data.public_key,local.publicJwk)){
-  throw new Error("This device's message key does not match the account's current key. Restore the account recovery backup instead of replacing the key.");
- }
- if(!data||data.key_version!==2){
-  const result=await supabase.from("coolanas_dm_keys").upsert({user_id:user.id,public_key:local.publicJwk,key_version:2},{onConflict:"user_id"});if(result.error)throw result.error;
- }
+ if(!data||!sameScaPublicKey(data.public_key,local.publicJwk))throw new Error("The account encryption key does not match this device. Refresh the page and retry account key sync.");
  return local;
 }
 async function scaMessageKey(friendId,conversationId,salt){
