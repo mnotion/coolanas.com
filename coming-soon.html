@@ -550,7 +550,14 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 .sca-dm-conversation .sca-dm-composer{position:relative;z-index:3}
 .sca-dm-conversation .sca-dm-input-wrap{position:relative;z-index:3}
 @keyframes scaDmFlash{0%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0)}25%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}50%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}75%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}100%{background-image:radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}}
-.sca-dm-messages[aria-busy="true"]::before{content:"Loading message history…";display:block;width:100%;padding:8px 0 12px;text-align:center;color:var(--muted-color,#8b929a);font-size:11px;letter-spacing:.02em}
+.sca-dm-history-loader{position:sticky;top:0;z-index:8;margin:8px 10px 12px;padding:11px 13px;border:1px solid rgba(130,145,165,.22);border-radius:12px;background:rgba(30,34,40,.94);backdrop-filter:blur(10px);color:#f4f6fa;box-shadow:0 5px 18px rgba(0,0,0,.16)}
+.sca-dm-history-loader-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;margin-bottom:8px}
+.sca-dm-history-percent{font-variant-numeric:tabular-nums;font-weight:700}
+.sca-dm-history-track{height:5px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.15)}
+.sca-dm-history-fill{display:block;width:0;height:100%;border-radius:inherit;background:#6b9fe8;transition:width .18s ease}
+.sca-dm-history-caption{margin-top:7px;color:rgba(245,247,250,.68);font-size:10px}
+.sca-dm-history-loading .sca-dm-message-row{opacity:.28;transition:opacity .18s ease}
+.sca-dm-messages[aria-busy="true"]::before{content:none}
 @keyframes sca-dm-message-enter{from{opacity:0;transform:translateY(7px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
 .sca-dm-message-enter{animation:sca-dm-message-enter .24s cubic-bezier(.2,.75,.25,1) both;animation-delay:var(--sca-message-delay,0ms)}
 @media(prefers-reduced-motion:reduce){.sca-dm-typing-indicator,.sca-dm-uiverse-loader,.sca-dm-message-enter{transition:none;animation:none}}
@@ -958,7 +965,9 @@ async function openScaConversation(friend,picture){
  input.addEventListener("input",()=>{const n=input.value.length;count.hidden=n<=275;count.textContent=n+" / 300";send.disabled=!input.value.trim()||n>300;input.style.height="auto";input.style.height=Math.min(input.scrollHeight,120)+"px";});
  input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();if(!send.disabled)composer.requestSubmit();}});
  function renderMessageRows(rows,animatedIds=null){
+  const loadingUi=messages.querySelector(".sca-dm-history-loader");
   messages.replaceChildren();
+  if(loadingUi)messages.append(loadingUi);
   let previousSenderId=null,arrivalOrder=0;
   const animationGap=animatedIds?.size?Math.max(2,Math.min(14,2800/animatedIds.size)):0;
   for(const message of rows){
@@ -1026,21 +1035,39 @@ async function openScaConversation(friend,picture){
   }
   return false;
  }
+ function ensureScaHistoryLoader(){
+  let loader=messages.querySelector(".sca-dm-history-loader");
+  if(loader)return loader;
+  loader=document.createElement("div");loader.className="sca-dm-history-loader";
+  loader.innerHTML='<div class="sca-dm-history-loader-head"><strong>Loading chats</strong><span class="sca-dm-history-percent">0%</span></div><div class="sca-dm-history-track"><span class="sca-dm-history-fill"></span></div><div class="sca-dm-history-caption">Retrieving your messages…</div>';
+  messages.prepend(loader);return loader;
+ }
+ function updateScaHistoryLoader(loader,loaded,total){
+  const percent=total?Math.min(100,Math.round(loaded/total*100)):0;
+  loader.querySelector(".sca-dm-history-percent").textContent=percent+"%";
+  loader.querySelector(".sca-dm-history-fill").style.width=percent+"%";
+  loader.querySelector(".sca-dm-history-caption").textContent=total?("Retrieved "+Math.min(loaded,total)+" of "+total+" messages"):"Retrieving your messages…";
+ }
  async function loadMessages(){
   if(messagesLoading){messagesReloadQueued=true;return;}
   messagesLoading=true;messages.setAttribute("aria-busy","true");
-  const animatedIds=new Set();
+  const loader=ensureScaHistoryLoader(),animatedIds=new Set();
+  messages.classList.add("sca-dm-history-loading");
   try{
    do{
     messagesReloadQueued=false;
-    let offset=0;
+    const countQuery=await supabase.from("coolanas_dm_messages").select("id",{count:"exact",head:true}).eq("conversation_id",conversationId);
+    if(countQuery.error)throw countQuery.error;
+    const total=countQuery.count||0;
+    let offset=0,loaded=historyLoaded?cachedRows.length:0;
+    updateScaHistoryLoader(loader,loaded,total);
     while(true){
      let query=supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at,read_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).order("id",{ascending:true});
      if(historyLoaded){
       const last=cachedRows[cachedRows.length-1];
       if(last?.created_at)query=query.gt("created_at",last.created_at);
      }
-     const {data,error}=await query.range(offset,offset+99);if(error)throw error;
+     const {data,error}=await query.range(offset,offset+49);if(error)throw error;
      const page=data||[];
      const known=new Map(cachedRows.map(item=>[item.id,item]));
      const rawAdditions=page.filter(item=>{
@@ -1055,9 +1082,12 @@ async function openScaConversation(friend,picture){
       }
       cachedRows=[...cachedRows.filter(item=>!updatedIds.has(item.id)),...additions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)||String(a.id).localeCompare(String(b.id)));
       await setScaCachedMessages(conversationId,cachedRows);
+      renderMessageRows(cachedRows);
+      messages.classList.add("sca-dm-history-loading");
      }
-     offset+=page.length;
-     if(page.length<100)break;
+     offset+=page.length;loaded+=page.length;
+     updateScaHistoryLoader(loader,Math.min(loaded,total),total);
+     if(page.length<50)break;
     }
     historyLoaded=true;
    }while(messagesReloadQueued);
@@ -1065,6 +1095,12 @@ async function openScaConversation(friend,picture){
    await markIncomingMessagesRead(false);
    if(animatedIds.size)renderMessageRows(cachedRows,animatedIds);
    else renderMessageRows(cachedRows);
+   loader.remove();messages.classList.remove("sca-dm-history-loading");
+  }catch(error){
+   const caption=loader.querySelector(".sca-dm-history-caption");
+   if(caption)caption.textContent="Couldn't finish loading. Check your connection and retry.";
+   console.error("SCA message history load failed:",error);
+   throw error;
   }finally{messagesLoading=false;messages.setAttribute("aria-busy","false");}
  }
  let cachedRows=[];
