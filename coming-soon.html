@@ -914,14 +914,10 @@ async function readScaRemoteKeyState(){
 async function saveScaAccountKey(privateJwk,publicJwk){
  const {data:existing,error:readError}=await supabase.from("coolanas_dm_key_backups").select("backup").eq("user_id",user.id).maybeSingle();
  if(readError)throw readError;
- let encryptedBackup=existing?.backup;
- if(!encryptedBackup||encryptedBackup.v!==1||encryptedBackup.kdf!=="PBKDF2-SHA-256"||!sameScaPublicKey(encryptedBackup.public_key,publicJwk)){
-  const created=await createScaEncryptedBackup(privateJwk,publicJwk);
-  await showScaRecoveryCode(created.code);
-  encryptedBackup=created.backup;
- }
- // The server stores only the recovery-code-encrypted backup, never a plaintext private JWK.
- const {error}=await supabase.from("coolanas_dm_key_backups").upsert({user_id:user.id,private_key:null,backup:encryptedBackup},{onConflict:"user_id"});
+ // Account-managed key escrow: every authenticated device can retrieve this account's private key.
+ const {error}=await supabase.from("coolanas_dm_key_backups").upsert({
+  user_id:user.id,private_key:privateJwk,backup:existing?.backup||null,key_version:2
+ },{onConflict:"user_id"});
  if(error)throw error;
 }
 async function importScaAccountKey(privateJwk,publicJwk){
@@ -979,11 +975,10 @@ async function rotateScaLegacyDeviceKey(legacyRecord,expectedPublicKey){
    offset+=(rows||[]).length;if(!rows||rows.length<100)break;
   }
  }
- // The database RPC applies every ciphertext update and the key/backup change in one transaction.
- const created=await createScaEncryptedBackup(privateJwk,publicJwk);
- await showScaRecoveryCode(created.code);
+ // The database RPC applies every ciphertext update and the account key change atomically.
  const {error:rotationError}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{
-  p_public_key:publicJwk,p_backup:created.backup,p_updates:updates,p_expected_public_key:expectedPublicKey
+  p_public_key:publicJwk,p_backup:null,p_private_key:privateJwk,
+  p_updates:updates,p_expected_public_key:expectedPublicKey
  });
  if(rotationError)throw rotationError;
  const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
@@ -992,10 +987,9 @@ async function createFirstScaDeviceKey(){
  const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const publicJwk=await crypto.subtle.exportKey("jwk",pair.publicKey),privateJwk=await crypto.subtle.exportKey("jwk",pair.privateKey);
  const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
- const created=await createScaEncryptedBackup(privateJwk,publicJwk);
- await showScaRecoveryCode(created.code);
  const {error}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{
-  p_public_key:publicJwk,p_backup:created.backup,p_updates:[],p_expected_public_key:null
+  p_public_key:publicJwk,p_backup:null,p_private_key:privateJwk,
+  p_updates:[],p_expected_public_key:null
  });
  if(error)throw error;
  const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
@@ -1008,14 +1002,13 @@ async function getScaDeviceKey(){
   const pending=await getScaStoredKey(user.id+":pending");
   if(pending)await deleteScaStoredKey(user.id+":pending");
   const existing=await getScaStoredKey(user.id);
-  // Keep a matching local key; create its encrypted recovery backup if this is the original device.
+  // Keep a matching local key and synchronise it to the authenticated account's backend record.
   if(existing?.version===2&&sameScaPublicKey(remote.key?.public_key,existing.publicJwk)){
    const privateJwk=await crypto.subtle.exportKey("jwk",existing.privateKey).catch(()=>null);
    if(privateJwk){await saveScaAccountKey(privateJwk,existing.publicJwk);return existing;}
    throw new Error("This device's private key is unavailable. Restore it with the recovery code from your original device.");
   }
-  // Compatibility path for accounts that still have a legacy plaintext backup. It is immediately
-  // converted to a recovery-code-encrypted backup by saveScaAccountKey.
+  // Restore directly from the account-managed backend private key on every new device.
   if(remote.privateJwk&&remote.key?.public_key)return restoreScaDeviceKey(remote.privateJwk,remote.key.public_key);
   // A new device can restore only from the encrypted backup and the code saved on the original device.
   if(remote.backup?.v===1&&remote.key?.public_key){
@@ -1040,6 +1033,8 @@ async function ensureScaPublicKey(){
  })();
  try{return await scaEnsuredDeviceKeyPromise;}catch(error){scaEnsuredDeviceKeyPromise=null;throw error;}
 }
+// Provision or unlock the account message key immediately after authenticated page login.
+void ensureScaPublicKey().catch(error=>console.error("Automatic SCA account key unlock failed:",error));
 async function scaMessageKey(friendId,conversationId,salt){
  const local=await ensureScaPublicKey();const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key").eq("user_id",friendId).maybeSingle();if(error)throw error;
  if(!data?.public_key)throw new Error("Your friend needs to open SCA Messages once to register their encryption key.");
