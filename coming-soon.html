@@ -668,6 +668,8 @@ html:not(.dark-mode) .sca-guild-users-heading{color:#66758a}
 }
 
 /* Guild viewport and connected workspace corrections */
+.sca-guild-users-panel[hidden],.sca-main[data-section="guild"] .sca-guild-users-panel[hidden]{display:none!important}
+
 html.sca-guild-active,html.sca-guild-active body,body.sca-guild-active{height:100%;min-height:0;overflow:hidden!important}
 body.sca-guild-active .sca-workspace{height:100dvh;min-height:0;overflow:hidden}
 .sca-main[data-section="guild"]{
