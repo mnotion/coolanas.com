@@ -573,27 +573,17 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 @media(prefers-reduced-motion:reduce){.sca-dm-typing-indicator,.sca-dm-uiverse-loader,.sca-dm-message-enter{transition:none;animation:none}}
 
 /* Guild overview */
-.sca-guild-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,280px);gap:18px;min-height:calc(100vh - 190px);align-content:start;align-items:start}
-.sca-guild-timer-card,.sca-guild-members-card{border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(255,255,255,.035);box-shadow:0 10px 28px rgba(0,0,0,.12)}
-.sca-guild-timer-card{padding:28px 30px 26px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px}
-.sca-guild-eyebrow{font-size:11px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;color:#8e9aab}
-.sca-guild-time{font-variant-numeric:tabular-nums;font-size:clamp(54px,9vw,112px);font-weight:750;letter-spacing:-.065em;line-height:1.05;margin:16px 0 10px;color:#f4f6fa}
-.sca-guild-timer-caption{font-size:13px;color:#9299a5;min-height:18px}
-.sca-guild-controls{display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap}
-.sca-guild-action{min-width:104px;padding:10px 18px;border:1px solid rgba(255,255,255,.12);border-radius:11px;background:rgba(255,255,255,.07);color:#eee;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .16s,border-color .16s,transform .16s}
-.sca-guild-action:hover{background:rgba(255,255,255,.12);transform:translateY(-1px)}
-.sca-guild-action.primary{background:#416ba8;border-color:#557fbd;color:#fff}
-.sca-guild-action:disabled{opacity:.4;cursor:not-allowed;transform:none}
-.sca-guild-members-card{padding:22px;display:flex;flex-direction:column;gap:12px;min-height:230px}
-.sca-guild-members-number{font-size:clamp(38px,5vw,60px);font-weight:750;letter-spacing:-.055em;font-variant-numeric:tabular-nums;color:#f4f6fa;margin-top:10px}
-.sca-guild-members-label{font-size:13px;color:#9ca3af}
-.sca-guild-members-note{margin-top:auto;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:#858c97;line-height:1.5}
-.sca-guild-status{margin-top:12px;font-size:12px;color:#8993a2;min-height:16px}
-html:not(.dark-mode) .sca-guild-timer-card,html:not(.dark-mode) .sca-guild-members-card{background:rgba(255,255,255,.62);border-color:rgba(0,0,0,.1)}
-html:not(.dark-mode) .sca-guild-time,html:not(.dark-mode) .sca-guild-members-number{color:#20242b}
-html:not(.dark-mode) .sca-guild-action{color:#303744;border-color:rgba(0,0,0,.12);background:rgba(0,0,0,.04)}
-html:not(.dark-mode) .sca-guild-action.primary{color:white;background:#416ba8}
-@media(max-width:760px){.sca-guild-layout{grid-template-columns:minmax(0,1fr);min-height:0}.sca-guild-timer-card{min-height:230px;padding:24px 14px}.sca-guild-members-card{min-height:180px}.sca-guild-time{font-size:clamp(48px,15vw,82px)}}
+.sca-guild-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:0;min-height:calc(100vh - 190px);align-content:start;align-items:stretch;width:100%}
+.sca-guild-timer-card{box-sizing:border-box;width:100%;min-width:0;min-height:320px;padding:28px 30px;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(255,255,255,.035);box-shadow:0 10px 28px rgba(0,0,0,.12);text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.sca-guild-time{display:flex;align-items:center;justify-content:center;gap:clamp(2px,.55vw,8px);width:100%;min-width:0;margin:0;color:#f4f6fa;white-space:nowrap;line-height:1}
+.sca-guild-digit{display:block;flex:0 1 clamp(32px,5vw,68px);width:clamp(32px,5vw,68px);height:clamp(46px,6.2vw,82px);min-width:0;overflow:visible}
+.sca-guild-digit path{fill:none;stroke:currentColor;stroke-width:7.5;stroke-linecap:round;stroke-linejoin:round}
+.sca-guild-colon{display:block;flex:0 0 clamp(9px,1.25vw,17px);width:clamp(9px,1.25vw,17px);height:clamp(46px,6.2vw,82px);overflow:visible}
+.sca-guild-colon circle{fill:currentColor}
+.sca-guild-day-label{flex:none;margin:0 5px 0 2px;color:inherit;font:600 14px/1 Inter,ui-sans-serif,system-ui,sans-serif}
+html:not(.dark-mode) .sca-guild-timer-card{background:rgba(255,255,255,.62);border-color:rgba(0,0,0,.1)}
+html:not(.dark-mode) .sca-guild-time{color:#20242b}
+@media(max-width:760px){.sca-guild-layout{min-height:0}.sca-guild-timer-card{min-height:250px;padding:22px 12px}.sca-guild-digit{flex-basis:clamp(32px,8vw,52px);width:clamp(32px,8vw,52px);height:clamp(46px,11vw,68px)}.sca-guild-colon{flex-basis:clamp(9px,2.5vw,13px);width:clamp(9px,2.5vw,13px);height:clamp(46px,11vw,68px)}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -678,6 +668,15 @@ function guildElapsedNow(){
  return base+(guildStopwatchState.started_at?
    Math.max(0,Date.now()+guildStopwatchClockOffset-Date.parse(guildStopwatchState.started_at)):0);
 }
+const GUILD_DIGIT_SEGMENTS={"0":"abcdef","1":"bc","2":"abged","3":"abgcd","4":"fgbc","5":"afgcd","6":"afgcde","7":"abc","8":"abcdefg","9":"abfgcd"};
+const GUILD_SEGMENT_PATHS={a:"M12 9H36",b:"M39 12V32",c:"M39 40V60",d:"M12 63H36",e:"M9 40V60",f:"M9 12V32",g:"M12 36H36"};
+const GUILD_SVG_NS="http://www.w3.org/2000/svg";
+let lastGuildTimerMarkup="";
+function makeGuildSvg(className,viewBox){
+ const svg=document.createElementNS(GUILD_SVG_NS,"svg");
+ svg.setAttribute("class",className);svg.setAttribute("viewBox",viewBox);svg.setAttribute("aria-hidden","true");
+ return svg;
+}
 function renderGuildStopwatch(){
  const display=document.getElementById("sca-guild-time");
  if(!display)return;
@@ -686,10 +685,30 @@ function renderGuildStopwatch(){
  const hours=Math.floor(seconds/3600);seconds%=3600;
  const minutes=Math.floor(seconds/60);seconds%=60;
  const hh=String(hours).padStart(2,"0"),mm=String(minutes).padStart(2,"0"),ss=String(seconds).padStart(2,"0");
- display.textContent=days?days+"d "+hh+":"+mm+":"+ss:hh+":"+mm+":"+ss;
- const caption=document.getElementById("sca-guild-timer-caption");
- if(caption)caption.textContent=guildStopwatchState.started_at?
-   "Your personal stopwatch is running":"Your personal stopwatch is paused";
+ const value=days?String(days)+"d "+hh+":"+mm+":"+ss:hh+":"+mm+":"+ss;
+ if(value===lastGuildTimerMarkup)return;
+ lastGuildTimerMarkup=value;
+ const nodes=[];
+ for(const character of value){
+  if(/[0-9]/.test(character)){
+   const svg=makeGuildSvg("sca-guild-digit","0 0 48 72");
+   for(const segment of GUILD_DIGIT_SEGMENTS[character]){
+    const path=document.createElementNS(GUILD_SVG_NS,"path");
+    path.setAttribute("d",GUILD_SEGMENT_PATHS[segment]);svg.append(path);
+   }
+   nodes.push(svg);
+  }else if(character===":"){
+   const svg=makeGuildSvg("sca-guild-colon","0 0 16 72");
+   for(const y of [24,48]){
+    const circle=document.createElementNS(GUILD_SVG_NS,"circle");
+    circle.setAttribute("cx","8");circle.setAttribute("cy",String(y));circle.setAttribute("r","3.4");svg.append(circle);
+   }
+   nodes.push(svg);
+  }else if(character==="d"){
+   const label=document.createElement("span");label.className="sca-guild-day-label";label.textContent="d";nodes.push(label);
+  }
+ }
+ display.replaceChildren(...nodes);
 }
 function applyGuildStopwatchRow(row){
  if(!row)return;
@@ -707,29 +726,12 @@ async function loadGuildStopwatch(){
  const row=Array.isArray(data)?data[0]:data;
  if(!row)throw new Error("The stopwatch terminal returned no state.");
  applyGuildStopwatchRow(row);
- const status=document.getElementById("sca-guild-status");
- if(status)status.textContent="Connected to your private stopwatch terminal.";
 }
 async function initGuildPanel(){
  if(guildStopwatchChannel){await supabase.removeChannel(guildStopwatchChannel);guildStopwatchChannel=null;}
  if(guildStopwatchTick){clearInterval(guildStopwatchTick);guildStopwatchTick=null;}
- const status=document.getElementById("sca-guild-status");
- if(status)status.textContent="Connecting to your private stopwatch terminal…";
  try{await loadGuildStopwatch();}
- catch(error){
-  console.error("Could not load your Guild stopwatch:",error);
-  if(status)status.textContent="Unable to load your personal stopwatch. Check your connection and retry.";
- }
- try{
-  const {data,error}=await supabase.rpc("coolanas_registered_user_count");
-  if(error)throw error;
-  const count=document.getElementById("sca-guild-members-number");
-  if(count)count.textContent=Number(data||0).toLocaleString();
- }catch(error){
-  console.error("Could not load registered user count:",error);
-  const count=document.getElementById("sca-guild-members-number");
-  if(count)count.textContent="Unavailable";
- }
+ catch(error){console.error("Could not load your Guild stopwatch:",error);}
  guildStopwatchChannel=supabase.channel("coolanas-account-stopwatch-"+user.id)
   .on("postgres_changes",{
    event:"*",
@@ -741,8 +743,7 @@ async function initGuildPanel(){
    if(channelStatus==="SUBSCRIBED"){
     loadGuildStopwatch().catch(error=>console.warn("Guild stopwatch reconnect refresh failed:",error));
    }else if(channelStatus==="CHANNEL_ERROR"||channelStatus==="TIMED_OUT"){
-    const currentStatus=document.getElementById("sca-guild-status");
-    if(currentStatus)currentStatus.textContent="Connection interrupted. Reconnecting to your stopwatch…";
+    console.warn("Guild stopwatch connection interrupted; waiting for realtime reconnect.");
    }
   });
  guildStopwatchTick=setInterval(renderGuildStopwatch,250);
@@ -777,7 +778,7 @@ function openScaSection(section){
     return;
   }
   if(section==="guild"){
-    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Your personal stopwatch"><div class="sca-guild-eyebrow">Your study time</div><div class="sca-guild-time" id="sca-guild-time">00:00:00</div><div class="sca-guild-timer-caption" id="sca-guild-timer-caption">Loading your personal stopwatch…</div><div class="sca-guild-status" id="sca-guild-status" role="status" aria-live="polite">Connecting to your stopwatch terminal…</div></section><aside class="sca-guild-members-card" aria-label="Registered users"><div class="sca-guild-eyebrow">Community</div><div class="sca-guild-members-number" id="sca-guild-members-number">—</div><div class="sca-guild-members-label">Registered users</div><div class="sca-guild-members-note">Total accounts registered on Coolanas.</div></aside></div>';
+    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Study timer"><div class="sca-guild-time" id="sca-guild-time" role="timer" aria-live="off"></div></section></div>';
     initGuildPanel();
     return;
   }
