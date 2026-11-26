@@ -1042,8 +1042,7 @@ async function ensureScaPublicKey(){
  })();
  try{return await scaEnsuredDeviceKeyPromise;}catch(error){scaEnsuredDeviceKeyPromise=null;throw error;}
 }
-// Provision or unlock the account message key immediately after authenticated page login.
-void ensureScaPublicKey().catch(error=>console.error("Automatic SCA account key unlock failed:",error));
+// Direct messages no longer provision or require encryption keys.
 async function scaMessageKey(friendId,conversationId,salt){
  const local=await ensureScaPublicKey();const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key").eq("user_id",friendId).maybeSingle();if(error)throw error;
  if(!data?.public_key)throw new Error("Your friend needs to open SCA Messages once to register their encryption key.");
@@ -1152,41 +1151,8 @@ async function openScaConversation(friend,picture){
   }
   messages.scrollTop=messages.scrollHeight;
  }
- async function decryptRows(rows){
-  const result=[];
-  const needsPrivateKey=rows.some(item=>item.ciphertext?.v===1);
-  let keyReady=!needsPrivateKey;
-  if(needsPrivateKey){
-   try{await ensureScaPublicKey();keyReady=true;}
-   catch(error){console.warn("SCA message key is unavailable on this device:",error);}
-  }
-  for(const item of rows){
-   let clearText="";
-   try{
-    if(item.ciphertext?.v===0)clearText=String(item.ciphertext.plaintext??"");
-    else if(!keyReady)throw new Error("Message key recovery is required on this device.");
-    else clearText=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);
-   }catch(error){clearText="Unable to decrypt on this device.";}
-   result.push({...item,clearText});
-  }
-  return result;
- }
- async function encryptViewedPlainMessages(render=true){
-  const pending=cachedRows.filter(item=>item.read_at&&item.ciphertext?.v===0);
-  let changed=false;
-  for(const item of pending){
-   try{
-    const envelope=await encryptScaMessage(item.clearText??item.ciphertext.plaintext,friend.friend_id,conversationId);
-    const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:envelope}).eq("id",item.id).not("read_at","is",null);
-    if(error)throw error;
-    cachedRows=cachedRows.map(row=>row.id===item.id?{...row,ciphertext:envelope}:row);
-    await setScaCachedMessages(conversationId,cachedRows);changed=true;
-   }catch(error){console.warn("Could not encrypt viewed first-contact message yet:",error.message);}
-  }
-  if(changed&&render)renderMessageRows(cachedRows);
-  return changed;
- }
- let messagesLoading=false,messagesReloadQueued=false,historyLoaded=false;
+ async function decryptRows(rows){return rows.map(item=>({...item,clearText:item.ciphertext?.v===0?String(item.ciphertext.plaintext??""):"[This message used the retired encryption system and cannot be displayed.]"}));}
+  let messagesLoading=falselet messagesLoading=false,messagesReloadQueued=false,historyLoaded=false;
  async function syncCachedReadStatuses(render=true){
   if(!cachedRows.length)return false;
   const ids=cachedRows.map(item=>item.id);
@@ -1196,9 +1162,9 @@ async function openScaConversation(friend,picture){
   let changed=false;
   cachedRows=cachedRows.map(item=>{if(!statuses.has(item.id))return item;const readAt=statuses.get(item.id)||null;if((item.read_at||null)===readAt)return item;changed=true;return {...item,read_at:readAt};});
   if(changed)await setScaCachedMessages(conversationId,cachedRows);
-  const encrypted=await encryptViewedPlainMessages(render);
+  
   if(changed&&render)renderMessageRows(cachedRows);
-  return changed||encrypted;
+  return changed;
  }
  async function markIncomingMessagesRead(render=true){
   if(document.visibilityState!=="visible"||!panel.isConnected)return false;
@@ -1208,7 +1174,7 @@ async function openScaConversation(friend,picture){
    const readAtById=new Map(data.map(item=>[item.id,item.read_at]));
    cachedRows=cachedRows.map(item=>readAtById.has(item.id)?{...item,read_at:readAtById.get(item.id)}:item);
    await setScaCachedMessages(conversationId,cachedRows);
-   await encryptViewedPlainMessages(render);
+   
    if(render)renderMessageRows(cachedRows);
    return true;
   }
@@ -1305,7 +1271,7 @@ async function openScaConversation(friend,picture){
    if(resolvedId&&resolvedId!==conversationId)console.warn("Conversation id changed for cached friend; retaining the cached conversation until refreshed.");
   }).catch(error=>console.warn("Could not refresh conversation id:",error));
  }
- ensureScaPublicKey().catch(error=>console.warn("Could not sync account message key:",error));
+ // No encryption-key setup is needed.
  await loadMessages();
  messages.classList.remove("sca-dm-cache-ready");if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  let remoteTypingExpiry=null;
@@ -1315,7 +1281,7 @@ async function openScaConversation(friend,picture){
    const updated=payload.new,index=cachedRows.findIndex(item=>item.id===updated.id);
    if(index<0)return;
    cachedRows[index]={...cachedRows[index],read_at:updated.read_at||null,ciphertext:updated.ciphertext??cachedRows[index].ciphertext};
-   if(updated.ciphertext?.v===1){try{cachedRows[index].clearText=await decryptScaMessage(updated.ciphertext,friend.friend_id,conversationId);}catch(error){cachedRows[index].clearText="Unable to decrypt on this device.";}}
+   if(updated.ciphertext?.v===1)cachedRows[index].clearText="[This message used the retired encryption system and cannot be displayed.]"
    await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
    renderMessageRows(cachedRows);
   })
@@ -1363,35 +1329,19 @@ async function openScaConversation(friend,picture){
    if(scaDmChannelReady)scaDmChannel?.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing:true}}).then(status=>{if(status!=="ok")console.warn("SCA typing heartbeat was not acknowledged:",status);}).catch(error=>console.warn("SCA typing heartbeat failed:",error));
   },2000);
  }
- let preparedDraftText="",preparedDraftEnvelope=null,preparedDraftPromise=Promise.resolve(null),draftPreparationVersion=0;
- input.addEventListener("input",()=>{
-  const draft=input.value;
-  broadcastTyping(draft.length>0);
-  const version=++draftPreparationVersion;
-  preparedDraftText=draft;preparedDraftEnvelope=null;
-  if(!draft.length||!cachedRows.some(item=>item.ciphertext?.v===1)){preparedDraftPromise=Promise.resolve(null);return;}
-  // Prepare encryption locally as each character changes. Draft contents are
-  // never broadcast or written to the database before the user presses Enter.
-  preparedDraftPromise=encryptScaMessage(draft,friend.friend_id,conversationId).then(envelope=>{
-   if(version===draftPreparationVersion&&preparedDraftText===draft)preparedDraftEnvelope=envelope;
-   return envelope;
-  }).catch(error=>{if(version===draftPreparationVersion)console.warn("Could not prepare encrypted draft:",error);return null;});
- });
- let pendingSendCount=0;
+ input.addEventListener("input",()=>broadcastTyping(input.value.length>0));
+  let pendingSendCount=0;
  composer.addEventListener("submit",event=>{
   event.preventDefault();
   const text=input.value.trim();if(!text||text.length>300)return;
   const messageId=crypto.randomUUID(),createdAt=new Date().toISOString();
-  const useEncryption=cachedRows.some(item=>item.ciphertext?.v===1);
-  const draftPromise=preparedDraftText===input.value?preparedDraftPromise:Promise.resolve(null);
-  const draftEnvelope=preparedDraftText===input.value?preparedDraftEnvelope:null;
-  const optimistic={id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:{v:0,plaintext:text},created_at:createdAt,read_at:null,clearText:text};
+    const optimistic={id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:{v:0,plaintext:text},created_at:createdAt,read_at:null,clearText:text};
   cachedRows=[...cachedRows,optimistic];setScaCachedMessages(conversationId,cachedRows).catch(console.warn);renderMessageRows(cachedRows);
   input.value="";count.hidden=true;count.textContent="";input.style.height="";send.disabled=true;
-  draftPreparationVersion++;preparedDraftText="";preparedDraftEnvelope=null;preparedDraftPromise=Promise.resolve(null);
+  
   broadcastTyping(false);input.focus();pendingSendCount++;
   (async()=>{
-   const envelope=useEncryption?(draftEnvelope||await draftPromise||await encryptScaMessage(text,friend.friend_id,conversationId)):optimistic.ciphertext;
+   const envelope=optimistic.ciphertext;
    cachedRows=cachedRows.map(item=>item.id===messageId?{...item,ciphertext:envelope}:item);
    await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);
    const result=await supabase.from("coolanas_dm_messages").insert({id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:envelope});
