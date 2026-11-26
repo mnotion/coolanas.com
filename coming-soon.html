@@ -563,7 +563,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 .sca-dm-message-enter{opacity:0;animation:sca-dm-message-enter .24s cubic-bezier(.2,.75,.25,1) both}
 @media(prefers-reduced-motion:reduce){.sca-dm-profile-switch .sca-dm-messages,.sca-dm-profile-switch .sca-dm-composer{animation:none}}
 .sca-dm-messages[aria-busy="true"]::before{content:none}
-/* Glass scroll lip: a non-interactive sticky flex layer; message rows move underneath it. */
+/* Soft glass edge: the backdrop blur tapers away instead of forming a hard strip. */
 .sca-dm-messages::before{
  content:""!important;
  display:block;
@@ -571,22 +571,20 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
  top:0;
  z-index:6;
  align-self:stretch;
- flex:0 0 27px;
- height:27px;
+ flex:0 0 42px;
+ height:42px;
  width:100%;
- margin:0 0 -27px;
+ margin:0 0 -42px;
  box-sizing:border-box;
  pointer-events:none!important;
- background:linear-gradient(180deg,rgba(255,255,255,.30) 0%,rgba(255,255,255,.16) 38%,rgba(255,255,255,.055) 72%,transparent 100%);
- -webkit-backdrop-filter:blur(7px) saturate(1.4);
- backdrop-filter:blur(7px) saturate(1.4);
- border-bottom:1px solid rgba(255,255,255,.10);
- box-shadow:0 5px 14px rgba(0,0,0,.045);
+ background:linear-gradient(180deg,rgba(255,255,255,.13) 0%,rgba(255,255,255,.075) 32%,rgba(255,255,255,.025) 66%,transparent 100%);
+ -webkit-backdrop-filter:blur(9px) saturate(1.35);
+ backdrop-filter:blur(9px) saturate(1.35);
+ -webkit-mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.82) 34%,rgba(0,0,0,.28) 72%,transparent 100%);
+ mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.82) 34%,rgba(0,0,0,.28) 72%,transparent 100%);
 }
 html.dark-mode .sca-dm-messages::before{
- background:linear-gradient(180deg,rgba(34,34,34,.78) 0%,rgba(34,34,34,.48) 43%,rgba(34,34,34,.14) 78%,transparent 100%);
- border-bottom-color:rgba(255,255,255,.075);
- box-shadow:0 5px 15px rgba(0,0,0,.14);
+ background:linear-gradient(180deg,rgba(34,34,34,.48) 0%,rgba(34,34,34,.27) 34%,rgba(34,34,34,.08) 68%,transparent 100%);
 }
 @media(prefers-reduced-transparency:reduce){
  .sca-dm-messages::before{-webkit-backdrop-filter:none;backdrop-filter:none}
