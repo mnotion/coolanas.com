@@ -819,6 +819,7 @@ html.dark-mode .sca-main[data-section="guild"] .sca-dm-input-wrap{background:#29
 .sca-main[data-section="guild"] .sca-dm-composer button:enabled{opacity:1}
 .sca-main[data-section="guild"] .sca-dm-composer button svg{width:18px;height:18px}
 .sca-main[data-section="guild"] .sca-dm-empty{display:flex;flex:1;align-items:center;justify-content:center;margin:0;color:var(--muted-color,#888);font-size:12px;text-align:center}
+.sca-main[data-section="guild"] .sca-dm-message-group small{opacity:.16!important;color:var(--muted-color,#888)!important;font-size:9px!important;font-variant-numeric:tabular-nums}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1108,7 +1109,7 @@ function guildMessageNode(message,previousSenderId=null){
  }
  const bubble=document.createElement("div");bubble.className="sca-dm-message-group "+(mine?"mine":"theirs");
  const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=message.id;line.textContent=message.body||"";
- const time=document.createElement("small");time.textContent=new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+ const time=document.createElement("small");time.textContent=new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",hour12:false});
  bubble.append(line,time);row.append(avatar,bubble);return row;
 }
 async function loadGuildMessages({older=false}={}){
