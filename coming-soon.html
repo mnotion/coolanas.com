@@ -710,8 +710,9 @@ friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";
 
 
 const scaDmDbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open("coolanas-sca-e2ee",3);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains("keys"))db.createObjectStore("keys");if(!db.objectStoreNames.contains("messages"))db.createObjectStore("messages");if(!db.objectStoreNames.contains("conversations"))db.createObjectStore("conversations");};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
-async function getScaCachedConversationId(friendId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("conversations").objectStore("conversations").get(friendId);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});}\nasync function setScaCachedConversationId(friendId,conversationId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("conversations","readwrite");tx.objectStore("conversations").put(conversationId,friendId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}\nasync function getScaCachedMessages(conversationId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
-async function setScaCachedMessages(conversationId,rows){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("messages","readwrite");tx.objectStore("messages").put(rows,conversationId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+async function getScaCachedConversationId(friendId){if(scaDmConversationIds.has(friendId))return scaDmConversationIds.get(friendId);const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("conversations").objectStore("conversations").get(friendId);r.onsuccess=()=>{const id=r.result||null;if(id)scaDmConversationIds.set(friendId,id);resolve(id);};r.onerror=()=>reject(r.error);});}\nasync function setScaCachedConversationId(friendId,conversationId){scaDmConversationIds.set(friendId,conversationId);const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("conversations","readwrite");tx.objectStore("conversations").put(conversationId,friendId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}\nconst scaDmConversationIds=new Map();const scaDmMessageMemoryCache=new Map();
+async function getScaCachedMessages(conversationId){if(scaDmMessageMemoryCache.has(conversationId))return scaDmMessageMemoryCache.get(conversationId);const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>{const rows=r.result||[];scaDmMessageMemoryCache.set(conversationId,rows);resolve(rows);};r.onerror=()=>reject(r.error);});}
+async function setScaCachedMessages(conversationId,rows){scaDmMessageMemoryCache.set(conversationId,rows);const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("messages","readwrite");tx.objectStore("messages").put(rows,conversationId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
 async function getScaStoredKey(keyId=user.id){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("keys").objectStore("keys").get(keyId);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});}
 async function putScaStoredKey(keyId,value){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").put(value,keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
 async function deleteScaStoredKey(keyId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").delete(keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
@@ -936,8 +937,8 @@ async function openScaConversation(friend,picture){
  if(scaDmReadPoll){clearInterval(scaDmReadPoll);scaDmReadPoll=null;}
  if(scaDmReadVisibilityHandler){document.removeEventListener("visibilitychange",scaDmReadVisibilityHandler);scaDmReadVisibilityHandler=null;}
  const panel=document.getElementById("sca-dm-conversation");panel.classList.remove("sca-dm-profile-switch");panel.replaceChildren();
- let conversationId=null;
- const cachedConversationIdPromise=getScaCachedConversationId(friend.friend_id);
+ let conversationId=scaDmConversationIds.get(friend.friend_id)||null;
+ const cachedConversationIdPromise=conversationId?Promise.resolve(conversationId):getScaCachedConversationId(friend.friend_id);
  let ownProfilePicture=user.user_metadata?.avatar_url||user.user_metadata?.picture||"";
  const messages=document.createElement("div");messages.className="sca-dm-messages";messages.setAttribute("aria-live","polite");
  const typingIndicator=document.createElement("div");typingIndicator.className="sca-dm-typing-indicator";typingIndicator.setAttribute("aria-label",friend.username+" is typing");typingIndicator.setAttribute("aria-hidden","true");const typingLoader=document.createElement("div");typingLoader.className="sca-dm-uiverse-loader";typingIndicator.append(typingLoader);
@@ -1109,10 +1110,15 @@ async function openScaConversation(friend,picture){
  }
  let cachedRows=[];
  try{
-  conversationId=await cachedConversationIdPromise;
-  if(conversationId){
-   cachedRows=await getScaCachedMessages(conversationId);
+  if(conversationId&&scaDmMessageMemoryCache.has(conversationId)){
+   cachedRows=scaDmMessageMemoryCache.get(conversationId);
    if(cachedRows.length){historyLoaded=true;renderMessageRows(cachedRows);messages.classList.add("sca-dm-cache-ready");}
+  }else{
+   conversationId=await cachedConversationIdPromise;
+   if(conversationId){
+    cachedRows=await getScaCachedMessages(conversationId);
+    if(cachedRows.length){historyLoaded=true;renderMessageRows(cachedRows);messages.classList.add("sca-dm-cache-ready");}
+   }
   }
  }catch(e){console.warn("Could not read cached conversation:",e);}
  messages.scrollTop=messages.scrollHeight;
