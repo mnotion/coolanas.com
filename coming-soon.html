@@ -843,7 +843,7 @@ async function createScaEncryptedBackup(privateJwk,publicJwk){
  const code=scaRecoveryCodeText(random),iterations=600000,key=await deriveScaRecoveryKey(code,salt,iterations);
  const payload={userId:user.id,privateJwk,publicJwk,version:2};
  const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(payload)));
- return {code,backup:{v:1,kdf:"PBKDF2-SHA-256",iterations,salt:scaB64(salt),iv:scaB64(iv),ciphertext:scaB64(new Uint8Array(encrypted))}};
+ return {code,backup:{v:1,kdf:"PBKDF2-SHA-256",iterations,salt:scaB64(salt),iv:scaB64(iv),ciphertext:scaB64(new Uint8Array(encrypted)),public_key:publicJwk}};
 }
 async function decryptScaEncryptedBackup(backup,code){
  if(!backup||backup.v!==1||backup.kdf!=="PBKDF2-SHA-256"||backup.iterations!==600000)throw new Error("This recovery backup format is not supported.");
@@ -915,16 +915,14 @@ async function saveScaAccountKey(privateJwk,publicJwk){
  const {data:existing,error:readError}=await supabase.from("coolanas_dm_key_backups").select("backup").eq("user_id",user.id).maybeSingle();
  if(readError)throw readError;
  let encryptedBackup=existing?.backup;
- if(!encryptedBackup||encryptedBackup.v!==1||encryptedBackup.kdf!=="PBKDF2-SHA-256"){
+ if(!encryptedBackup||encryptedBackup.v!==1||encryptedBackup.kdf!=="PBKDF2-SHA-256"||!sameScaPublicKey(encryptedBackup.public_key,publicJwk)){
   const created=await createScaEncryptedBackup(privateJwk,publicJwk);
   await showScaRecoveryCode(created.code);
   encryptedBackup=created.backup;
  }
  // The server stores only the recovery-code-encrypted backup, never a plaintext private JWK.
- const {error}=await supabase.from("coolanas_dm_key_backups").upsert({user_id:user.id,private_key:null,backup:encryptedBackup},{onConflict:"user_id"});
+ const {error}=await supabase.from("coolanas_dm_key_backups").upsert({user_id:user.id,backup:encryptedBackup},{onConflict:"user_id"});
  if(error)throw error;
- const {error:keyError}=await supabase.from("coolanas_dm_keys").upsert({user_id:user.id,public_key:publicJwk,key_version:2},{onConflict:"user_id"});
- if(keyError)throw keyError;
 }
 async function importScaAccountKey(privateJwk,publicJwk){
  const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
@@ -981,14 +979,24 @@ async function rotateScaLegacyDeviceKey(legacyRecord,expectedPublicKey){
   const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:item.ciphertext}).eq("id",item.id);
   if(error)throw error;
  }
- await saveScaAccountKey(privateJwk,publicJwk);
+ const created=await createScaEncryptedBackup(privateJwk,publicJwk);
+ await showScaRecoveryCode(created.code);
+ const {error:rotationError}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{
+  p_public_key:publicJwk,p_backup:created.backup,p_updates:updates,p_expected_public_key:expectedPublicKey
+ });
+ if(rotationError)throw rotationError;
  const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
 }
 async function createFirstScaDeviceKey(){
  const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const publicJwk=await crypto.subtle.exportKey("jwk",pair.publicKey),privateJwk=await crypto.subtle.exportKey("jwk",pair.privateKey);
  const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
- await saveScaAccountKey(privateJwk,publicJwk);
+ const created=await createScaEncryptedBackup(privateJwk,publicJwk);
+ await showScaRecoveryCode(created.code);
+ const {error}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{
+  p_public_key:publicJwk,p_backup:created.backup,p_updates:[],p_expected_public_key:null
+ });
+ if(error)throw error;
  const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
 }
 let scaDeviceKeyPromise=null;
@@ -1011,6 +1019,7 @@ async function getScaDeviceKey(){
   // A new device can restore only from the encrypted backup and the code saved on the original device.
   if(remote.backup?.v===1&&remote.key?.public_key){
    const payload=await requestScaRecoveryCode(remote.backup);
+   if(!sameScaPublicKey(payload.publicJwk,remote.key.public_key))throw new Error("The recovery backup does not match the account's current encryption key. Use the recovery code from the device that most recently updated your messages.");
    return restoreScaDeviceKey(payload.privateJwk,payload.publicJwk);
   }
   if(existing)return rotateScaLegacyDeviceKey(existing,remote.key?.public_key||null);
