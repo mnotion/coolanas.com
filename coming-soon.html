@@ -820,6 +820,25 @@ html.dark-mode .sca-main[data-section="guild"] .sca-dm-input-wrap{background:#29
 .sca-main[data-section="guild"] .sca-dm-composer button svg{width:18px;height:18px}
 .sca-main[data-section="guild"] .sca-dm-empty{display:flex;flex:1;align-items:center;justify-content:center;margin:0;color:var(--muted-color,#888);font-size:12px;text-align:center}
 .sca-main[data-section="guild"] .sca-dm-message-group small{opacity:.16!important;color:var(--muted-color,#888)!important;font-size:9px!important;font-variant-numeric:tabular-nums}
+
+/* Empty Guild landing choices */
+.sca-main[data-section="guild"] #sca-primary-panel:has(.sca-guild-entry-grid){
+ display:flex;align-items:center;justify-content:center;align-self:stretch;width:100%;height:100%;min-height:0;
+}
+.sca-guild-entry-grid{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;width:min(1120px,100%);margin:auto;
+}
+.sca-guild-entry-card{
+ min-height:clamp(260px,42vh,440px);display:grid;place-items:center;padding:32px;
+ border:1px solid rgba(120,120,120,.18);border-radius:22px;
+ background:rgba(255,255,255,.88);box-shadow:0 12px 34px rgba(0,0,0,.09),0 2px 8px rgba(0,0,0,.035);
+ transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.sca-guild-entry-card h1{margin:0;font-size:clamp(28px,3vw,42px);font-weight:760;letter-spacing:-.045em;color:#242832}
+html.dark-mode .sca-guild-entry-card{background:rgba(38,38,38,.9);border-color:rgba(255,255,255,.12);box-shadow:0 12px 34px rgba(0,0,0,.24)}
+html.dark-mode .sca-guild-entry-card h1{color:#f1f1f1}
+@media(max-width:620px){.sca-guild-entry-grid{grid-template-columns:minmax(0,1fr);gap:12px}.sca-guild-entry-card{min-height:clamp(170px,28vh,240px);border-radius:17px}}
+@media(prefers-reduced-motion:reduce){.sca-guild-entry-card{transition:none}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1081,7 +1100,7 @@ async function initGuildPanel(){
  const hasGuild=await loadGuildUsers();
  if(hasGuild===false){
   scaGuildUsersPanel.hidden=true;
-  scaPrimary.replaceChildren();
+  scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild and Bucket sections"><section class="sca-guild-entry-card" aria-label="Guilds"><h1>Guilds</h1></section><section class="sca-guild-entry-card" aria-label="Buckets"><h1>Buckets</h1></section></div>';
   return;
  }
  if(hasGuild!==true)return;
