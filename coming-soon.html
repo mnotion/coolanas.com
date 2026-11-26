@@ -921,6 +921,7 @@ async function saveScaAccountKey(privateJwk,publicJwk){
  if(error)throw error;
 }
 async function importScaAccountKey(privateJwk,publicJwk){
+ if(!sameScaPublicKey(privateJwk,publicJwk))throw new Error("The account's backend private key does not match its registered public key.");
  const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
  const record={version:2,privateKey,publicJwk,privateJwk};
  await saveScaKeyRecord(record);
