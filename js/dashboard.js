@@ -348,22 +348,21 @@ function setupStudyStopwatch() {
   const toggleButton = document.getElementById("study-stopwatch-toggle");
   const resetButton = document.getElementById("study-stopwatch-reset");
   const storageKey = "coolanas-study-stopwatch-v1:" + activeAccountId;
-  let state = {elapsed: 0, startedAt: null}, restoredCloudCheckpointAt = null;
+  let state = {elapsed: 0, startedAt: null, version: 0};
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
     if (saved && typeof saved.elapsed === "number") {
       state = {
         elapsed: Math.max(0, saved.elapsed),
-        startedAt: Number.isFinite(saved.startedAt) ? saved.startedAt : null
+        startedAt: Number.isFinite(saved.startedAt) ? saved.startedAt : null,
+        version: Number.isFinite(saved.version) ? saved.version : 0
       };
-      restoredCloudCheckpointAt =
-          Number.isFinite(saved.cloudCheckpointAt) ? saved.cloudCheckpointAt : null;
     }
   } catch (error) {
-    console.warn("Could not restore stopwatch:", error);
+    console.warn("Could not restore stopwatch display cache:", error);
   }
-  let cloudCheckpointAt = restoredCloudCheckpointAt ?? state.startedAt;
-  let sharedStopwatchChannel = null, sharedStopwatchTick = null, sharedStopwatchSyncing = false;
+  let serverClockOffsetMs = 0;
+  let sharedStopwatchChannel = null, sharedStopwatchSyncing = false, stopwatchReady = false;
   const monthlyKey = "coolanas-study-monthly-time-v1:" + activeAccountId;
   function readMonthly() {
     try {
@@ -615,7 +614,8 @@ function setupStudyStopwatch() {
     if (flush) void flushPendingAnalytics();
   }
   const elapsedNow = () =>
-      state.elapsed + (state.startedAt ? Math.max(0, Date.now() - state.startedAt) : 0);
+      state.elapsed + (state.startedAt ?
+        Math.max(0, Date.now() + serverClockOffsetMs - state.startedAt) : 0);
   const format = milliseconds => {
     const total = Math.floor(milliseconds / 1000);
     const hours = Math.floor(total / 3600);
@@ -625,7 +625,7 @@ function setupStudyStopwatch() {
   };
   function save() {
     try {
-      localStorage.setItem(storageKey, JSON.stringify({...state, cloudCheckpointAt}));
+      localStorage.setItem(storageKey, JSON.stringify(state));
     } catch (error) {
       console.warn("Could not save stopwatch:", error);
     }
@@ -646,48 +646,62 @@ function setupStudyStopwatch() {
         "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M7 4.8c0-.8.9-1.3 1.6-.9l11 7.1a1.2 1.2 0 0 1 0 2l-11 7.1c-.7.4-1.6-.1-1.6-.9z\"/></svg>";
   }
   toggleButton.disabled = true;
-  toggleButton.title = "Loading subjects…";
-  async function applySharedStopwatchRow(row, {resetCheckpoint = false} = {}) {
+  resetButton.disabled = true;
+  toggleButton.title = "Loading your stopwatch…";
+  async function applyStopwatchRow(row) {
     if (!row) return;
+    const serverNow = row.server_now ? Date.parse(row.server_now) : NaN;
+    if (Number.isFinite(serverNow)) serverClockOffsetMs = serverNow - Date.now();
     state.elapsed = Math.max(0, Number(row.elapsed_ms) || 0);
     state.startedAt = row.started_at ? Date.parse(row.started_at) : null;
-    if (resetCheckpoint) cloudCheckpointAt = state.startedAt;
+    state.version = Math.max(0, Number(row.version) || 0);
     save();
     render();
   }
-  async function loadSharedStopwatch() {
-    const {data, error} = await supabase.from("coolanas_guild_stopwatch")
-        .select("elapsed_ms,started_at,started_by,updated_at,updated_by")
-        .eq("id", true).maybeSingle();
+  async function loadStopwatch() {
+    const {data, error} = await supabase.rpc(
+        "coolanas_account_stopwatch_action", {p_action:"get"});
     if (error) throw error;
-    if (data) await applySharedStopwatchRow(data, {resetCheckpoint:true});
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) throw new Error("The stopwatch terminal returned no state.");
+    await applyStopwatchRow(row);
+    stopwatchReady = true;
+    toggleButton.disabled = false;
+    resetButton.disabled = false;
   }
-  async function sharedStopwatchAction(action) {
-    if (sharedStopwatchSyncing) return;
+  async function accountStopwatchAction(action) {
+    if (!stopwatchReady || sharedStopwatchSyncing) return;
     sharedStopwatchSyncing = true;
     toggleButton.disabled = true;
     resetButton.disabled = true;
     try {
-      const stoppedAt = Date.now();
-      if (action === "stop" && state.startedAt)
-        addIntervalToMonthly(cloudCheckpointAt || state.startedAt, stoppedAt);
-      if (action === "reset" && state.startedAt)
-        addIntervalToMonthly(cloudCheckpointAt || state.startedAt, stoppedAt);
-      const {data, error} = await supabase.rpc("coolanas_guild_stopwatch_action", {p_action:action});
+      const {data, error} = await supabase.rpc(
+          "coolanas_account_stopwatch_action", {p_action:action});
       if (error) throw error;
-      await applySharedStopwatchRow(Array.isArray(data) ? data[0] : data, {resetCheckpoint:true});
-      if (action === "reset") cloudCheckpointAt = null;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) throw new Error("The stopwatch terminal returned no state.");
+      if (row.action_changed && row.previous_started_at && row.server_now) {
+        const intervalStart = Date.parse(row.previous_started_at);
+        const intervalEnd = Date.parse(row.server_now);
+        if (Number.isFinite(intervalStart) && Number.isFinite(intervalEnd) &&
+            intervalEnd > intervalStart) {
+          addIntervalToMonthly(intervalStart, intervalEnd);
+        }
+      }
+      await applyStopwatchRow(row);
+      const hint = document.getElementById("subject-selection-hint");
+      if (hint) hint.classList.remove("visible");
     } catch (error) {
-      console.error("Could not sync Dashboard stopwatch with Guild:", error);
+      console.error("Could not sync the account stopwatch terminal:", error);
       const hint = document.getElementById("subject-selection-hint");
       if (hint) {
-        hint.textContent = "Could not sync the shared Guild timer. Try again.";
+        hint.textContent = "Your personal stopwatch could not sync. Try again.";
         hint.classList.add("visible");
       }
     } finally {
       sharedStopwatchSyncing = false;
-      toggleButton.disabled = false;
-      resetButton.disabled = false;
+      toggleButton.disabled = !stopwatchReady;
+      resetButton.disabled = !stopwatchReady;
       render();
     }
   }
@@ -703,48 +717,47 @@ function setupStudyStopwatch() {
       }
       return;
     }
-    await sharedStopwatchAction(state.startedAt ? "stop" : "start");
+    await accountStopwatchAction(state.startedAt ? "pause" : "start");
   });
-  resetButton.addEventListener("click", () => void sharedStopwatchAction("reset"));
-  void loadSharedStopwatch().catch(error => console.warn("Could not load shared Guild stopwatch:", error));
-  sharedStopwatchChannel = supabase.channel("coolanas-guild-stopwatch-dashboard")
-      .on("postgres_changes", {event:"UPDATE",schema:"public",table:"coolanas_guild_stopwatch"},
-          payload => { void applySharedStopwatchRow(payload.new); })
+  resetButton.addEventListener("click", () => void accountStopwatchAction("reset"));
+  void loadStopwatch().catch(error => {
+    console.error("Could not load the account stopwatch:", error);
+    const hint = document.getElementById("subject-selection-hint");
+    if (hint) {
+      hint.textContent = "Your personal stopwatch could not be loaded. Check your connection and reload.";
+      hint.classList.add("visible");
+    }
+  });
+  sharedStopwatchChannel = supabase.channel("coolanas-account-stopwatch-" + activeAccountId)
+      .on("postgres_changes", {
+        event:"*",
+        schema:"public",
+        table:"coolanas_account_stopwatches",
+        filter:"user_id=eq." + activeAccountId
+      }, () => {
+        void loadStopwatch().catch(error =>
+          console.warn("Could not refresh the account stopwatch:", error));
+      })
       .subscribe(status => {
         if (status === "SUBSCRIBED")
-          void loadSharedStopwatch().catch(error => console.warn("Could not refresh shared Guild stopwatch:", error));
+          void loadStopwatch().catch(error =>
+            console.warn("Could not refresh the account stopwatch after reconnect:", error));
         else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
-          console.warn("Dashboard stopwatch Realtime status:", status);
+          console.warn("Account stopwatch Realtime status:", status);
       });
-  sharedStopwatchTick = setInterval(() => {
-    if (state.startedAt && !sharedStopwatchSyncing) {
-      supabase.rpc("coolanas_guild_stopwatch_action", {p_action:"tick"})
-          .then(({data,error}) => {
-            if (error) console.warn("Dashboard stopwatch tick failed:", error);
-            else applySharedStopwatchRow(Array.isArray(data) ? data[0] : data);
-          });
-    }
-  }, 1000);
   render();
   void bootstrapCloudAnalytics();
   function checkpointAndSync({keepalive = false} = {}) {
-    if (state.startedAt && cloudCheckpointAt) {
-      const checkpoint = Date.now();
-      if (checkpoint > cloudCheckpointAt) {
-        addIntervalToMonthly(cloudCheckpointAt, checkpoint, {flush:false});
-        cloudCheckpointAt = checkpoint;
-        save();
-      }
-    }
+    // Timer time is recorded once by the terminal when a running session is
+    // paused or reset. This only flushes already-queued analytics records.
     return flushPendingAnalytics({keepalive});
   }
   window.CoolanasAnalyticsSync = {
     checkpointAndFlush:() => checkpointAndSync(),
     flush:() => flushPendingAnalytics()
   };
-  // Sync every five seconds while active; checkpoint immediately when the
-  // tab/app is backgrounded or closed, using a keepalive request.
-  setInterval(() => checkpointAndSync(), 5000);
+  // Flush queued analytics regularly and when the app is backgrounded.
+  setInterval(() => checkpointAndSync(), 15000);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) checkpointAndSync({keepalive:true});
     else {
