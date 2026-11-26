@@ -598,11 +598,26 @@ html:not(.dark-mode) .sca-guild-time{color:#20242b}
  .sca-main[data-section="guild"]{padding-top:10px!important}
  .sca-main[data-section="guild"] .sca-guild-timer-card{min-height:142px;padding:10px 12px}
 }
+
+/* Guild message-style panel */
+.sca-main[data-section="guild"] #sca-primary-panel{display:flex;flex-direction:column;gap:16px;align-self:start}
+.sca-guild-message-panel{display:flex;flex-direction:column;min-width:0;height:340px;overflow:hidden;border:1px solid rgba(120,120,120,.16);border-radius:18px;background:var(--sca-surface,#222);box-shadow:0 8px 24px rgba(0,0,0,.09)}
+.sca-guild-message-space{display:flex;flex:1;min-height:0;padding:18px 20px;overflow:auto;background-color:#242424;background-image:linear-gradient(0deg,transparent 24%,rgba(255,255,255,.025) 25%,rgba(255,255,255,.025) 26%,transparent 27%,transparent 74%,rgba(255,255,255,.025) 75%,rgba(255,255,255,.025) 76%,transparent 77%,transparent),linear-gradient(90deg,transparent 24%,rgba(255,255,255,.025) 25%,rgba(255,255,255,.025) 26%,transparent 27%,transparent 74%,rgba(255,255,255,.025) 75%,rgba(255,255,255,.025) 76%,transparent 77%,transparent);background-size:55px 55px}
+.sca-guild-message-composer{display:flex;align-items:center;padding:13px 16px;background:transparent}
+.sca-guild-message-input-wrap{display:flex;align-items:flex-end;gap:8px;width:100%;padding:6px;border:1px solid rgba(120,120,120,.22);border-radius:14px;background:#292929;box-shadow:0 3px 14px rgba(0,0,0,.24)}
+.sca-guild-message-input-wrap textarea{display:block;flex:1;min-width:0;min-height:38px;max-height:90px;resize:none;padding:8px 9px;border:0;border-radius:8px;background:transparent;color:inherit;font:13px/1.45 Inter,ui-sans-serif,system-ui,sans-serif;outline:none}
+.sca-guild-message-send{display:grid;place-items:center;flex:none;width:38px;height:38px;padding:0;border:0;border-radius:10px;background:#4779bd;color:white;opacity:.45}
+.sca-guild-message-send svg{width:18px;height:18px}
+html:not(.dark-mode) .sca-guild-message-panel{background:#fff;border-color:rgba(0,0,0,.1)}
+html:not(.dark-mode) .sca-guild-message-space{background-color:#fff;background-image:linear-gradient(0deg,transparent 24%,rgba(80,80,80,.045) 25%,rgba(80,80,80,.045) 26%,transparent 27%,transparent 74%,rgba(80,80,80,.045) 75%,rgba(80,80,80,.045) 76%,transparent 77%,transparent),linear-gradient(90deg,transparent 24%,rgba(80,80,80,.045) 25%,rgba(80,80,80,.045) 26%,transparent 27%,transparent 74%,rgba(80,80,80,.045) 75%,rgba(80,80,80,.045) 76%,transparent 77%,transparent)}
+html:not(.dark-mode) .sca-guild-message-input-wrap{background:#fff;border-color:rgba(120,120,120,.18);box-shadow:0 3px 14px rgba(0,0,0,.075)}
+@media(max-width:760px){.sca-guild-message-panel{height:300px}.sca-guild-message-composer{padding:10px}.sca-guild-message-space{padding:12px}}
+
 /* Guild community directory */
 .sca-main[data-section="guild"]{grid-template-columns:minmax(0,1fr) 290px!important;gap:18px}
 .sca-main[data-section="guild"] .sca-panel{min-width:0}
 .sca-guild-users-panel[hidden]{display:none!important}
-.sca-guild-users-panel{box-sizing:border-box;display:flex;flex-direction:column;gap:16px;min-height:calc(100vh - 134px);max-height:calc(100vh - 134px);padding:22px 18px!important;overflow:hidden}
+.sca-guild-users-panel{box-sizing:border-box;display:flex;flex-direction:column;gap:16px;margin-top:78px;min-height:calc(100vh - 212px);max-height:calc(100vh - 212px);padding:22px 18px!important;overflow:hidden}
 .sca-guild-users-heading{margin:0;font-size:11px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;color:#8e9aab}
 .sca-guild-user-list{display:grid;grid-auto-rows:min-content;align-content:start;gap:9px;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:3px}
 .sca-guild-user-row{display:flex;align-items:center;gap:11px;min-width:0;padding:9px 10px;border:1px solid rgba(120,120,120,.14);border-radius:12px;background:rgba(120,120,120,.055)}
@@ -614,7 +629,7 @@ html:not(.dark-mode) .sca-guild-user-row{background:rgba(0,0,0,.025);border-colo
 html:not(.dark-mode) .sca-guild-users-heading{color:#66758a}
 @media(max-width:760px){
  .sca-main[data-section="guild"]{grid-template-columns:minmax(0,1fr)!important;gap:12px}
- .sca-guild-users-panel{min-height:220px;max-height:360px}
+ .sca-guild-users-panel{margin-top:78px;min-height:220px;max-height:calc(100dvh - 300px)}
 }
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
@@ -846,7 +861,7 @@ function openScaSection(section){
     return;
   }
   if(section==="guild"){
-    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Study timer"><div class="sca-guild-time" id="sca-guild-time" role="timer" aria-live="off"></div></section></div>';
+    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Study timer"><div class="sca-guild-time" id="sca-guild-time" role="timer" aria-live="off"></div></section></div><section class="sca-guild-message-panel" aria-label="Message box"><div class="sca-guild-message-space" aria-hidden="true"></div><div class="sca-guild-message-composer"><div class="sca-guild-message-input-wrap"><textarea rows="1" placeholder="Write a message…" aria-label="Message" disabled></textarea><button class="sca-guild-message-send" type="button" aria-label="Send message" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div></section>';
     initGuildPanel();
     return;
   }
