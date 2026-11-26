@@ -557,6 +557,11 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 .sca-dm-history-fill{display:block;width:0;height:100%;border-radius:inherit;background:#6b9fe8;transition:width .18s ease}
 .sca-dm-history-caption{margin-top:7px;color:rgba(245,247,250,.68);font-size:10px}
 .sca-dm-history-loading .sca-dm-message-row{opacity:.28;transition:opacity .18s ease}
+.sca-dm-cache-ready .sca-dm-message-row{opacity:1}
+@keyframes sca-dm-profile-switch{from{opacity:.55;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.sca-dm-profile-switch .sca-dm-messages,.sca-dm-profile-switch .sca-dm-composer{animation:sca-dm-profile-switch .22s ease both}
+.sca-dm-message-enter{opacity:0;animation:sca-dm-message-enter .24s cubic-bezier(.2,.75,.25,1) both}
+@media(prefers-reduced-motion:reduce){.sca-dm-profile-switch .sca-dm-messages,.sca-dm-profile-switch .sca-dm-composer{animation:none}}
 .sca-dm-messages[aria-busy="true"]::before{content:none}
 @keyframes sca-dm-message-enter{from{opacity:0;transform:translateY(7px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
 .sca-dm-message-enter{animation:sca-dm-message-enter .24s cubic-bezier(.2,.75,.25,1) both;animation-delay:var(--sca-message-delay,0ms)}
@@ -930,7 +935,7 @@ async function openScaConversation(friend,picture){
  stopScaTypingBroadcast();
  if(scaDmReadPoll){clearInterval(scaDmReadPoll);scaDmReadPoll=null;}
  if(scaDmReadVisibilityHandler){document.removeEventListener("visibilitychange",scaDmReadVisibilityHandler);scaDmReadVisibilityHandler=null;}
- const panel=document.getElementById("sca-dm-conversation");panel.replaceChildren();
+ const panel=document.getElementById("sca-dm-conversation");panel.classList.remove("sca-dm-profile-switch");void panel.offsetWidth;panel.classList.add("sca-dm-profile-switch");panel.replaceChildren();
  const {data:conversationId,error}=await supabase.rpc("coolanas_dm_open_conversation",{p_friend_id:friend.friend_id});if(error)throw error;await ensureScaPublicKey();
  let ownProfilePicture=user.user_metadata?.avatar_url||user.user_metadata?.picture||"";
  try{const {data:ownProfile}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();if(ownProfile?.username){const directory=await getFriendPictureDirectory();const saved=directory.get(ownProfile.username);ownProfilePicture=saved?.pictureUrl||saved?.googleAvatar||ownProfilePicture;}}catch(e){console.warn("Could not load saved profile picture:",e);}
@@ -1039,74 +1044,77 @@ async function openScaConversation(friend,picture){
   let loader=messages.querySelector(".sca-dm-history-loader");
   if(loader)return loader;
   loader=document.createElement("div");loader.className="sca-dm-history-loader";
-  loader.innerHTML='<div class="sca-dm-history-loader-head"><strong>Loading chats</strong><span class="sca-dm-history-percent">0%</span></div><div class="sca-dm-history-track"><span class="sca-dm-history-fill"></span></div><div class="sca-dm-history-caption">Retrieving your messages…</div>';
+  loader.innerHTML='<div class="sca-dm-history-loader-head"><strong>Loading chats</strong><span class="sca-dm-history-percent">0%</span></div><div class="sca-dm-history-track"><span class="sca-dm-history-fill"></span></div><div class="sca-dm-history-caption">Connecting to your messages…</div>';
   messages.prepend(loader);return loader;
  }
  function updateScaHistoryLoader(loader,loaded,total){
   const percent=total?Math.min(100,Math.round(loaded/total*100)):0;
   loader.querySelector(".sca-dm-history-percent").textContent=percent+"%";
   loader.querySelector(".sca-dm-history-fill").style.width=percent+"%";
-  loader.querySelector(".sca-dm-history-caption").textContent=total?("Retrieved "+Math.min(loaded,total)+" of "+total+" messages"):"Retrieving your messages…";
+  loader.querySelector(".sca-dm-history-caption").textContent=total?("Retrieved "+Math.min(loaded,total)+" of "+total+" messages"):"Checking for messages…";
  }
  async function loadMessages(){
   if(messagesLoading){messagesReloadQueued=true;return;}
-  messagesLoading=true;messages.setAttribute("aria-busy","true");
-  const loader=ensureScaHistoryLoader(),animatedIds=new Set();
-  messages.classList.add("sca-dm-history-loading");
+  messagesLoading=true;
+  const showLoader=cachedRows.length===0;
+  let loader=null;
+  if(showLoader){messages.setAttribute("aria-busy","true");loader=ensureScaHistoryLoader();messages.classList.add("sca-dm-history-loading");}
   try{
    do{
     messagesReloadQueued=false;
-    const countQuery=await supabase.from("coolanas_dm_messages").select("id",{count:"exact",head:true}).eq("conversation_id",conversationId);
-    if(countQuery.error)throw countQuery.error;
-    const total=countQuery.count||0;
-    let offset=0,loaded=historyLoaded?cachedRows.length:0;
-    updateScaHistoryLoader(loader,loaded,total);
+    let offset=0;
+    const known=new Map(cachedRows.map(item=>[item.id,item]));
+    let total=null,loaded=historyLoaded?cachedRows.length:0;
     while(true){
-     let query=supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at,read_at").eq("conversation_id",conversationId).order("created_at",{ascending:true}).order("id",{ascending:true});
+     let query=supabase.from("coolanas_dm_messages").select("id,sender_id,ciphertext,created_at,read_at",{count:"exact"}).eq("conversation_id",conversationId).order("created_at",{ascending:true}).order("id",{ascending:true});
      if(historyLoaded){
       const last=cachedRows[cachedRows.length-1];
       if(last?.created_at)query=query.gt("created_at",last.created_at);
      }
-     const {data,error}=await query.range(offset,offset+49);if(error)throw error;
-     const page=data||[];
-     const known=new Map(cachedRows.map(item=>[item.id,item]));
-     const rawAdditions=page.filter(item=>{
-      const cached=known.get(item.id);
-      return !cached||cached.clearText==="Unable to decrypt on this device."||JSON.stringify(cached.ciphertext)!==JSON.stringify(item.ciphertext);
-     });
-     if(rawAdditions.length){
-      const additions=await decryptRows(rawAdditions);
-      const updatedIds=new Set(additions.map(item=>item.id));
-      for(const item of additions){
-       if(!known.has(item.id)||known.get(item.id).clearText==="Unable to decrypt on this device.")animatedIds.add(item.id);
+     const {data,error,count}=await query.range(offset,offset+24);if(error)throw error;
+     const page=data||[];if(total===null)total=count??page.length;
+     if(showLoader)updateScaHistoryLoader(loader,loaded,total);
+     if(!page.length)break;
+     for(const raw of page){
+      const cached=known.get(raw.id);
+      if(cached&&cached.clearText!=="Unable to decrypt on this device."&&JSON.stringify(cached.ciphertext)===JSON.stringify(raw.ciphertext)){
+       loaded++;if(showLoader)updateScaHistoryLoader(loader,loaded,total);continue;
       }
-      cachedRows=[...cachedRows.filter(item=>!updatedIds.has(item.id)),...additions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)||String(a.id).localeCompare(String(b.id)));
+      const [message]=await decryptRows([raw]);
+      const idx=cachedRows.findIndex(item=>item.id===message.id);
+      if(idx>=0)cachedRows[idx]=message;else cachedRows.push(message);
+      cachedRows.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)||String(a.id).localeCompare(String(b.id)));
       await setScaCachedMessages(conversationId,cachedRows);
-      renderMessageRows(cachedRows);
-      messages.classList.add("sca-dm-history-loading");
+      renderMessageRows(cachedRows,new Set([message.id]));
+      loaded++;
+      if(showLoader)updateScaHistoryLoader(loader,loaded,total);
      }
-     offset+=page.length;loaded+=page.length;
-     updateScaHistoryLoader(loader,Math.min(loaded,total),total);
-     if(page.length<50)break;
+     offset+=page.length;
+     if(page.length<25)break;
     }
     historyLoaded=true;
    }while(messagesReloadQueued);
    await syncCachedReadStatuses(false);
    await markIncomingMessagesRead(false);
-   if(animatedIds.size)renderMessageRows(cachedRows,animatedIds);
-   else renderMessageRows(cachedRows);
-   loader.remove();messages.classList.remove("sca-dm-history-loading");
+   renderMessageRows(cachedRows);
+   if(loader){loader.remove();messages.classList.remove("sca-dm-history-loading");}
   }catch(error){
-   const caption=loader.querySelector(".sca-dm-history-caption");
-   if(caption)caption.textContent="Couldn't finish loading. Check your connection and retry.";
+   if(loader){const caption=loader.querySelector(".sca-dm-history-caption");if(caption)caption.textContent="Couldn't finish loading. Check your connection and retry.";}
    console.error("SCA message history load failed:",error);
    throw error;
-  }finally{messagesLoading=false;messages.setAttribute("aria-busy","false");}
+  }finally{
+   messagesLoading=false;
+   if(showLoader)messages.setAttribute("aria-busy","false");
+  }
  }
  let cachedRows=[];
- try{cachedRows=await getScaCachedMessages(conversationId);if(cachedRows.length)renderMessageRows(cachedRows);}catch(e){console.warn("Could not read cached messages:",e);}
+ try{
+  cachedRows=await getScaCachedMessages(conversationId);
+  if(cachedRows.length){historyLoaded=true;renderMessageRows(cachedRows);messages.classList.add("sca-dm-cache-ready");}
+ }catch(e){console.warn("Could not read cached messages:",e);}
  messages.scrollTop=messages.scrollHeight;
- await loadMessages();if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
+ await loadMessages();
+ messages.classList.remove("sca-dm-cache-ready");if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  let remoteTypingExpiry=null;
  scaDmChannel=supabase.channel("sca-dm-"+conversationId)
   .on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_dm_messages",filter:"conversation_id=eq."+conversationId},()=>loadMessages().catch(console.warn))
