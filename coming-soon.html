@@ -656,74 +656,7 @@ html:not(.dark-mode) .sca-guild-action.primary{color:white;background:#416ba8}
 <input id="profile-picture-input" type="file" accept="image/*" hidden>
 </aside>
 <nav class="bottom-nav" aria-label="Main navigation">
-<a class="nav-button" href="/dashboard.html" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-lilet guildStopwatchState={elapsed_ms:0,started_at:null};
-let guildStopwatchChannel=null,guildStopwatchTick=null,guildStopwatchPoll=null,guildStopwatchPersistTick=null;
-function guildElapsedNow(){
- const base=Number(guildStopwatchState?.elapsed_ms)||0;
- return base+(guildStopwatchState?.started_at?Math.max(0,Date.now()-Date.parse(guildStopwatchState.started_at)):0);
-}
-function renderGuildStopwatch(){
- const display=document.getElementById("sca-guild-time");
- if(!display)return;
- let seconds=Math.floor(guildElapsedNow()/1000);
- const days=Math.floor(seconds/86400);seconds%=86400;
- const hours=Math.floor(seconds/3600);seconds%=3600;
- const minutes=Math.floor(seconds/60);seconds%=60;
- const hh=String(hours).padStart(2,"0"),mm=String(minutes).padStart(2,"0"),ss=String(seconds).padStart(2,"0");
- display.textContent=days?days+"d "+hh+":"+mm+":"+ss:hh+":"+mm+":"+ss;
- const running=!!guildStopwatchState?.started_at;
- const toggle=document.getElementById("sca-guild-toggle");
- if(toggle){toggle.textContent=running?"Pause":"Start";toggle.classList.toggle("primary",!running);}
- const reset=document.getElementById("sca-guild-reset");
- if(reset)reset.disabled=false;
- const caption=document.getElementById("sca-guild-timer-caption");
- if(caption)caption.textContent=running?"The shared guild stopwatch is running":"Shared guild stopwatch";
-}
-function applyGuildStopwatchRow(row){
- if(!row)return;
- guildStopwatchState={elapsed_ms:Number(row.elapsed_ms)||0,started_at:row.started_at||null,started_by:row.started_by||null};
- renderGuildStopwatch();
-}
-async function loadGuildStopwatch(){
- const {data,error}=await supabase.from("coolanas_guild_stopwatch").select("elapsed_ms,started_at,started_by,updated_at,updated_by").eq("id",true).maybeSingle();
- if(error)throw error;
- applyGuildStopwatchRow(data);
-}
-async function guildStopwatchAction(action){
- const buttons=[document.getElementById("sca-guild-toggle"),document.getElementById("sca-guild-reset")].filter(Boolean);
- buttons.forEach(button=>button.disabled=true);
- const status=document.getElementById("sca-guild-status");if(status)status.textContent="Syncing shared stopwatch…";
- try{
-  const {data,error}=await supabase.rpc("coolanas_guild_stopwatch_action",{p_action:action});
-  if(error)throw error;
-  applyGuildStopwatchRow(Array.isArray(data)?data[0]:data);
-  if(status)status.textContent="Synced with the guild";
- }catch(error){
-  console.error("Guild stopwatch action failed:",error);
-  if(status)status.textContent="Could not sync stopwatch. Please try again.";
- }finally{renderGuildStopwatch();buttons.forEach(button=>button.disabled=false);}
-}
-async function initGuildPanel(){
- if(guildStopwatchChannel){await supabase.removeChannel(guildStopwatchChannel);guildStopwatchChannel=null;}
- if(guildStopwatchTick)clearInterval(guildStopwatchTick);
- if(guildStopwatchPoll)clearInterval(guildStopwatchPoll);
- if(guildStopwatchPersistTick)clearInterval(guildStopwatchPersistTick);
- const guildToggle=document.getElementById("sca-guild-toggle");
- const guildReset=document.getElementById("sca-guild-reset");
- if(guildToggle)guildToggle.onclick=()=>{void guildStopwatchAction(guildStopwatchState.started_at?"stop":"start");};
- if(guildReset)guildReset.onclick=()=>{void guildStopwatchAction("reset");};
- try{await loadGuildStopwatch();}catch(error){console.error("Could not load Guild stopwatch:",error);const status=document.getElementById("sca-guild-status");if(status)status.textContent="Unable to load shared stopwatch.";}
- try{const {data,error}=await supabase.rpc("coolanas_registered_user_count");if(error)throw error;const count=document.getElementById("sca-guild-members-number");if(count)count.textContent=Number(data||0).toLocaleString();}
- catch(error){console.error("Could not load registered user count:",error);const count=document.getElementById("sca-guild-members-number");if(count)count.textContent="Unavailable";}
- guildStopwatchChannel=supabase.channel("coolanas-guild-stopwatch")
-  .on("postgres_changes",{event:"UPDATE",schema:"public",table:"coolanas_guild_stopwatch"},payload=>applyGuildStopwatchRow(payload.new))
-  .subscribe(status=>{if(status==="SUBSCRIBED")loadGuildStopwatch().catch(error=>console.warn("Guild stopwatch refresh failed:",error));});
- guildStopwatchTick=setInterval(renderGuildStopwatch,250);
- guildStopwatchPersistTick=setInterval(()=>{if(guildStopwatchState.started_at&&guildStopwatchState.started_by===user.id){supabase.rpc("coolanas_guild_stopwatch_action",{p_action:"tick"}).then(({data,error})=>{if(error)console.warn("Guild stopwatch second could not be persisted:",error);else applyGuildStopwatchRow(Array.isArray(data)?data[0]:data);});}},1000);
- guildStopwatchPoll=setInterval(()=>loadGuildStopwatch().catch(error=>console.warn("Guild stopwatch poll failed:",error)),15000);
- renderGuildStopwatch();
-}
-stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"></path><path d="M5 9v11h14V9"></path><path d="M9 20v-6h6v6"></path></svg></a>
+<a class="nav-button" href="/dashboard.html" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"></path><path d="M5 9v11h14V9"></path><path d="M9 20v-6h6v6"></path></svg></a>
 <a class="nav-button" href="/coming-soon.html" aria-label="Coolanas" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></a>
 <a class="nav-button" href="/exhibitions.html" aria-label="Bucket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.1 8.2C3.3 5.1 5.7 2.5 12 2.5s8.7 2.6 6.9 5.7"/><path d="M3.2 8.2h17.6l-2 12.1c-4.4 1.6-9.2 1.6-13.6 0L3.2 8.2Z"/><path d="M3.2 8.2c4.9 1.1 12.7 1.1 17.6 0"/><path d="M6.1 17.5c3.8 1 8 1 11.8 0"/></svg></a>
 <a class="nav-button" href="/analytics.html" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5"></path><path d="M4 19h17"></path><path d="m7 15 4-4 3 2 5-6"></path><path d="M19 7h-4"></path><path d="M19 7v4"></path></svg></a>
@@ -736,6 +669,85 @@ const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persist
 const {data:{session},error:sessionError}=await supabase.auth.getSession();
 if(sessionError||!session){location.replace("/index.html");throw new Error("Sign-in required");}
 const user=session.user;
+
+const guildStopwatchState={elapsed_ms:0,started_at:null};
+let guildStopwatchChannel=null,guildStopwatchTick=null,guildStopwatchClockOffset=0;
+let guildStopwatchLoadGeneration=0;
+function guildElapsedNow(){
+ const base=Number(guildStopwatchState.elapsed_ms)||0;
+ return base+(guildStopwatchState.started_at?
+   Math.max(0,Date.now()+guildStopwatchClockOffset-Date.parse(guildStopwatchState.started_at)):0);
+}
+function renderGuildStopwatch(){
+ const display=document.getElementById("sca-guild-time");
+ if(!display)return;
+ let seconds=Math.floor(guildElapsedNow()/1000);
+ const days=Math.floor(seconds/86400);seconds%=86400;
+ const hours=Math.floor(seconds/3600);seconds%=3600;
+ const minutes=Math.floor(seconds/60);seconds%=60;
+ const hh=String(hours).padStart(2,"0"),mm=String(minutes).padStart(2,"0"),ss=String(seconds).padStart(2,"0");
+ display.textContent=days?days+"d "+hh+":"+mm+":"+ss:hh+":"+mm+":"+ss;
+ const caption=document.getElementById("sca-guild-timer-caption");
+ if(caption)caption.textContent=guildStopwatchState.started_at?
+   "Your personal stopwatch is running":"Your personal stopwatch is paused";
+}
+function applyGuildStopwatchRow(row){
+ if(!row)return;
+ const serverNow=Date.parse(row.server_now||"");
+ if(Number.isFinite(serverNow))guildStopwatchClockOffset=serverNow-Date.now();
+ guildStopwatchState.elapsed_ms=Math.max(0,Number(row.elapsed_ms)||0);
+ guildStopwatchState.started_at=row.started_at||null;
+ renderGuildStopwatch();
+}
+async function loadGuildStopwatch(){
+ const generation=++guildStopwatchLoadGeneration;
+ const {data,error}=await supabase.rpc("coolanas_account_stopwatch_action",{p_action:"get"});
+ if(error)throw error;
+ if(generation!==guildStopwatchLoadGeneration)return;
+ const row=Array.isArray(data)?data[0]:data;
+ if(!row)throw new Error("The stopwatch terminal returned no state.");
+ applyGuildStopwatchRow(row);
+ const status=document.getElementById("sca-guild-status");
+ if(status)status.textContent="Connected to your private stopwatch terminal.";
+}
+async function initGuildPanel(){
+ if(guildStopwatchChannel){await supabase.removeChannel(guildStopwatchChannel);guildStopwatchChannel=null;}
+ if(guildStopwatchTick){clearInterval(guildStopwatchTick);guildStopwatchTick=null;}
+ const status=document.getElementById("sca-guild-status");
+ if(status)status.textContent="Connecting to your private stopwatch terminal…";
+ try{await loadGuildStopwatch();}
+ catch(error){
+  console.error("Could not load your Guild stopwatch:",error);
+  if(status)status.textContent="Unable to load your personal stopwatch. Check your connection and retry.";
+ }
+ try{
+  const {data,error}=await supabase.rpc("coolanas_registered_user_count");
+  if(error)throw error;
+  const count=document.getElementById("sca-guild-members-number");
+  if(count)count.textContent=Number(data||0).toLocaleString();
+ }catch(error){
+  console.error("Could not load registered user count:",error);
+  const count=document.getElementById("sca-guild-members-number");
+  if(count)count.textContent="Unavailable";
+ }
+ guildStopwatchChannel=supabase.channel("coolanas-account-stopwatch-"+user.id)
+  .on("postgres_changes",{
+   event:"*",
+   schema:"public",
+   table:"coolanas_account_stopwatches",
+   filter:"user_id=eq."+user.id
+  },()=>loadGuildStopwatch().catch(error=>console.warn("Guild stopwatch refresh failed:",error)))
+  .subscribe(channelStatus=>{
+   if(channelStatus==="SUBSCRIBED"){
+    loadGuildStopwatch().catch(error=>console.warn("Guild stopwatch reconnect refresh failed:",error));
+   }else if(channelStatus==="CHANNEL_ERROR"||channelStatus==="TIMED_OUT"){
+    const currentStatus=document.getElementById("sca-guild-status");
+    if(currentStatus)currentStatus.textContent="Connection interrupted. Reconnecting to your stopwatch…";
+   }
+  });
+ guildStopwatchTick=setInterval(renderGuildStopwatch,250);
+ renderGuildStopwatch();
+}
 const scaWorkspace=document.getElementById("sca-workspace");
 const scaMain=document.getElementById("sca-main");
 const scaPrimary=document.getElementById("sca-primary-panel");
@@ -765,7 +777,7 @@ function openScaSection(section){
     return;
   }
   if(section==="guild"){
-    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Shared guild stopwatch"><div class="sca-guild-eyebrow">Guild time</div><div class="sca-guild-time" id="sca-guild-time">00:00:00</div><div class="sca-guild-timer-caption" id="sca-guild-timer-caption">Shared guild stopwatch</div><div class="sca-guild-controls"><button type="button" class="sca-guild-action primary" id="sca-guild-toggle">Start</button><button type="button" class="sca-guild-action" id="sca-guild-reset">Reset</button></div><div class="sca-guild-status" id="sca-guild-status" role="status" aria-live="polite"></div></section><aside class="sca-guild-members-card" aria-label="Registered users"><div class="sca-guild-eyebrow">Community</div><div class="sca-guild-members-number" id="sca-guild-members-number">—</div><div class="sca-guild-members-label">Registered users</div><div class="sca-guild-members-note">Total accounts registered on Coolanas.</div></aside></div>';
+    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Your personal stopwatch"><div class="sca-guild-eyebrow">Your study time</div><div class="sca-guild-time" id="sca-guild-time">00:00:00</div><div class="sca-guild-timer-caption" id="sca-guild-timer-caption">Loading your personal stopwatch…</div><div class="sca-guild-status" id="sca-guild-status" role="status" aria-live="polite">Connecting to your stopwatch terminal…</div></section><aside class="sca-guild-members-card" aria-label="Registered users"><div class="sca-guild-eyebrow">Community</div><div class="sca-guild-members-number" id="sca-guild-members-number">—</div><div class="sca-guild-members-label">Registered users</div><div class="sca-guild-members-note">Total accounts registered on Coolanas.</div></aside></div>';
     initGuildPanel();
     return;
   }
