@@ -766,6 +766,46 @@ html:not(.dark-mode) .sca-guild-timer-card{box-shadow:0 0 0 1px rgba(0,0,0,.04),
  .sca-guild-user-name{font-size:10px}
 }
 
+
+/* Guild layout and interaction corrections */
+.sca-guild-active .sca-sidebar{opacity:0;transform:translate(-125%,-50%);pointer-events:none;transition:transform .22s ease,opacity .18s ease}
+.sca-main[data-section="guild"]{margin-left:18px!important;width:calc(100vw - 36px)!important;padding:112px 30px 82px!important;grid-template-columns:minmax(0,1fr) 290px!important}
+.sca-main[data-section="guild"] .sca-guild-timer-card{height:176px;min-height:0}
+.sca-guild-members-head{align-items:center!important;justify-content:center!important;text-align:center}
+.sca-guild-title{text-align:center!important;width:100%}
+.sca-guild-add-toggle{order:5;flex:none;width:100%;min-height:38px;display:flex;align-items:center;justify-content:center;gap:9px;margin-top:2px}
+.sca-guild-add-toggle svg{width:19px!important;height:19px!important}
+.sca-guild-user-list{flex:0 1 auto!important;max-height:42%;overflow-y:auto}
+.sca-guild-user-row{position:relative;transition:border-color .16s ease,background .16s ease}
+.sca-guild-user-row.status-working{border-color:rgba(43,160,91,.55)!important;background:rgba(45,170,95,.11)!important}
+.sca-guild-user-row.status-paused{border-color:rgba(202,157,61,.48)!important;background:rgba(202,157,61,.09)!important}
+.sca-guild-user-status{margin-left:auto;flex:none;font-size:10px;font-weight:700;color:#8a929d}
+.sca-guild-user-row.status-working .sca-guild-user-status{color:#269653}
+.sca-guild-user-row.status-paused .sca-guild-user-status{color:#a77b26}
+.sca-guild-general-channel{font-size:12px;font-weight:700;color:#7d8795}
+.sca-guild-message-space{display:flex;flex-direction:column;align-items:stretch;gap:10px;min-height:0}
+.sca-guild-chat-empty{margin:auto;color:#9299a5;font-size:12px;text-align:center}
+.sca-guild-chat-message{display:flex;justify-content:flex-start;width:100%}
+.sca-guild-chat-message.mine{justify-content:flex-end}
+.sca-guild-chat-bubble{max-width:min(78%,560px);padding:8px 11px;border:1px solid rgba(120,120,120,.16);border-radius:12px;background:rgba(120,120,120,.07);overflow-wrap:anywhere}
+.sca-guild-chat-message.mine .sca-guild-chat-bubble{background:rgba(75,125,190,.13);border-color:rgba(75,125,190,.22)}
+.sca-guild-chat-author{display:block;margin-bottom:3px;font-size:10px;font-weight:750;color:#7b8797}
+.sca-guild-chat-body{margin:0;font-size:13px;white-space:pre-wrap}
+.sca-guild-chat-time{display:block;margin-top:4px;font-size:9px;color:#9299a5;text-align:right}
+.sca-guild-message-input-wrap textarea{resize:none}
+.sca-guild-message-send:disabled{cursor:not-allowed;opacity:.4}
+html:not(.dark-mode) .sca-guild-chat-bubble{background:#f5f6f8}
+html:not(.dark-mode) .sca-guild-chat-message.mine .sca-guild-chat-bubble{background:#eaf1fb}
+html.dark-mode .sca-guild-user-row.status-working{background:rgba(45,170,95,.13)!important}
+html.dark-mode .sca-guild-user-row.status-paused{background:rgba(202,157,61,.12)!important}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]{margin-left:8px!important;width:calc(100vw - 16px)!important;padding:104px 10px 78px!important;grid-template-columns:minmax(0,1fr) 210px!important}
+}
+@media(max-width:520px){
+ .sca-main[data-section="guild"]{padding:92px 8px 76px!important;grid-template-columns:minmax(0,1fr) 142px!important}
+ .sca-guild-user-status{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.sca-guild-active .sca-sidebar{transition:none}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -809,7 +849,7 @@ html:not(.dark-mode) .sca-guild-timer-card{box-shadow:0 0 0 1px rgba(0,0,0,.04),
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
     <section class="sca-panel" id="sca-primary-panel"></section>
-    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><div class="sca-guild-members-head"><h1 class="sca-guild-title">Guild</h1><button class="sca-guild-add-toggle" id="sca-guild-add-toggle" type="button" aria-expanded="false" aria-controls="sca-guild-add-form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add users</button><form class="sca-guild-add-form" id="sca-guild-add-form" hidden><input id="sca-guild-add-username" type="text" autocomplete="off" minlength="4" maxlength="100" placeholder="Search exact username…" aria-label="Username to invite"><button id="sca-guild-add-submit" type="submit">Invite</button></form><p class="sca-guild-add-status" id="sca-guild-add-status" role="status" aria-live="polite"></p></div><div class="sca-guild-invites" id="sca-guild-invites" aria-live="polite"></div><h2 class="sca-guild-members-label">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div></aside>
+    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><div class="sca-guild-members-head"><h1 class="sca-guild-title">Guild</h1></div><div class="sca-guild-invites" id="sca-guild-invites" aria-live="polite"></div><h2 class="sca-guild-members-label">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div><button class="sca-guild-add-toggle" id="sca-guild-add-toggle" type="button" aria-expanded="false" aria-controls="sca-guild-add-form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 19v1"/><circle cx="10" cy="7" r="4"/><path d="M19 8v6m-3-3h6"/></svg>Invite</button><form class="sca-guild-add-form" id="sca-guild-add-form" hidden><input id="sca-guild-add-username" type="text" autocomplete="off" minlength="4" maxlength="100" placeholder="Search exact username…" aria-label="Username to invite"><button id="sca-guild-add-submit" type="submit">Send invite</button></form><p class="sca-guild-add-status" id="sca-guild-add-status" role="status" aria-live="polite"></p></aside>
   </main>
 </div>
 <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
@@ -911,6 +951,10 @@ async function loadGuildStopwatch(){
 }
 let currentGuild=null;
 let guildPictureDirectory=new Map();
+let guildMemberStatuses=new Map();
+let guildStatusRefresh=null;
+let guildChatChannel=null;
+let guildChatSending=false;
 async function loadGuildUsers(){
  if(!scaGuildUserList)return;
  scaGuildUserList.replaceChildren();
@@ -933,13 +977,18 @@ async function loadGuildUsers(){
   if(!members.length){const empty=document.createElement("p");empty.className="sca-guild-users-message";empty.textContent="No Guild members yet.";scaGuildUserList.append(empty);}
   for(const member of members){
    const username=String(member.username||"User");
-   const row=document.createElement("div");row.className="sca-guild-user-row"+(member.id===user.id?" is-current":"");
+   const statusValue=guildMemberStatuses.get(member.id)||"idle";
+   const row=document.createElement("div");row.className="sca-guild-user-row status-"+statusValue+(member.id===user.id?" is-current":"");
+   row.dataset.userId=member.id;
    const avatar=document.createElement("span");avatar.className="sca-guild-user-avatar";avatar.textContent=username.slice(0,1).toUpperCase();
    const profile=guildPictureDirectory.get(username.toLowerCase());const picture=profile?.pictureUrl||profile?.googleAvatar||"";
    if(picture){const img=document.createElement("img");img.alt="";img.loading="lazy";img.referrerPolicy="no-referrer";img.src=picture;img.onerror=()=>img.remove();avatar.replaceChildren(img);}
-   const name=document.createElement("span");name.className="sca-guild-user-name";name.textContent=username;row.append(avatar,name);scaGuildUserList.append(row);
+   const name=document.createElement("span");name.className="sca-guild-user-name";name.textContent=username;
+   const status=document.createElement("span");status.className="sca-guild-user-status";status.textContent=statusValue==="working"?"Working":statusValue==="paused"?"Paused":"";
+   row.append(avatar,name,status);scaGuildUserList.append(row);
   }
   renderGuildInvitations(inviteResult.data||{});
+  await refreshGuildMemberStatuses();
  }catch(error){
   console.error("Could not load Guild members:",error);scaGuildUserList.replaceChildren();
   const message=document.createElement("p");message.className="sca-guild-users-message";message.textContent="Could not load Guild members. Try reopening Guild.";scaGuildUserList.append(message);
@@ -987,7 +1036,20 @@ async function addGuildMember(username){
  }catch(error){if(status)status.textContent=error.message||"Could not send the invitation.";}
  finally{if(submit)submit.disabled=false;}
 }
+async function refreshGuildMemberStatuses(){
+ const {data,error}=await supabase.rpc("coolanas_guild_member_status");
+ if(error)throw error;
+ guildMemberStatuses=new Map((data||[]).map(item=>[item.user_id,item.status]));
+ for(const row of scaGuildUserList?.querySelectorAll(".sca-guild-user-row")||[]){
+  const statusValue=guildMemberStatuses.get(row.dataset.userId)||"idle";
+  row.classList.remove("status-working","status-paused","status-idle");
+  row.classList.add("status-"+statusValue);
+  const label=row.querySelector(".sca-guild-user-status");
+  if(label)label.textContent=statusValue==="working"?"Working":statusValue==="paused"?"Paused":"";
+ }
+}
 async function initGuildPanel(){
+ if(guildStatusRefresh){clearInterval(guildStatusRefresh);guildStatusRefresh=null;}
  if(guildStopwatchChannel){await supabase.removeChannel(guildStopwatchChannel);guildStopwatchChannel=null;}
  if(guildStopwatchTick){clearInterval(guildStopwatchTick);guildStopwatchTick=null;}
  try{await loadGuildStopwatch();}
@@ -1008,9 +1070,66 @@ async function initGuildPanel(){
    }
   });
  guildStopwatchTick=setInterval(renderGuildStopwatch,250);
+ guildStatusRefresh=setInterval(()=>refreshGuildMemberStatuses().catch(error=>console.warn("Guild presence refresh failed:",error)),10000);
  renderGuildStopwatch();
 }
-const scaWorkspace=document.getElementById("sca-workspace");
+
+function guildMessageNode(message){
+ const row=document.createElement("article");
+ row.className="sca-guild-chat-message"+(message.sender_id===user.id?" mine":"");
+ row.dataset.messageId=message.id;
+ const author=document.createElement("span");author.className="sca-guild-chat-author";
+ const member=(currentGuild?.members||[]).find(item=>item.id===message.sender_id);
+ author.textContent=message.sender_id===user.id?"You":(member?.username||"Guild member");
+ const body=document.createElement("p");body.className="sca-guild-chat-body";body.textContent=message.body||"";
+ const time=document.createElement("time");time.className="sca-guild-chat-time";time.dateTime=message.created_at;
+ time.textContent=new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+ const bubble=document.createElement("div");bubble.className="sca-guild-chat-bubble";bubble.append(author,body,time);row.append(bubble);return row;
+}
+async function loadGuildMessages(){
+ const host=document.getElementById("sca-guild-message-space");
+ if(!host||!currentGuild?.id)return;
+ const {data,error}=await supabase.from("coolanas_guild_messages").select("id,guild_id,sender_id,body,created_at").eq("guild_id",currentGuild.id).order("created_at",{ascending:true}).limit(100);
+ if(error)throw error;
+ host.replaceChildren();
+ if(!data?.length){const empty=document.createElement("p");empty.className="sca-guild-chat-empty";empty.textContent="No messages yet. Start the conversation.";host.append(empty);return;}
+ for(const message of data)host.append(guildMessageNode(message));
+ host.scrollTop=host.scrollHeight;
+}
+async function initGuildChat(){
+ if(guildChatChannel){await supabase.removeChannel(guildChatChannel);guildChatChannel=null;}
+ const form=document.getElementById("sca-guild-message-form");
+ const input=document.getElementById("sca-guild-message-input");
+ const send=document.getElementById("sca-guild-message-send");
+ const host=document.getElementById("sca-guild-message-space");
+ if(!form||!input||!send)return;
+ input.disabled=false;send.disabled=true;
+ input.addEventListener("input",()=>{send.disabled=!input.value.trim()||guildChatSending;});
+ form.addEventListener("submit",async event=>{
+  event.preventDefault();const body=input.value.trim();
+  if(!body||guildChatSending||!currentGuild?.id)return;
+  guildChatSending=true;send.disabled=true;
+  try{
+   const {error}=await supabase.from("coolanas_guild_messages").insert({guild_id:currentGuild.id,sender_id:user.id,body});
+   if(error)throw error;
+   input.value="";await loadGuildMessages();
+  }catch(error){console.error("Guild message send failed:",error);alert(error.message||"Could not send this message.");}
+  finally{guildChatSending=false;send.disabled=!input.value.trim();}
+ });
+ input.addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();form.requestSubmit();}});
+ try{await loadGuildMessages();}
+ catch(error){console.error("Guild messages could not be loaded:",error);if(host){host.replaceChildren();const note=document.createElement("p");note.className="sca-guild-chat-empty";note.textContent="Could not load messages. Check your connection and reopen Guild.";host.append(note);}}
+ if(currentGuild?.id){
+  guildChatChannel=supabase.channel("coolanas-guild-chat-"+currentGuild.id)
+   .on("postgres_changes",{event:"INSERT",schema:"public",table:"coolanas_guild_messages",filter:"guild_id=eq."+currentGuild.id},payload=>{
+    const message=payload.new;
+    if(!host||host.querySelector('[data-message-id="'+message.id+'"]'))return;
+    const node=guildMessageNode(message);
+    const empty=host.querySelector(".sca-guild-chat-empty");empty?.remove();host.append(node);host.scrollTop=host.scrollHeight;
+   }).subscribe();
+ }
+}
+\nconst scaWorkspace=document.getElementById("sca-workspace");
 const scaMain=document.getElementById("sca-main");
 const scaPrimary=document.getElementById("sca-primary-panel");
 const scaGuildUsersPanel=document.getElementById("sca-guild-users-panel");
@@ -1036,6 +1155,7 @@ function openScaSection(section){
   });
   scaWorkspace.classList.toggle("is-expanded",section==="friends");
   if(section==="friends"){friendRail.classList.remove("is-open");friendRail.dataset.tab="search";}
+  if(section==="guild"){friendRail.classList.remove("is-open");friendRail.dataset.tab="";}
   scaMain.dataset.section=section;
   scaMain.hidden=false;
   scaGuildUsersPanel.hidden=section!=="guild";
@@ -1044,7 +1164,7 @@ function openScaSection(section){
     return;
   }
   if(section==="guild"){
-    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Study timer"><div class="sca-guild-time" id="sca-guild-time" role="timer" aria-live="off"></div></section></div><div class="sca-guild-chat-layout"><aside class="sca-guild-channel-panel" aria-label="Guild tools"></aside><section class="sca-guild-message-panel" aria-label="Guild messages"><div class="sca-guild-message-space" aria-hidden="true"></div><div class="sca-guild-message-composer"><div class="sca-guild-message-input-wrap"><textarea rows="1" placeholder="Write a message…" aria-label="Message" disabled></textarea><button class="sca-guild-message-send" type="button" aria-label="Send message" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div></section></div>';
+    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Study timer"><div class="sca-guild-time" id="sca-guild-time" role="timer" aria-live="off"></div></section></div><div class="sca-guild-chat-layout"><aside class="sca-guild-channel-panel" aria-label="Guild tools"><span class="sca-guild-general-channel"># general</span></aside><section class="sca-guild-message-panel" aria-label="Guild messages"><div class="sca-guild-message-space" id="sca-guild-message-space" aria-live="polite"><p class="sca-guild-chat-empty">Loading messages…</p></div><form class="sca-guild-message-composer" id="sca-guild-message-form"><div class="sca-guild-message-input-wrap"><textarea id="sca-guild-message-input" rows="1" maxlength="4000" placeholder="Write a message…" aria-label="Message"></textarea><button class="sca-guild-message-send" id="sca-guild-message-send" type="submit" aria-label="Send message" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></form></section></div>';
     document.documentElement.classList.add("sca-guild-active");
     document.body.classList.add("sca-guild-active");
     const addToggle=document.getElementById("sca-guild-add-toggle");
@@ -1057,7 +1177,9 @@ function openScaSection(section){
       event.preventDefault();const value=document.getElementById("sca-guild-add-username")?.value||"";
       addGuildMember(value);
     });
+    lastGuildTimerMarkup="";
     initGuildPanel();
+    initGuildChat();
     return;
   }
   if(section!=="friends"){scaPrimary.replaceChildren();return;}
