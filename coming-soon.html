@@ -656,7 +656,7 @@ html:not(.dark-mode) .sca-guild-action.primary{color:white;background:#416ba8}
 </aside>
 <nav class="bottom-nav" aria-label="Main navigation">
 <a class="nav-button" href="/dashboard.html" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-lilet guildStopwatchState={elapsed_ms:0,started_at:null};
-let guildStopwatchChannel=null,guildStopwatchTick=null,guildStopwatchPoll=null;
+let guildStopwatchChannel=null,guildStopwatchTick=null,guildStopwatchPoll=null,guildStopwatchPersistTick=null;
 function guildElapsedNow(){
  const base=Number(guildStopwatchState?.elapsed_ms)||0;
  return base+(guildStopwatchState?.started_at?Math.max(0,Date.now()-Date.parse(guildStopwatchState.started_at)):0);
@@ -680,11 +680,11 @@ function renderGuildStopwatch(){
 }
 function applyGuildStopwatchRow(row){
  if(!row)return;
- guildStopwatchState={elapsed_ms:Number(row.elapsed_ms)||0,started_at:row.started_at||null};
+ guildStopwatchState={elapsed_ms:Number(row.elapsed_ms)||0,started_at:row.started_at||null,started_by:row.started_by||null};
  renderGuildStopwatch();
 }
 async function loadGuildStopwatch(){
- const {data,error}=await supabase.from("coolanas_guild_stopwatch").select("elapsed_ms,started_at,updated_at,updated_by").eq("id",true).maybeSingle();
+ const {data,error}=await supabase.from("coolanas_guild_stopwatch").select("elapsed_ms,started_at,started_by,updated_at,updated_by").eq("id",true).maybeSingle();
  if(error)throw error;
  applyGuildStopwatchRow(data);
 }
