@@ -619,6 +619,7 @@ html:not(.dark-mode) .sca-guild-message-input-wrap{background:#fff;border-color:
 .sca-guild-heading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:2px 0 4px}
 .sca-guild-title{margin:0;color:inherit;font-size:24px;font-weight:750;letter-spacing:-.035em}
 .sca-guild-add-toggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:138px;height:38px;padding:0 17px;border:1px solid rgba(120,120,120,.2);border-radius:11px;background:rgba(75,125,190,.14);color:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.sca-guild-add-toggle[hidden]{display:none!important}
 .sca-guild-add-toggle svg{width:16px;height:16px}
 .sca-guild-add-form{display:flex;align-items:center;gap:8px;width:min(440px,100%);padding:8px;border:1px solid rgba(120,120,120,.18);border-radius:13px;background:rgba(120,120,120,.055)}
 .sca-guild-add-form[hidden]{display:none!important}
@@ -708,7 +709,7 @@ html:not(.dark-mode) .sca-guild-users-heading{color:#66758a}
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
     <section class="sca-panel" id="sca-primary-panel"></section>
-    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Coolanas users" hidden><h2 class="sca-guild-users-heading">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div></aside>
+    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><h2 class="sca-guild-users-heading">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div></aside>
   </main>
 </div>
 <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
@@ -821,6 +822,8 @@ async function loadGuildUsers(){
   ]);
   if(guildResult.error)throw guildResult.error;
   currentGuild=guildResult.data||null;
+  const addToggle=document.getElementById("sca-guild-add-toggle");
+  if(addToggle)addToggle.hidden=currentGuild?.owner_id!==user.id;
   const directoryUsers=Array.isArray(directoryResult.data?.users)?directoryResult.data.users:[];
   guildPictureDirectory=new Map(directoryUsers.map(entry=>[String(entry.username||"").toLowerCase(),entry]));
   const members=Array.isArray(currentGuild?.members)?currentGuild.members:[];
