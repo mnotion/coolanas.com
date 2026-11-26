@@ -839,6 +839,28 @@ html.dark-mode .sca-guild-entry-card{background:rgba(38,38,38,.9);border-color:r
 html.dark-mode .sca-guild-entry-card h1{color:#f1f1f1}
 @media(max-width:620px){.sca-guild-entry-grid{grid-template-columns:minmax(0,1fr);gap:12px}.sca-guild-entry-card{min-height:clamp(170px,28vh,240px);border-radius:17px}}
 @media(prefers-reduced-motion:reduce){.sca-guild-entry-card{transition:none}}
+
+/* Centre the empty Guild cards in the actual available workspace area */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid){
+ display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:stretch;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) #sca-primary-panel{
+ grid-column:1/-1;display:flex!important;align-items:center!important;justify-content:center!important;
+ width:100%;height:100%;min-width:0;min-height:0;align-self:stretch;margin:0!important;
+ padding:0!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{
+ width:100%;height:100%;max-width:none;min-height:0;box-sizing:border-box;
+ grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;justify-items:stretch;
+ gap:clamp(12px,2vw,24px);margin:0;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-card{
+ width:100%;height:min(48vh,440px);min-height:260px;max-height:100%;box-sizing:border-box;
+}
+@media(max-width:620px){
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{grid-template-columns:minmax(0,1fr);align-content:center;gap:12px}
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-card{height:min(30vh,230px);min-height:150px}
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
