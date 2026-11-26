@@ -973,23 +973,29 @@ let guildChatOldestAt=null;
 let guildChatHasOlder=false;
 let guildChatLoadingOlder=false;
 async function loadGuildUsers(){
- if(!scaGuildUserList)return;
+ if(!scaGuildUserList)return null;
  scaGuildUserList.replaceChildren();
  const loading=document.createElement("p");loading.className="sca-guild-users-message";loading.textContent="Loading members…";scaGuildUserList.append(loading);
  try{
-  const [guildResult,directoryResult,inviteResult]=await Promise.all([
-   supabase.rpc("coolanas_guild_get_or_create"),
+  const guildResult=await supabase.rpc("coolanas_guild_get_or_create");
+  if(guildResult.error)throw guildResult.error;
+  currentGuild=guildResult.data||null;
+  if(!currentGuild){
+   scaGuildUserList.replaceChildren();
+   const addToggle=document.getElementById("sca-guild-add-toggle");
+   if(addToggle)addToggle.hidden=true;
+   return false;
+  }
+  const [directoryResult,inviteResult]=await Promise.all([
    supabase.functions.invoke("coolanas-files-b2",{body:{action:"profile_picture_directory"}}),
    supabase.rpc("coolanas_guild_list_invitations")
   ]);
-  if(guildResult.error)throw guildResult.error;
   if(inviteResult.error)throw inviteResult.error;
-  currentGuild=guildResult.data||null;
   const addToggle=document.getElementById("sca-guild-add-toggle");
-  if(addToggle)addToggle.hidden=currentGuild?.owner_id!==user.id;
+  if(addToggle)addToggle.hidden=currentGuild.owner_id!==user.id;
   const directoryUsers=Array.isArray(directoryResult.data?.users)?directoryResult.data.users:[];
   guildPictureDirectory=new Map(directoryUsers.map(entry=>[String(entry.username||"").toLowerCase(),entry]));
-  const members=Array.isArray(currentGuild?.members)?currentGuild.members:[];
+  const members=Array.isArray(currentGuild.members)?currentGuild.members:[];
   scaGuildUserList.replaceChildren();
   if(!members.length){const empty=document.createElement("p");empty.className="sca-guild-users-message";empty.textContent="No Guild members yet.";scaGuildUserList.append(empty);}
   for(const member of members){
@@ -1006,9 +1012,11 @@ async function loadGuildUsers(){
   }
   renderGuildInvitations(inviteResult.data||{});
   await refreshGuildMemberStatuses();
+  return true;
  }catch(error){
   console.error("Could not load Guild members:",error);scaGuildUserList.replaceChildren();
   const message=document.createElement("p");message.className="sca-guild-users-message";message.textContent="Could not load Guild members. Try reopening Guild.";scaGuildUserList.append(message);
+  return null;
  }
 }
 function renderGuildInvitations(data){
@@ -1069,9 +1077,16 @@ async function initGuildPanel(){
  if(guildStatusRefresh){clearInterval(guildStatusRefresh);guildStatusRefresh=null;}
  if(guildStopwatchChannel){await supabase.removeChannel(guildStopwatchChannel);guildStopwatchChannel=null;}
  if(guildStopwatchTick){clearInterval(guildStopwatchTick);guildStopwatchTick=null;}
+ currentGuild=null;
+ const hasGuild=await loadGuildUsers();
+ if(hasGuild===false){
+  scaGuildUsersPanel.hidden=true;
+  scaPrimary.replaceChildren();
+  return;
+ }
+ if(hasGuild!==true)return;
  try{await loadGuildStopwatch();}
  catch(error){console.error("Could not load your Guild stopwatch:",error);}
- await loadGuildUsers();
  guildStopwatchChannel=supabase.channel("coolanas-account-stopwatch-"+user.id)
   .on("postgres_changes",{
    event:"*",
