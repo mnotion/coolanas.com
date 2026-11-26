@@ -1065,12 +1065,18 @@ async function openScaConversation(friend,picture){
      }
      const {data,error}=await query.range(offset,offset+99);if(error)throw error;
      const page=data||[];
-     const known=new Set(cachedRows.map(item=>item.id));
-     const rawAdditions=page.filter(item=>!known.has(item.id));
+     const known=new Map(cachedRows.map(item=>[item.id,item]));
+     const rawAdditions=page.filter(item=>{
+      const cached=known.get(item.id);
+      return !cached||cached.clearText==="Unable to decrypt on this device."||JSON.stringify(cached.ciphertext)!==JSON.stringify(item.ciphertext);
+     });
      if(rawAdditions.length){
       const additions=await decryptRows(rawAdditions);
-      for(const item of additions)animatedIds.add(item.id);
-      cachedRows=[...cachedRows,...additions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)||String(a.id).localeCompare(String(b.id)));
+      const updatedIds=new Set(additions.map(item=>item.id));
+      for(const item of additions){
+       if(!known.has(item.id)||known.get(item.id).clearText==="Unable to decrypt on this device.")animatedIds.add(item.id);
+      }
+      cachedRows=[...cachedRows.filter(item=>!updatedIds.has(item.id)),...additions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)||String(a.id).localeCompare(String(b.id)));
       await setScaCachedMessages(conversationId,cachedRows);
      }
      offset+=page.length;
