@@ -1109,8 +1109,7 @@ function guildMessageNode(message,previousSenderId=null){
  }
  const bubble=document.createElement("div");bubble.className="sca-dm-message-group "+(mine?"mine":"theirs");
  const line=document.createElement("div");line.className="sca-dm-message-line";line.dataset.messageId=message.id;line.textContent=message.body||"";
- const time=document.createElement("small");time.textContent=new Date(message.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",hour12:false});
- bubble.append(line,time);row.append(avatar,bubble);return row;
+ bubble.append(line);row.append(avatar,bubble);return row;
 }
 async function loadGuildMessages({older=false}={}){
  const host=document.getElementById("sca-guild-message-space");
