@@ -563,33 +563,10 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 .sca-dm-message-enter{opacity:0;animation:sca-dm-message-enter .24s cubic-bezier(.2,.75,.25,1) both}
 @media(prefers-reduced-motion:reduce){.sca-dm-profile-switch .sca-dm-messages,.sca-dm-profile-switch .sca-dm-composer{animation:none}}
 .sca-dm-messages[aria-busy="true"]::before{content:none}
-/* Glass edge spans the full scroll viewport, including the messages container padding. */
-.sca-dm-messages::before{
- content:""!important;
- display:block;
- position:sticky;
- top:-18px;
- z-index:6;
- align-self:stretch;
- flex:0 0 60px;
- height:60px;
- width:calc(100% + 40px);
- margin:0 -20px -60px;
- box-sizing:border-box;
- border-radius:16px 16px 0 0;
- pointer-events:none!important;
- background:linear-gradient(180deg,rgba(34,34,34,.34) 0%,rgba(34,34,34,.20) 34%,rgba(34,34,34,.07) 70%,transparent 100%);
- -webkit-backdrop-filter:blur(9px) saturate(1.35);
- backdrop-filter:blur(9px) saturate(1.35);
- -webkit-mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.88) 30%,rgba(0,0,0,.34) 70%,transparent 100%);
- mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.88) 30%,rgba(0,0,0,.34) 70%,transparent 100%);
-}
-html:not(.dark-mode) .sca-dm-messages::before{
- background:linear-gradient(180deg,rgba(255,255,255,.28) 0%,rgba(255,255,255,.15) 34%,rgba(255,255,255,.05) 70%,transparent 100%);
-}
-html.dark-mode .sca-dm-messages::before{
- background:linear-gradient(180deg,rgba(34,34,34,.34) 0%,rgba(34,34,34,.20) 34%,rgba(34,34,34,.07) 70%,transparent 100%);
-}
+/* Liquid-glass top lip: analytic displacement map + soft specular rim. */
+.sca-dm-messages::before{content:""!important;display:block;position:sticky;top:-18px;z-index:6;align-self:stretch;flex:0 0 60px;height:60px;width:calc(100% + 40px);margin:0 -20px -60px;box-sizing:border-box;border-radius:16px 16px 0 0;pointer-events:none!important;background:linear-gradient(180deg,rgba(255,255,255,.17) 0%,rgba(255,255,255,.075) 24%,rgba(255,255,255,.018) 58%,transparent 100%);-webkit-backdrop-filter:blur(3px) saturate(1.45);backdrop-filter:blur(3px) saturate(1.45);-webkit-backdrop-filter:url(#sca-dm-liquid-glass) blur(2px) saturate(1.45);backdrop-filter:url(#sca-dm-liquid-glass) blur(2px) saturate(1.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.16);-webkit-mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.94) 38%,rgba(0,0,0,.38) 78%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0%,rgba(0,0,0,.94) 38%,rgba(0,0,0,.38) 78%,transparent 100%);}
+html.dark-mode .sca-dm-messages::before{background:linear-gradient(180deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,.045) 24%,rgba(255,255,255,.01) 58%,transparent 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.12);}
+@supports not (backdrop-filter:url(#sca-dm-liquid-glass)){.sca-dm-messages::before{-webkit-backdrop-filter:blur(7px) saturate(1.35);backdrop-filter:blur(7px) saturate(1.35);}}
 @media(prefers-reduced-transparency:reduce){
  .sca-dm-messages::before{-webkit-backdrop-filter:none;backdrop-filter:none}
 }
@@ -1496,5 +1473,8 @@ document.addEventListener("keydown",event=>{if(event.key==="Escape")closeProfile
 setAvatar(googleAvatarUrl);try{await refreshProfilePicture();}catch(error){console.warn("Could not load profile picture:",error.message);}
 </script>
   <script src="/js/upload-manager.js?v=3" defer></script>
+
+<!-- SVG displacement filter for the chat's top-edge liquid glass. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden;pointer-events:none"><defs><filter id="sca-dm-liquid-glass" x="-8%" y="-12%" width="116%" height="132%" color-interpolation-filters="sRGB"><feImage result="sca-glass-map" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='64' viewBox='0 0 128 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(128,128,128)'/%3E%3Cstop offset='.18' stop-color='rgb(128,194,128)'/%3E%3Cstop offset='.52' stop-color='rgb(128,151,128)'/%3E%3Cstop offset='1' stop-color='rgb(128,128,128)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='128' height='64' fill='url(%23g)'/%3E%3C/svg%3E"/><feDisplacementMap in="SourceGraphic" in2="sca-glass-map" scale="9" xChannelSelector="R" yChannelSelector="G" result="sca-refracted"/><feGaussianBlur in="sca-refracted" stdDeviation=".22" result="sca-soft-refraction"/><feMerge><feMergeNode in="sca-soft-refraction"/></feMerge></filter></defs></svg>
 </body>
 </html>
