@@ -1025,7 +1025,7 @@ async function getScaDeviceKey(){
    return restoreScaDeviceKey(payload.privateJwk,payload.publicJwk);
   }
   if(existing)return rotateScaLegacyDeviceKey(existing,remote.key?.public_key||null);
-  if(remote.key)throw new Error("Your original device must open SCA Messages once to create a recovery code. Keep its browser data intact.");
+  if(remote.key)throw new Error("This account has not synced its private message key to the backend yet. Sign in on the device that last used SCA Messages; it will sync automatically.");
   return createFirstScaDeviceKey();
  })();
  try{return await scaDeviceKeyPromise;}finally{scaDeviceKeyPromise=null;}
