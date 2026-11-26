@@ -821,29 +821,24 @@ html.dark-mode .sca-main[data-section="guild"] .sca-dm-input-wrap{background:#29
 .sca-main[data-section="guild"] .sca-dm-empty{display:flex;flex:1;align-items:center;justify-content:center;margin:0;color:var(--muted-color,#888);font-size:12px;text-align:center}
 .sca-main[data-section="guild"] .sca-dm-message-group small{opacity:.16!important;color:var(--muted-color,#888)!important;font-size:9px!important;font-variant-numeric:tabular-nums}
 
-
-/* Empty Guild hub with switchable sections */
-.sca-main[data-section="guild"] #sca-primary-panel:has(.sca-guild-hub){
+/* Empty Guild landing choices */
+.sca-main[data-section="guild"] #sca-primary-panel:has(.sca-guild-entry-grid){
  display:flex;align-items:center;justify-content:center;align-self:stretch;width:100%;height:100%;min-height:0;
 }
-.sca-guild-hub{
- width:min(1080px,100%);min-height:clamp(360px,58vh,620px);margin:auto;overflow:hidden;
- border:1px solid rgba(120,120,120,.18);border-radius:22px;background:rgba(255,255,255,.9);
- box-shadow:0 12px 34px rgba(0,0,0,.09),0 2px 8px rgba(0,0,0,.035);
+.sca-guild-entry-grid{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;width:min(1120px,100%);margin:auto;
 }
-.sca-guild-hub-tabs{display:flex;align-items:center;gap:6px;padding:14px 18px;border-bottom:1px solid rgba(120,120,120,.15);background:rgba(120,120,120,.035)}
-.sca-guild-hub-tab{min-width:104px;padding:10px 17px;border:1px solid transparent;border-radius:10px;background:transparent;color:#727987;font:650 13px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease}
-.sca-guild-hub-tab:hover{background:rgba(100,140,200,.08);color:#34445d}
-.sca-guild-hub-tab.is-active{background:#eaf1fc;border-color:#d2e0f6;color:#28558f}
-.sca-guild-hub-content{min-height:clamp(300px,51vh,550px);display:grid;place-items:center;padding:28px}
-.sca-guild-hub-content h1{margin:0;color:#292e38;font-size:clamp(28px,3vw,40px);font-weight:760;letter-spacing:-.045em}
-html.dark-mode .sca-guild-hub{background:rgba(38,38,38,.92);border-color:rgba(255,255,255,.12);box-shadow:0 12px 34px rgba(0,0,0,.24)}
-html.dark-mode .sca-guild-hub-tabs{border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.025)}
-html.dark-mode .sca-guild-hub-tab{color:#aaa}
-html.dark-mode .sca-guild-hub-tab.is-active{background:#26364d;border-color:#3b5272;color:#c9ddfb}
-html.dark-mode .sca-guild-hub-content h1{color:#f1f1f1}
-@media(max-width:620px){.sca-guild-hub{min-height:clamp(300px,52vh,480px);border-radius:17px}.sca-guild-hub-tabs{padding:10px}.sca-guild-hub-content{min-height:clamp(250px,44vh,400px)}}
-@media(prefers-reduced-motion:reduce){.sca-guild-hub-tab{transition:none}}
+.sca-guild-entry-card{
+ min-height:clamp(260px,42vh,440px);display:grid;place-items:center;padding:32px;
+ border:1px solid rgba(120,120,120,.18);border-radius:22px;
+ background:rgba(255,255,255,.88);box-shadow:0 12px 34px rgba(0,0,0,.09),0 2px 8px rgba(0,0,0,.035);
+ transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.sca-guild-entry-card h1{margin:0;font-size:clamp(28px,3vw,42px);font-weight:760;letter-spacing:-.045em;color:#242832}
+html.dark-mode .sca-guild-entry-card{background:rgba(38,38,38,.9);border-color:rgba(255,255,255,.12);box-shadow:0 12px 34px rgba(0,0,0,.24)}
+html.dark-mode .sca-guild-entry-card h1{color:#f1f1f1}
+@media(max-width:620px){.sca-guild-entry-grid{grid-template-columns:minmax(0,1fr);gap:12px}.sca-guild-entry-card{min-height:clamp(170px,28vh,240px);border-radius:17px}}
+@media(prefers-reduced-motion:reduce){.sca-guild-entry-card{transition:none}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1105,17 +1100,7 @@ async function initGuildPanel(){
  const hasGuild=await loadGuildUsers();
  if(hasGuild===false){
   scaGuildUsersPanel.hidden=true;
-  scaPrimary.innerHTML='<section class="sca-guild-hub" aria-label="Guild workspace"><nav class="sca-guild-hub-tabs" role="tablist" aria-label="Guild workspace sections"><button class="sca-guild-hub-tab is-active" type="button" role="tab" aria-selected="true" data-guild-hub-tab="guilds">Guilds</button><button class="sca-guild-hub-tab" type="button" role="tab" aria-selected="false" data-guild-hub-tab="buckets">Buckets</button></nav><div class="sca-guild-hub-content" id="sca-guild-hub-content" role="tabpanel"><h1>Guilds</h1></div></section>';
-  const hub=scaPrimary.querySelector(".sca-guild-hub");
-  const hubContent=document.getElementById("sca-guild-hub-content");
-  hub.querySelectorAll("[data-guild-hub-tab]").forEach(tab=>tab.addEventListener("click",()=>{
-   const selected=tab.dataset.guildHubTab;
-   hub.querySelectorAll("[data-guild-hub-tab]").forEach(item=>{
-    const active=item===tab;item.classList.toggle("is-active",active);item.setAttribute("aria-selected",String(active));
-   });
-   hubContent.replaceChildren();
-   const heading=document.createElement("h1");heading.textContent=selected==="buckets"?"Buckets":"Guilds";hubContent.append(heading);
-  }));
+  scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild and Bucket sections"><section class="sca-guild-entry-card" aria-label="Guilds"><h1>Guilds</h1></section><section class="sca-guild-entry-card" aria-label="Buckets"><h1>Buckets</h1></section></div>';
   return;
  }
  if(hasGuild!==true)return;
