@@ -584,6 +584,24 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 html:not(.dark-mode) .sca-guild-timer-card{background:rgba(255,255,255,.62);border-color:rgba(0,0,0,.1)}
 html:not(.dark-mode) .sca-guild-time{color:#20242b}
 @media(max-width:760px){.sca-guild-layout{min-height:0}.sca-guild-timer-card{min-height:250px;padding:22px 12px}.sca-guild-digit{flex-basis:clamp(32px,8vw,52px);width:clamp(32px,8vw,52px);height:clamp(46px,11vw,68px)}.sca-guild-colon{flex-basis:clamp(9px,2.5vw,13px);width:clamp(9px,2.5vw,13px);height:clamp(46px,11vw,68px)}}
+
+/* Guild community directory */
+.sca-main[data-section="guild"]{grid-template-columns:minmax(0,1fr) 290px!important;gap:18px}
+.sca-main[data-section="guild"] .sca-panel{min-width:0}
+.sca-guild-users-panel{box-sizing:border-box;display:flex;flex-direction:column;gap:16px;min-height:calc(100vh - 134px);max-height:calc(100vh - 134px);padding:22px 18px!important;overflow:hidden}
+.sca-guild-users-heading{margin:0;font-size:11px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;color:#8e9aab}
+.sca-guild-user-list{display:grid;grid-auto-rows:min-content;align-content:start;gap:9px;min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:3px}
+.sca-guild-user-row{display:flex;align-items:center;gap:11px;min-width:0;padding:9px 10px;border:1px solid rgba(120,120,120,.14);border-radius:12px;background:rgba(120,120,120,.055)}
+.sca-guild-user-avatar{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;overflow:hidden;border-radius:50%;background:#35445a;color:#eaf1fb;font-size:13px;font-weight:700}
+.sca-guild-user-avatar img{display:block;width:100%;height:100%;object-fit:cover}
+.sca-guild-user-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:650;color:inherit}
+.sca-guild-users-message{margin:0;padding:8px 2px;color:#9299a5;font-size:12px;line-height:1.5}
+html:not(.dark-mode) .sca-guild-user-row{background:rgba(0,0,0,.025);border-color:rgba(0,0,0,.08)}
+html:not(.dark-mode) .sca-guild-users-heading{color:#66758a}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]{grid-template-columns:minmax(0,1fr)!important;gap:12px}
+ .sca-guild-users-panel{min-height:220px;max-height:360px}
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -627,7 +645,7 @@ html:not(.dark-mode) .sca-guild-time{color:#20242b}
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
     <section class="sca-panel" id="sca-primary-panel"></section>
-
+    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Coolanas users" hidden><h2 class="sca-guild-users-heading">Users</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading users…</p></div></aside>
   </main>
 </div>
 <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
@@ -727,11 +745,44 @@ async function loadGuildStopwatch(){
  if(!row)throw new Error("The stopwatch terminal returned no state.");
  applyGuildStopwatchRow(row);
 }
+async function loadGuildUsers(){
+ if(!scaGuildUserList)return;
+ scaGuildUserList.replaceChildren();
+ const loading=document.createElement("p");loading.className="sca-guild-users-message";loading.textContent="Loading users…";scaGuildUserList.append(loading);
+ try{
+  const {data,error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"profile_picture_directory"}});
+  if(error)throw error;
+  if(data?.error)throw new Error(data.error);
+  const users=Array.isArray(data?.users)?data.users:[];
+  users.sort((a,b)=>String(a.username||"").localeCompare(String(b.username||""),undefined,{sensitivity:"base"}));
+  scaGuildUserList.replaceChildren();
+  if(!users.length){
+   const empty=document.createElement("p");empty.className="sca-guild-users-message";empty.textContent="No users found.";scaGuildUserList.append(empty);return;
+  }
+  for(const entry of users){
+   const username=String(entry.username||"User");
+   const row=document.createElement("div");row.className="sca-guild-user-row";
+   const avatar=document.createElement("span");avatar.className="sca-guild-user-avatar";avatar.textContent=username.slice(0,1).toUpperCase();
+   const picture=entry.pictureUrl||entry.googleAvatar||"";
+   if(picture){
+    const img=document.createElement("img");img.alt="";img.loading="lazy";img.referrerPolicy="no-referrer";img.src=picture;
+    img.onerror=()=>{img.remove();};avatar.replaceChildren(img);
+   }
+   const name=document.createElement("span");name.className="sca-guild-user-name";name.textContent=username;
+   row.append(avatar,name);scaGuildUserList.append(row);
+  }
+ }catch(error){
+  console.error("Could not load Guild users:",error);
+  scaGuildUserList.replaceChildren();
+  const message=document.createElement("p");message.className="sca-guild-users-message";message.textContent="Could not load users. Try reopening Guild.";scaGuildUserList.append(message);
+ }
+}
 async function initGuildPanel(){
  if(guildStopwatchChannel){await supabase.removeChannel(guildStopwatchChannel);guildStopwatchChannel=null;}
  if(guildStopwatchTick){clearInterval(guildStopwatchTick);guildStopwatchTick=null;}
  try{await loadGuildStopwatch();}
  catch(error){console.error("Could not load your Guild stopwatch:",error);}
+ await loadGuildUsers();
  guildStopwatchChannel=supabase.channel("coolanas-account-stopwatch-"+user.id)
   .on("postgres_changes",{
    event:"*",
@@ -752,6 +803,8 @@ async function initGuildPanel(){
 const scaWorkspace=document.getElementById("sca-workspace");
 const scaMain=document.getElementById("sca-main");
 const scaPrimary=document.getElementById("sca-primary-panel");
+const scaGuildUsersPanel=document.getElementById("sca-guild-users-panel");
+const scaGuildUserList=document.getElementById("sca-guild-user-list");
 const scaButtons=[...document.querySelectorAll("[data-sca-section]")];
 let scaDmChannel=null,scaDmChannelReady=false,scaDmReadPoll=null,scaDmReadVisibilityHandler=null,scaDmTypingHeartbeat=null,scaDmTypingActive=false;
 function stopScaTypingBroadcast(){
@@ -773,6 +826,7 @@ function openScaSection(section){
   if(section==="friends"){friendRail.classList.remove("is-open");friendRail.dataset.tab="search";}
   scaMain.dataset.section=section;
   scaMain.hidden=false;
+  scaGuildUsersPanel.hidden=section!=="guild";
   if(section==="profile"){
     scaPrimary.innerHTML='<div class="sca-profile-grid" aria-label="Profile"><section class="sca-profile-box" aria-label="Profile box one"></section><section class="sca-profile-box" aria-label="Profile box two"></section></div>';
     return;
