@@ -807,7 +807,7 @@ async function encryptScaMessageWithPrivate(text,privateKey,peerPublicJwk,conver
  const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(text));
  return {v:1,salt:scaB64(salt),iv:scaB64(iv),ciphertext:scaB64(new Uint8Array(encrypted))};
 }
-async function rotateScaLegacyDeviceKey(legacyRecord){
+async function rotateScaLegacyDeviceKey(legacyRecord,expectedPublicKey){
  const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const publicJwk=await crypto.subtle.exportKey("jwk",pair.publicKey),privateJwk=await crypto.subtle.exportKey("jwk",pair.privateKey);
  const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
@@ -838,12 +838,12 @@ async function rotateScaLegacyDeviceKey(legacyRecord){
  await showScaRecoveryCode(code);
  const pending={version:2,privateKey,publicJwk};
  await putScaStoredKey(user.id+":pending",pending);
- const {error:rotationError}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{p_public_key:publicJwk,p_backup:backup,p_updates:updates});
+ const {error:rotationError}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{p_public_key:publicJwk,p_backup:backup,p_updates:updates,p_expected_public_key:expectedPublicKey});
  if(rotationError){await deleteScaStoredKey(user.id+":pending");throw rotationError;}
  await saveScaKeyRecord(pending);await deleteScaStoredKey(user.id+":pending");
  return pending;
 }
-async function createFirstScaDeviceKey(){
+async function createFirstScaDeviceKey(expectedPublicKey=null){
  const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
  const publicJwk=await crypto.subtle.exportKey("jwk",pair.publicKey),privateJwk=await crypto.subtle.exportKey("jwk",pair.privateKey);
  const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
@@ -851,7 +851,7 @@ async function createFirstScaDeviceKey(){
  await showScaRecoveryCode(code);
  const pending={version:2,privateKey,publicJwk};
  await putScaStoredKey(user.id+":pending",pending);
- const {error}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{p_public_key:publicJwk,p_backup:backup,p_updates:[]});
+ const {error}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{p_public_key:publicJwk,p_backup:backup,p_updates:[],p_expected_public_key:expectedPublicKey});
  if(error){await deleteScaStoredKey(user.id+":pending");throw error;}
  await saveScaKeyRecord(pending);await deleteScaStoredKey(user.id+":pending");
  return pending;
@@ -869,7 +869,7 @@ async function getScaDeviceKey(){
   const existing=await getScaStoredKey(user.id);
   if(existing?.version===2){
    if(remote.backup&&remote.key?.key_version===2)return existing;
-   return rotateScaLegacyDeviceKey(existing);
+   return rotateScaLegacyDeviceKey(existing,remote.key?.public_key||null);
   }
   if(existing){
    if(remote.backup&&remote.key?.key_version===2)return restoreScaDeviceKey(remote.backup);
@@ -877,7 +877,7 @@ async function getScaDeviceKey(){
   }
   if(remote.backup)return restoreScaDeviceKey(remote.backup);
   if(remote.key)throw new Error("This device does not have your original message key, and this account has no recovery backup yet. Open SCA Messages on a device that still has the original key to create one. Do not clear that device's browser data.");
-  return createFirstScaDeviceKey();
+  return createFirstScaDeviceKey(remote.key?.public_key||null);
  })();
  try{return await scaDeviceKeyPromise;}finally{scaDeviceKeyPromise=null;}
 }
