@@ -570,6 +570,29 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 @keyframes sca-dm-message-enter{from{opacity:0;transform:translateY(7px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
 .sca-dm-message-enter{animation:sca-dm-message-enter .24s cubic-bezier(.2,.75,.25,1) both;animation-delay:var(--sca-message-delay,0ms)}
 @media(prefers-reduced-motion:reduce){.sca-dm-typing-indicator,.sca-dm-uiverse-loader,.sca-dm-message-enter{transition:none;animation:none}}
+
+/* Guild overview */
+.sca-guild-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,280px);grid-template-rows:auto 1fr;gap:18px;min-height:calc(100vh - 190px);align-content:stretch}
+.sca-guild-timer-card,.sca-guild-members-card{border:1px solid rgba(255,255,255,.1);border-radius:18px;background:rgba(255,255,255,.035);box-shadow:0 10px 28px rgba(0,0,0,.12)}
+.sca-guild-timer-card{grid-column:1/-1;padding:28px 30px 26px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:270px}
+.sca-guild-eyebrow{font-size:11px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;color:#8e9aab}
+.sca-guild-time{font-variant-numeric:tabular-nums;font-size:clamp(54px,9vw,112px);font-weight:750;letter-spacing:-.065em;line-height:1.05;margin:16px 0 10px;color:#f4f6fa}
+.sca-guild-timer-caption{font-size:13px;color:#9299a5;min-height:18px}
+.sca-guild-controls{display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+.sca-guild-action{min-width:104px;padding:10px 18px;border:1px solid rgba(255,255,255,.12);border-radius:11px;background:rgba(255,255,255,.07);color:#eee;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .16s,border-color .16s,transform .16s}
+.sca-guild-action:hover{background:rgba(255,255,255,.12);transform:translateY(-1px)}
+.sca-guild-action.primary{background:#416ba8;border-color:#557fbd;color:#fff}
+.sca-guild-action:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.sca-guild-members-card{padding:22px;display:flex;flex-direction:column;gap:12px;min-height:230px}
+.sca-guild-members-number{font-size:clamp(38px,5vw,60px);font-weight:750;letter-spacing:-.055em;font-variant-numeric:tabular-nums;color:#f4f6fa;margin-top:10px}
+.sca-guild-members-label{font-size:13px;color:#9ca3af}
+.sca-guild-members-note{margin-top:auto;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);font-size:12px;color:#858c97;line-height:1.5}
+.sca-guild-status{margin-top:12px;font-size:12px;color:#8993a2;min-height:16px}
+html:not(.dark-mode) .sca-guild-timer-card,html:not(.dark-mode) .sca-guild-members-card{background:rgba(255,255,255,.62);border-color:rgba(0,0,0,.1)}
+html:not(.dark-mode) .sca-guild-time,html:not(.dark-mode) .sca-guild-members-number{color:#20242b}
+html:not(.dark-mode) .sca-guild-action{color:#303744;border-color:rgba(0,0,0,.12);background:rgba(0,0,0,.04)}
+html:not(.dark-mode) .sca-guild-action.primary{color:white;background:#416ba8}
+@media(max-width:760px){.sca-guild-layout{grid-template-columns:minmax(0,1fr);min-height:0}.sca-guild-timer-card{min-height:230px;padding:24px 14px}.sca-guild-members-card{min-height:180px}.sca-guild-time{font-size:clamp(48px,15vw,82px)}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -632,7 +655,74 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 <input id="profile-picture-input" type="file" accept="image/*" hidden>
 </aside>
 <nav class="bottom-nav" aria-label="Main navigation">
-<a class="nav-button" href="/dashboard.html" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"></path><path d="M5 9v11h14V9"></path><path d="M9 20v-6h6v6"></path></svg></a>
+<a class="nav-button" href="/dashboard.html" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-lilet guildStopwatchState={elapsed_ms:0,started_at:null};
+let guildStopwatchChannel=null,guildStopwatchTick=null,guildStopwatchPoll=null;
+function guildElapsedNow(){
+ const base=Number(guildStopwatchState?.elapsed_ms)||0;
+ return base+(guildStopwatchState?.started_at?Math.max(0,Date.now()-Date.parse(guildStopwatchState.started_at)):0);
+}
+function renderGuildStopwatch(){
+ const display=document.getElementById("sca-guild-time");
+ if(!display)return;
+ let seconds=Math.floor(guildElapsedNow()/1000);
+ const days=Math.floor(seconds/86400);seconds%=86400;
+ const hours=Math.floor(seconds/3600);seconds%=3600;
+ const minutes=Math.floor(seconds/60);seconds%=60;
+ const hh=String(hours).padStart(2,"0"),mm=String(minutes).padStart(2,"0"),ss=String(seconds).padStart(2,"0");
+ display.textContent=days?days+"d "+hh+":"+mm+":"+ss:hh+":"+mm+":"+ss;
+ const running=!!guildStopwatchState?.started_at;
+ const toggle=document.getElementById("sca-guild-toggle");
+ if(toggle){toggle.textContent=running?"Pause":"Start";toggle.classList.toggle("primary",!running);}
+ const reset=document.getElementById("sca-guild-reset");
+ if(reset)reset.disabled=!guildElapsedNow();
+ const caption=document.getElementById("sca-guild-timer-caption");
+ if(caption)caption.textContent=running?"The shared guild stopwatch is running":"Shared guild stopwatch";
+}
+function applyGuildStopwatchRow(row){
+ if(!row)return;
+ guildStopwatchState={elapsed_ms:Number(row.elapsed_ms)||0,started_at:row.started_at||null};
+ renderGuildStopwatch();
+}
+async function loadGuildStopwatch(){
+ const {data,error}=await supabase.from("coolanas_guild_stopwatch").select("elapsed_ms,started_at,updated_at,updated_by").eq("id",true).maybeSingle();
+ if(error)throw error;
+ applyGuildStopwatchRow(data);
+}
+async function guildStopwatchAction(action){
+ const buttons=[document.getElementById("sca-guild-toggle"),document.getElementById("sca-guild-reset")].filter(Boolean);
+ buttons.forEach(button=>button.disabled=true);
+ const status=document.getElementById("sca-guild-status");if(status)status.textContent="Syncing shared stopwatch…";
+ try{
+  const {data,error}=await supabase.rpc("coolanas_guild_stopwatch_action",{p_action:action});
+  if(error)throw error;
+  applyGuildStopwatchRow(Array.isArray(data)?data[0]:data);
+  if(status)status.textContent="Synced with the guild";
+ }catch(error){
+  console.error("Guild stopwatch action failed:",error);
+  if(status)status.textContent="Could not sync stopwatch. Please try again.";
+ }finally{renderGuildStopwatch();buttons.forEach(button=>button.disabled=false);}
+}
+async function initGuildPanel(){
+ if(guildStopwatchChannel){await supabase.removeChannel(guildStopwatchChannel);guildStopwatchChannel=null;}
+ if(guildStopwatchTick)clearInterval(guildStopwatchTick);
+ if(guildStopwatchPoll)clearInterval(guildStopwatchPoll);
+ document.getElementById("sca-guild-toggle")?.addEventListener("click",()=>guildStopwatchAction(guildStopwatchState.started_at?"stop":"start"));
+ document.getElementById("sca-guild-reset")?.addEventListener("click",()=>guildStopwatchAction("reset"));
+ try{
+  await loadGuildStopwatch();
+  const {data,error}=await supabase.rpc("coolanas_registered_user_count");
+  if(error)throw error;
+  const count=document.getElementById("sca-guild-members-number");
+  if(count)count.textContent=Number(data||0).toLocaleString();
+ }catch(error){console.error("Could not load Guild data:",error);const status=document.getElementById("sca-guild-status");if(status)status.textContent="Unable to load shared Guild data.";}
+ guildStopwatchChannel=supabase.channel("coolanas-guild-stopwatch")
+  .on("postgres_changes",{event:"UPDATE",schema:"public",table:"coolanas_guild_stopwatch"},payload=>applyGuildStopwatchRow(payload.new))
+  .subscribe(status=>{if(status==="SUBSCRIBED")loadGuildStopwatch().catch(error=>console.warn("Guild stopwatch refresh failed:",error));});
+ guildStopwatchTick=setInterval(renderGuildStopwatch,250);
+ guildStopwatchPoll=setInterval(()=>loadGuildStopwatch().catch(error=>console.warn("Guild stopwatch poll failed:",error)),15000);
+ renderGuildStopwatch();
+}
+nejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"></path><path d="M5 9v11h14V9"></path><path d="M9 20v-6h6v6"></path></svg></a>
 <a class="nav-button" href="/coming-soon.html" aria-label="Coolanas" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></a>
 <a class="nav-button" href="/exhibitions.html" aria-label="Bucket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.1 8.2C3.3 5.1 5.7 2.5 12 2.5s8.7 2.6 6.9 5.7"/><path d="M3.2 8.2h17.6l-2 12.1c-4.4 1.6-9.2 1.6-13.6 0L3.2 8.2Z"/><path d="M3.2 8.2c4.9 1.1 12.7 1.1 17.6 0"/><path d="M6.1 17.5c3.8 1 8 1 11.8 0"/></svg></a>
 <a class="nav-button" href="/analytics.html" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5"></path><path d="M4 19h17"></path><path d="m7 15 4-4 3 2 5-6"></path><path d="M19 7h-4"></path><path d="M19 7v4"></path></svg></a>
@@ -671,6 +761,11 @@ function openScaSection(section){
   scaMain.hidden=false;
   if(section==="profile"){
     scaPrimary.innerHTML='<div class="sca-profile-grid" aria-label="Profile"><section class="sca-profile-box" aria-label="Profile box one"></section><section class="sca-profile-box" aria-label="Profile box two"></section></div>';
+    return;
+  }
+  if(section==="guild"){
+    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Shared guild stopwatch"><div class="sca-guild-eyebrow">Guild time</div><div class="sca-guild-time" id="sca-guild-time">00:00:00</div><div class="sca-guild-timer-caption" id="sca-guild-timer-caption">Shared guild stopwatch</div><div class="sca-guild-controls"><button type="button" class="sca-guild-action primary" id="sca-guild-toggle">Start</button><button type="button" class="sca-guild-action" id="sca-guild-reset">Reset</button></div><div class="sca-guild-status" id="sca-guild-status" role="status" aria-live="polite"></div></section><aside class="sca-guild-members-card" aria-label="Registered users"><div class="sca-guild-eyebrow">Community</div><div class="sca-guild-members-number" id="sca-guild-members-number">—</div><div class="sca-guild-members-label">Registered users</div><div class="sca-guild-members-note">Total accounts registered on Coolanas.</div></aside></div>';
+    initGuildPanel();
     return;
   }
   if(section!=="friends"){scaPrimary.replaceChildren();return;}
