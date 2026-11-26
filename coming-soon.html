@@ -1154,7 +1154,21 @@ async function openScaConversation(friend,picture){
  }
  async function decryptRows(rows){
   const result=[];
-  for(const item of rows){let clearText="";try{clearText=item.ciphertext?.v===0?String(item.ciphertext.plaintext??""):await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){clearText="Unable to decrypt on this device.";}result.push({...item,clearText});}
+  const needsPrivateKey=rows.some(item=>item.ciphertext?.v===1);
+  let keyReady=!needsPrivateKey;
+  if(needsPrivateKey){
+   try{await ensureScaPublicKey();keyReady=true;}
+   catch(error){console.warn("SCA message key is unavailable on this device:",error);}
+  }
+  for(const item of rows){
+   let clearText="";
+   try{
+    if(item.ciphertext?.v===0)clearText=String(item.ciphertext.plaintext??"");
+    else if(!keyReady)throw new Error("Message key recovery is required on this device.");
+    else clearText=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);
+   }catch(error){clearText="Unable to decrypt on this device.";}
+   result.push({...item,clearText});
+  }
   return result;
  }
  async function encryptViewedPlainMessages(render=true){
