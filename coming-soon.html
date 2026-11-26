@@ -823,7 +823,8 @@ async function rotateScaLegacyDeviceKey(legacyRecord){
    const {data:rows,error:rowsError}=await supabase.from("coolanas_dm_messages").select("id,ciphertext").eq("conversation_id",conversation.id).order("created_at",{ascending:true}).order("id",{ascending:true}).range(offset,offset+99);
    if(rowsError)throw rowsError;
    for(const row of rows||[]){
-    if(row.ciphertext?.v!==1)throw new Error("A conversation contains a legacy message that cannot be safely migrated automatically. Keep this device's browser data intact and contact support.");
+    if(row.ciphertext?.v===0){updates.push({id:row.id,ciphertext:row.ciphertext});continue;}
+    if(row.ciphertext?.v!==1)throw new Error("A conversation contains a message format that cannot be migrated safely.");
     if(!peer?.public_key)throw new Error("A friend is missing an encryption key. Their original device must be restored before key migration can continue.");
     const plaintext=await decryptScaMessageWithPrivate(row.ciphertext,legacyRecord.privateKey,peer.public_key,conversation.id);
     const ciphertext=await encryptScaMessageWithPrivate(plaintext,privateKey,peer.public_key,conversation.id);
