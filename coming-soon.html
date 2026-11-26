@@ -585,6 +585,19 @@ html:not(.dark-mode) .sca-guild-timer-card{background:rgba(255,255,255,.62);bord
 html:not(.dark-mode) .sca-guild-time{color:#20242b}
 @media(max-width:760px){.sca-guild-layout{min-height:0}.sca-guild-timer-card{min-height:250px;padding:22px 12px}.sca-guild-digit{flex-basis:clamp(32px,8vw,52px);width:clamp(32px,8vw,52px);height:clamp(46px,11vw,68px)}.sca-guild-colon{flex-basis:clamp(9px,2.5vw,13px);width:clamp(9px,2.5vw,13px);height:clamp(46px,11vw,68px)}}
 
+/* Guild layout refinement: remove the large outer panel and compact the timer */
+.sca-main[data-section="guild"]{padding-top:12px!important}
+.sca-main[data-section="guild"] #sca-primary-panel{
+ min-height:0!important;padding:0!important;border:0!important;border-radius:0!important;
+ background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;
+ -webkit-backdrop-filter:none!important;
+}
+.sca-main[data-section="guild"] .sca-guild-layout{min-height:0}
+.sca-main[data-section="guild"] .sca-guild-timer-card{min-height:176px;padding:12px 24px}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]{padding-top:10px!important}
+ .sca-main[data-section="guild"] .sca-guild-timer-card{min-height:142px;padding:10px 12px}
+}
 /* Guild community directory */
 .sca-main[data-section="guild"]{grid-template-columns:minmax(0,1fr) 290px!important;gap:18px}
 .sca-main[data-section="guild"] .sca-panel{min-width:0}
