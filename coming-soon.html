@@ -827,82 +827,6 @@ async function setScaCachedConversationId(friendId,conversationId){scaDmConversa
 const scaDmConversationIds=new Map();const scaDmMessageMemoryCache=new Map();
 async function getScaCachedMessages(conversationId){if(scaDmMessageMemoryCache.has(conversationId))return scaDmMessageMemoryCache.get(conversationId);const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>{const rows=r.result||[];scaDmMessageMemoryCache.set(conversationId,rows);resolve(rows);};r.onerror=()=>reject(r.error);});}
 async function setScaCachedMessages(conversationId,rows){scaDmMessageMemoryCache.set(conversationId,rows);const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("messages","readwrite");tx.objectStore("messages").put(rows,conversationId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
-async function getScaStoredKey(keyId=user.id){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("keys").objectStore("keys").get(keyId);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});}
-async function putScaStoredKey(keyId,value){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").put(value,keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
-async function deleteScaStoredKey(keyId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").delete(keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
-function sameScaPublicKey(a,b){return Boolean(a&&b&&a.kty==="EC"&&b.kty==="EC"&&a.crv===b.crv&&a.x===b.x&&a.y===b.y);}
-function scaRecoveryCodeText(bytes){return Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("").match(/.{1,8}/g).join("-");}
-function normalizeScaRecoveryCode(value){return String(value||"").replace(/[-\s]/g,"").toLowerCase();}
-async function deriveScaRecoveryKey(code,salt,iterations){
- const material=await crypto.subtle.importKey("raw",new TextEncoder().encode(normalizeScaRecoveryCode(code)),"PBKDF2",false,["deriveKey"]);
- return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
-}
-async function createScaEncryptedBackup(privateJwk,publicJwk){
- const random=new Uint8Array(24),salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
- crypto.getRandomValues(random);
- const code=scaRecoveryCodeText(random),iterations=600000,key=await deriveScaRecoveryKey(code,salt,iterations);
- const payload={userId:user.id,privateJwk,publicJwk,version:2};
- const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(payload)));
- return {code,backup:{v:1,kdf:"PBKDF2-SHA-256",iterations,salt:scaB64(salt),iv:scaB64(iv),ciphertext:scaB64(new Uint8Array(encrypted)),public_key:publicJwk}};
-}
-async function decryptScaEncryptedBackup(backup,code){
- if(!backup||backup.v!==1||backup.kdf!=="PBKDF2-SHA-256"||backup.iterations!==600000)throw new Error("This recovery backup format is not supported.");
- const key=await deriveScaRecoveryKey(code,scaUnB64(backup.salt),backup.iterations);
- const clear=await crypto.subtle.decrypt({name:"AES-GCM",iv:scaUnB64(backup.iv)},key,scaUnB64(backup.ciphertext));
- const payload=JSON.parse(new TextDecoder().decode(clear));
- if(payload.userId!==user.id||payload.version!==2||!payload.privateJwk||!payload.publicJwk)throw new Error("This recovery code does not match this account.");
- return payload;
-}
-function ensureScaRecoveryDialogStyles(){
- if(document.getElementById("sca-key-recovery-styles"))return;
- const style=document.createElement("style");style.id="sca-key-recovery-styles";
- style.textContent=".sca-key-recovery-overlay{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.62);backdrop-filter:blur(8px)}.sca-key-recovery-card{width:min(460px,100%);padding:24px;border:1px solid rgba(255,255,255,.14);border-radius:18px;background:#242424;color:#f5f5f5;box-shadow:0 22px 80px rgba(0,0,0,.45);font:14px/1.5 Inter,system-ui,sans-serif}.sca-key-recovery-card h2{margin:0 0 9px;font-size:20px}.sca-key-recovery-card p{margin:0 0 14px;color:#b8b8b8}.sca-key-recovery-code{display:block;width:100%;min-height:76px;margin:12px 0;padding:12px;border:1px solid #555;border-radius:10px;background:#171717;color:#fff;font:700 15px/1.7 ui-monospace,monospace;letter-spacing:.04em;resize:none;overflow-wrap:anywhere}.sca-key-recovery-input{width:100%;height:44px;margin:8px 0 12px;padding:0 12px;border:1px solid #555;border-radius:9px;background:#171717;color:#fff;font:14px ui-monospace,monospace}.sca-key-recovery-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}.sca-key-recovery-actions button{min-height:40px;padding:0 14px;border:1px solid #5b80b4;border-radius:9px;background:#416caa;color:#fff;font:650 13px Inter,system-ui,sans-serif;cursor:pointer}.sca-key-recovery-actions button.secondary{border-color:#555;background:#333;color:#eee}.sca-key-recovery-error{min-height:18px;color:#ffaaaa!important;font-size:12px}";
- document.head.append(style);
-}
-function showScaRecoveryCode(code){
- ensureScaRecoveryDialogStyles();
- return new Promise(resolve=>{
-  const overlay=document.createElement("div");overlay.className="sca-key-recovery-overlay";
-  const card=document.createElement("section");card.className="sca-key-recovery-card";card.setAttribute("role","dialog");card.setAttribute("aria-modal","true");card.setAttribute("aria-labelledby","sca-key-recovery-title");
-  const title=document.createElement("h2");title.id="sca-key-recovery-title";title.textContent="Save your message recovery code";
-  const warning=document.createElement("p");warning.textContent="This code is the only way to restore your encrypted message history on another device. Coolanas cannot recover it for you. Save it somewhere private before continuing.";
-  const codeBox=document.createElement("textarea");codeBox.className="sca-key-recovery-code";codeBox.readOnly=true;codeBox.value=code;codeBox.setAttribute("aria-label","Message recovery code");
-  const feedback=document.createElement("p");feedback.className="sca-key-recovery-error";feedback.textContent="Do not share this code with anyone.";
-  const actions=document.createElement("div");actions.className="sca-key-recovery-actions";
-  const copy=document.createElement("button");copy.type="button";copy.textContent="Copy code";
-  copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(code);feedback.textContent="Copied. Store it somewhere private."; }catch{codeBox.focus();codeBox.select();feedback.textContent="Select and copy the code manually."; }});
-  const saved=document.createElement("button");saved.type="button";saved.textContent="I've saved it";
-  saved.addEventListener("click",()=>{overlay.remove();resolve();});
-  actions.append(copy,saved);card.append(title,warning,codeBox,feedback,actions);overlay.append(card);document.body.append(overlay);
-  codeBox.focus();codeBox.select();
- });
-}
-function requestScaRecoveryCode(backup){
- ensureScaRecoveryDialogStyles();
- return new Promise((resolve,reject)=>{
-  const overlay=document.createElement("div");overlay.className="sca-key-recovery-overlay";
-  const card=document.createElement("section");card.className="sca-key-recovery-card";card.setAttribute("role","dialog");card.setAttribute("aria-modal","true");card.setAttribute("aria-labelledby","sca-key-restore-title");
-  const title=document.createElement("h2");title.id="sca-key-restore-title";title.textContent="Restore encrypted messages";
-  const note=document.createElement("p");note.textContent="Enter the recovery code saved on your original device. The code unlocks your private message key locally on this device.";
-  const form=document.createElement("form");
-  const input=document.createElement("input");input.className="sca-key-recovery-input";input.type="text";input.autocomplete="off";input.spellcheck=false;input.placeholder="Paste recovery code";input.required=true;
-  const error=document.createElement("p");error.className="sca-key-recovery-error";error.setAttribute("aria-live","polite");
-  const actions=document.createElement("div");actions.className="sca-key-recovery-actions";
-  const cancel=document.createElement("button");cancel.type="button";cancel.className="secondary";cancel.textContent="Cancel";cancel.addEventListener("click",()=>{overlay.remove();reject(new Error("Message recovery was cancelled."));});
-  const submit=document.createElement("button");submit.type="submit";submit.textContent="Unlock messages";
-  form.addEventListener("submit",async event=>{
-   event.preventDefault();if(!input.value.trim())return;submit.disabled=true;error.textContent="Checking recovery code…";
-   try{
-    const payload=await decryptScaEncryptedBackup(backup,input.value.trim());
-    overlay.remove();resolve(payload);
-   }catch(e){
-    error.textContent="That recovery code did not unlock this backup. Check it and try again.";
-    submit.disabled=false;input.focus();input.select();
-   }
-  });
-  actions.append(cancel,submit);form.append(input,error,actions);card.append(title,note,form);overlay.append(card);document.body.append(overlay);input.focus();
- });
-}
 async function renderScaMessagesDraft(){
  scaPrimary.classList.add("sca-messaging-active");
  scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong></div></section></div>';
@@ -994,7 +918,7 @@ async function openScaConversation(friend,picture){
   messages.scrollTop=messages.scrollHeight;
  }
  async function decryptRows(rows){return rows.map(item=>({...item,clearText:item.ciphertext?.v===0?String(item.ciphertext.plaintext??""):"[This message used the retired encryption system and cannot be displayed.]"}));}
-  let messagesLoading=falselet messagesLoading=false,messagesReloadQueued=false,historyLoaded=false;
+  let messagesLoading=false,messagesReloadQueued=false,historyLoaded=false;
  async function syncCachedReadStatuses(render=true){
   if(!cachedRows.length)return false;
   const ids=cachedRows.map(item=>item.id);
