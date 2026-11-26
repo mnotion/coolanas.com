@@ -709,8 +709,8 @@ friendRail.dataset.tab="search";
 friendSearchInput.addEventListener("focus",()=>{friendRail.dataset.tab="search";friendTabs.forEach(button=>button.classList.remove("active"));});
 
 
-const scaDmDbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open("coolanas-sca-e2ee",2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains("keys"))db.createObjectStore("keys");if(!db.objectStoreNames.contains("messages"))db.createObjectStore("messages");};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
-async function getScaCachedMessages(conversationId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
+const scaDmDbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open("coolanas-sca-e2ee",3);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains("keys"))db.createObjectStore("keys");if(!db.objectStoreNames.contains("messages"))db.createObjectStore("messages");if(!db.objectStoreNames.contains("conversations"))db.createObjectStore("conversations");};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+async function getScaCachedConversationId(friendId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("conversations").objectStore("conversations").get(friendId);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});}\nasync function setScaCachedConversationId(friendId,conversationId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("conversations","readwrite");tx.objectStore("conversations").put(conversationId,friendId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}\nasync function getScaCachedMessages(conversationId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
 async function setScaCachedMessages(conversationId,rows){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("messages","readwrite");tx.objectStore("messages").put(rows,conversationId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
 async function getScaStoredKey(keyId=user.id){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("keys").objectStore("keys").get(keyId);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});}
 async function putScaStoredKey(keyId,value){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").put(value,keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
@@ -935,10 +935,10 @@ async function openScaConversation(friend,picture){
  stopScaTypingBroadcast();
  if(scaDmReadPoll){clearInterval(scaDmReadPoll);scaDmReadPoll=null;}
  if(scaDmReadVisibilityHandler){document.removeEventListener("visibilitychange",scaDmReadVisibilityHandler);scaDmReadVisibilityHandler=null;}
- const panel=document.getElementById("sca-dm-conversation");panel.classList.remove("sca-dm-profile-switch");void panel.offsetWidth;panel.classList.add("sca-dm-profile-switch");panel.replaceChildren();
- const {data:conversationId,error}=await supabase.rpc("coolanas_dm_open_conversation",{p_friend_id:friend.friend_id});if(error)throw error;await ensureScaPublicKey();
+ const panel=document.getElementById("sca-dm-conversation");panel.classList.remove("sca-dm-profile-switch");panel.replaceChildren();
+ let conversationId=null;
+ const cachedConversationIdPromise=getScaCachedConversationId(friend.friend_id);
  let ownProfilePicture=user.user_metadata?.avatar_url||user.user_metadata?.picture||"";
- try{const {data:ownProfile}=await supabase.from("profiles").select("username").eq("id",user.id).maybeSingle();if(ownProfile?.username){const directory=await getFriendPictureDirectory();const saved=directory.get(ownProfile.username);ownProfilePicture=saved?.pictureUrl||saved?.googleAvatar||ownProfilePicture;}}catch(e){console.warn("Could not load saved profile picture:",e);}
  const messages=document.createElement("div");messages.className="sca-dm-messages";messages.setAttribute("aria-live","polite");
  const typingIndicator=document.createElement("div");typingIndicator.className="sca-dm-typing-indicator";typingIndicator.setAttribute("aria-label",friend.username+" is typing");typingIndicator.setAttribute("aria-hidden","true");const typingLoader=document.createElement("div");typingLoader.className="sca-dm-uiverse-loader";typingIndicator.append(typingLoader);
  const composer=document.createElement("form");composer.className="sca-dm-composer";const wrap=document.createElement("div");wrap.className="sca-dm-input-wrap";
@@ -1109,10 +1109,24 @@ async function openScaConversation(friend,picture){
  }
  let cachedRows=[];
  try{
-  cachedRows=await getScaCachedMessages(conversationId);
-  if(cachedRows.length){historyLoaded=true;renderMessageRows(cachedRows);messages.classList.add("sca-dm-cache-ready");}
- }catch(e){console.warn("Could not read cached messages:",e);}
+  conversationId=await cachedConversationIdPromise;
+  if(conversationId){
+   cachedRows=await getScaCachedMessages(conversationId);
+   if(cachedRows.length){historyLoaded=true;renderMessageRows(cachedRows);messages.classList.add("sca-dm-cache-ready");}
+  }
+ }catch(e){console.warn("Could not read cached conversation:",e);}
  messages.scrollTop=messages.scrollHeight;
+ const conversationRequest=supabase.rpc("coolanas_dm_open_conversation",{p_friend_id:friend.friend_id});
+ if(!conversationId){
+  const {data:resolvedId,error}=await conversationRequest;if(error)throw error;
+  conversationId=resolvedId;await setScaCachedConversationId(friend.friend_id,conversationId);
+ }else{
+  conversationRequest.then(({data:resolvedId,error})=>{
+   if(error){console.warn("Could not refresh conversation id:",error);return;}
+   if(resolvedId&&resolvedId!==conversationId)console.warn("Conversation id changed for cached friend; retaining the cached conversation until refreshed.");
+  }).catch(error=>console.warn("Could not refresh conversation id:",error));
+ }
+ ensureScaPublicKey().catch(error=>console.warn("Could not sync account message key:",error));
  await loadMessages();
  messages.classList.remove("sca-dm-cache-ready");if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  let remoteTypingExpiry=null;
