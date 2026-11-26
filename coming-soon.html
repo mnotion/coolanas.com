@@ -827,237 +827,6 @@ async function setScaCachedConversationId(friendId,conversationId){scaDmConversa
 const scaDmConversationIds=new Map();const scaDmMessageMemoryCache=new Map();
 async function getScaCachedMessages(conversationId){if(scaDmMessageMemoryCache.has(conversationId))return scaDmMessageMemoryCache.get(conversationId);const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("messages").objectStore("messages").get(conversationId);r.onsuccess=()=>{const rows=r.result||[];scaDmMessageMemoryCache.set(conversationId,rows);resolve(rows);};r.onerror=()=>reject(r.error);});}
 async function setScaCachedMessages(conversationId,rows){scaDmMessageMemoryCache.set(conversationId,rows);const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("messages","readwrite");tx.objectStore("messages").put(rows,conversationId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
-async function getScaStoredKey(keyId=user.id){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const r=db.transaction("keys").objectStore("keys").get(keyId);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});}
-async function putScaStoredKey(keyId,value){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").put(value,keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
-async function deleteScaStoredKey(keyId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").delete(keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
-function sameScaPublicKey(a,b){return Boolean(a&&b&&a.kty==="EC"&&b.kty==="EC"&&a.crv===b.crv&&a.x===b.x&&a.y===b.y);}
-function scaRecoveryCodeText(bytes){return Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("").match(/.{1,8}/g).join("-");}
-function normalizeScaRecoveryCode(value){return String(value||"").replace(/[-\s]/g,"").toLowerCase();}
-async function deriveScaRecoveryKey(code,salt,iterations){
- const material=await crypto.subtle.importKey("raw",new TextEncoder().encode(normalizeScaRecoveryCode(code)),"PBKDF2",false,["deriveKey"]);
- return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
-}
-async function createScaEncryptedBackup(privateJwk,publicJwk){
- const random=new Uint8Array(24),salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
- crypto.getRandomValues(random);
- const code=scaRecoveryCodeText(random),iterations=600000,key=await deriveScaRecoveryKey(code,salt,iterations);
- const payload={userId:user.id,privateJwk,publicJwk,version:2};
- const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(payload)));
- return {code,backup:{v:1,kdf:"PBKDF2-SHA-256",iterations,salt:scaB64(salt),iv:scaB64(iv),ciphertext:scaB64(new Uint8Array(encrypted)),public_key:publicJwk}};
-}
-async function decryptScaEncryptedBackup(backup,code){
- if(!backup||backup.v!==1||backup.kdf!=="PBKDF2-SHA-256"||backup.iterations!==600000)throw new Error("This recovery backup format is not supported.");
- const key=await deriveScaRecoveryKey(code,scaUnB64(backup.salt),backup.iterations);
- const clear=await crypto.subtle.decrypt({name:"AES-GCM",iv:scaUnB64(backup.iv)},key,scaUnB64(backup.ciphertext));
- const payload=JSON.parse(new TextDecoder().decode(clear));
- if(payload.userId!==user.id||payload.version!==2||!payload.privateJwk||!payload.publicJwk)throw new Error("This recovery code does not match this account.");
- return payload;
-}
-function ensureScaRecoveryDialogStyles(){
- if(document.getElementById("sca-key-recovery-styles"))return;
- const style=document.createElement("style");style.id="sca-key-recovery-styles";
- style.textContent=".sca-key-recovery-overlay{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.62);backdrop-filter:blur(8px)}.sca-key-recovery-card{width:min(460px,100%);padding:24px;border:1px solid rgba(255,255,255,.14);border-radius:18px;background:#242424;color:#f5f5f5;box-shadow:0 22px 80px rgba(0,0,0,.45);font:14px/1.5 Inter,system-ui,sans-serif}.sca-key-recovery-card h2{margin:0 0 9px;font-size:20px}.sca-key-recovery-card p{margin:0 0 14px;color:#b8b8b8}.sca-key-recovery-code{display:block;width:100%;min-height:76px;margin:12px 0;padding:12px;border:1px solid #555;border-radius:10px;background:#171717;color:#fff;font:700 15px/1.7 ui-monospace,monospace;letter-spacing:.04em;resize:none;overflow-wrap:anywhere}.sca-key-recovery-input{width:100%;height:44px;margin:8px 0 12px;padding:0 12px;border:1px solid #555;border-radius:9px;background:#171717;color:#fff;font:14px ui-monospace,monospace}.sca-key-recovery-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}.sca-key-recovery-actions button{min-height:40px;padding:0 14px;border:1px solid #5b80b4;border-radius:9px;background:#416caa;color:#fff;font:650 13px Inter,system-ui,sans-serif;cursor:pointer}.sca-key-recovery-actions button.secondary{border-color:#555;background:#333;color:#eee}.sca-key-recovery-error{min-height:18px;color:#ffaaaa!important;font-size:12px}";
- document.head.append(style);
-}
-function showScaRecoveryCode(code){
- ensureScaRecoveryDialogStyles();
- return new Promise(resolve=>{
-  const overlay=document.createElement("div");overlay.className="sca-key-recovery-overlay";
-  const card=document.createElement("section");card.className="sca-key-recovery-card";card.setAttribute("role","dialog");card.setAttribute("aria-modal","true");card.setAttribute("aria-labelledby","sca-key-recovery-title");
-  const title=document.createElement("h2");title.id="sca-key-recovery-title";title.textContent="Save your message recovery code";
-  const warning=document.createElement("p");warning.textContent="This code is the only way to restore your encrypted message history on another device. Coolanas cannot recover it for you. Save it somewhere private before continuing.";
-  const codeBox=document.createElement("textarea");codeBox.className="sca-key-recovery-code";codeBox.readOnly=true;codeBox.value=code;codeBox.setAttribute("aria-label","Message recovery code");
-  const feedback=document.createElement("p");feedback.className="sca-key-recovery-error";feedback.textContent="Do not share this code with anyone.";
-  const actions=document.createElement("div");actions.className="sca-key-recovery-actions";
-  const copy=document.createElement("button");copy.type="button";copy.textContent="Copy code";
-  copy.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(code);feedback.textContent="Copied. Store it somewhere private."; }catch{codeBox.focus();codeBox.select();feedback.textContent="Select and copy the code manually."; }});
-  const saved=document.createElement("button");saved.type="button";saved.textContent="I've saved it";
-  saved.addEventListener("click",()=>{overlay.remove();resolve();});
-  actions.append(copy,saved);card.append(title,warning,codeBox,feedback,actions);overlay.append(card);document.body.append(overlay);
-  codeBox.focus();codeBox.select();
- });
-}
-function requestScaRecoveryCode(backup){
- ensureScaRecoveryDialogStyles();
- return new Promise((resolve,reject)=>{
-  const overlay=document.createElement("div");overlay.className="sca-key-recovery-overlay";
-  const card=document.createElement("section");card.className="sca-key-recovery-card";card.setAttribute("role","dialog");card.setAttribute("aria-modal","true");card.setAttribute("aria-labelledby","sca-key-restore-title");
-  const title=document.createElement("h2");title.id="sca-key-restore-title";title.textContent="Restore encrypted messages";
-  const note=document.createElement("p");note.textContent="Enter the recovery code saved on your original device. The code unlocks your private message key locally on this device.";
-  const form=document.createElement("form");
-  const input=document.createElement("input");input.className="sca-key-recovery-input";input.type="text";input.autocomplete="off";input.spellcheck=false;input.placeholder="Paste recovery code";input.required=true;
-  const error=document.createElement("p");error.className="sca-key-recovery-error";error.setAttribute("aria-live","polite");
-  const actions=document.createElement("div");actions.className="sca-key-recovery-actions";
-  const cancel=document.createElement("button");cancel.type="button";cancel.className="secondary";cancel.textContent="Cancel";cancel.addEventListener("click",()=>{overlay.remove();reject(new Error("Message recovery was cancelled."));});
-  const submit=document.createElement("button");submit.type="submit";submit.textContent="Unlock messages";
-  form.addEventListener("submit",async event=>{
-   event.preventDefault();if(!input.value.trim())return;submit.disabled=true;error.textContent="Checking recovery code…";
-   try{
-    const payload=await decryptScaEncryptedBackup(backup,input.value.trim());
-    overlay.remove();resolve(payload);
-   }catch(e){
-    error.textContent="That recovery code did not unlock this backup. Check it and try again.";
-    submit.disabled=false;input.focus();input.select();
-   }
-  });
-  actions.append(cancel,submit);form.append(input,error,actions);card.append(title,note,form);overlay.append(card);document.body.append(overlay);input.focus();
- });
-}
-async function readScaRemoteKeyState(){
- const [keyResult,backupResult]=await Promise.all([
-  supabase.from("coolanas_dm_keys").select("public_key,key_version").eq("user_id",user.id).maybeSingle(),
-  supabase.from("coolanas_dm_key_backups").select("private_key,backup").eq("user_id",user.id).maybeSingle()
- ]);
- if(keyResult.error)throw keyResult.error;if(backupResult.error)throw backupResult.error;
- return {key:keyResult.data||null,privateJwk:backupResult.data?.private_key||null,backup:backupResult.data?.backup||null};
-}
-async function saveScaAccountKey(privateJwk,publicJwk){
- const {data:existing,error:readError}=await supabase.from("coolanas_dm_key_backups").select("backup").eq("user_id",user.id).maybeSingle();
- if(readError)throw readError;
- let encryptedBackup=existing?.backup;
- if(!encryptedBackup||encryptedBackup.v!==1||encryptedBackup.kdf!=="PBKDF2-SHA-256"||!sameScaPublicKey(encryptedBackup.public_key,publicJwk)){
-  const created=await createScaEncryptedBackup(privateJwk,publicJwk);
-  await showScaRecoveryCode(created.code);
-  encryptedBackup=created.backup;
- }
- // The server stores only the recovery-code-encrypted backup, never a plaintext private JWK.
- const {error}=await supabase.from("coolanas_dm_key_backups").upsert({user_id:user.id,private_key:null,backup:encryptedBackup},{onConflict:"user_id"});
- if(error)throw error;
-}
-async function importScaAccountKey(privateJwk,publicJwk){
- const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
- const record={version:2,privateKey,publicJwk};
- await saveScaKeyRecord(record);
- return record;
-}
-async function saveScaKeyRecord(record){await putScaStoredKey(user.id,record);}
-async function restoreScaDeviceKey(privateJwk,publicJwk){
- const record=await importScaAccountKey(privateJwk,publicJwk);
- await saveScaAccountKey(privateJwk,publicJwk);
- return record;
-}
-async function deriveScaMessageKeyWithPrivate(privateKey,peerPublicJwk,conversationId,salt){
- const peer=await crypto.subtle.importKey("jwk",peerPublicJwk,{name:"ECDH",namedCurve:"P-256"},false,[]);
- const bits=await crypto.subtle.deriveBits({name:"ECDH",public:peer},privateKey,256);
- const material=await crypto.subtle.importKey("raw",bits,"HKDF",false,["deriveKey"]);
- return crypto.subtle.deriveKey({name:"HKDF",hash:"SHA-256",salt,info:new TextEncoder().encode("Coolanas SCA DM v1:"+conversationId)},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
-}
-async function decryptScaMessageWithPrivate(envelope,privateKey,peerPublicJwk,conversationId){
- if(!envelope||envelope.v!==1)throw new Error("Unsupported encrypted message.");
- const key=await deriveScaMessageKeyWithPrivate(privateKey,peerPublicJwk,conversationId,scaUnB64(envelope.salt));
- const clear=await crypto.subtle.decrypt({name:"AES-GCM",iv:scaUnB64(envelope.iv)},key,scaUnB64(envelope.ciphertext));
- return new TextDecoder().decode(clear);
-}
-async function encryptScaMessageWithPrivate(text,privateKey,peerPublicJwk,conversationId){
- const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
- const key=await deriveScaMessageKeyWithPrivate(privateKey,peerPublicJwk,conversationId,salt);
- const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(text));
- return {v:1,salt:scaB64(salt),iv:scaB64(iv),ciphertext:scaB64(new Uint8Array(encrypted))};
-}
-async function rotateScaLegacyDeviceKey(legacyRecord,expectedPublicKey){
- const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
- const publicJwk=await crypto.subtle.exportKey("jwk",pair.publicKey),privateJwk=await crypto.subtle.exportKey("jwk",pair.privateKey);
- const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
- const {data:conversations,error:conversationError}=await supabase.from("coolanas_dm_conversations").select("id,user_a,user_b").or("user_a.eq."+user.id+",user_b.eq."+user.id);
- if(conversationError)throw conversationError;
- const updates=[];
- for(const conversation of conversations||[]){
-  const friendId=conversation.user_a===user.id?conversation.user_b:conversation.user_a;
-  const {data:peer,error:peerError}=await supabase.from("coolanas_dm_keys").select("public_key").eq("user_id",friendId).maybeSingle();
-  if(peerError)throw peerError;
-  let offset=0;
-  while(true){
-   const {data:rows,error:rowsError}=await supabase.from("coolanas_dm_messages").select("id,ciphertext").eq("conversation_id",conversation.id).order("created_at",{ascending:true}).order("id",{ascending:true}).range(offset,offset+99);
-   if(rowsError)throw rowsError;
-   for(const row of rows||[]){
-    if(row.ciphertext?.v===0){updates.push({id:row.id,ciphertext:row.ciphertext});continue;}
-    if(row.ciphertext?.v!==1)throw new Error("A conversation contains a message format that cannot be migrated safely.");
-    if(!peer?.public_key)throw new Error("A friend is missing an encryption key. Their original device must be available before key migration can continue.");
-    const plaintext=await decryptScaMessageWithPrivate(row.ciphertext,legacyRecord.privateKey,peer.public_key,conversation.id);
-    updates.push({id:row.id,ciphertext:await encryptScaMessageWithPrivate(plaintext,privateKey,peer.public_key,conversation.id)});
-   }
-   offset+=(rows||[]).length;if(!rows||rows.length<100)break;
-  }
- }
- // The database RPC applies every ciphertext update and the key/backup change in one transaction.
- const created=await createScaEncryptedBackup(privateJwk,publicJwk);
- await showScaRecoveryCode(created.code);
- const {error:rotationError}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{
-  p_public_key:publicJwk,p_backup:created.backup,p_updates:updates,p_expected_public_key:expectedPublicKey
- });
- if(rotationError)throw rotationError;
- const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
-}
-async function createFirstScaDeviceKey(){
- const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
- const publicJwk=await crypto.subtle.exportKey("jwk",pair.publicKey),privateJwk=await crypto.subtle.exportKey("jwk",pair.privateKey);
- const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
- const created=await createScaEncryptedBackup(privateJwk,publicJwk);
- await showScaRecoveryCode(created.code);
- const {error}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{
-  p_public_key:publicJwk,p_backup:created.backup,p_updates:[],p_expected_public_key:null
- });
- if(error)throw error;
- const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
-}
-let scaDeviceKeyPromise=null;
-async function getScaDeviceKey(){
- if(scaDeviceKeyPromise)return scaDeviceKeyPromise;
- scaDeviceKeyPromise=(async()=>{
-  const remote=await readScaRemoteKeyState();
-  const pending=await getScaStoredKey(user.id+":pending");
-  if(pending)await deleteScaStoredKey(user.id+":pending");
-  const existing=await getScaStoredKey(user.id);
-  // Keep a matching local key; create its encrypted recovery backup if this is the original device.
-  if(existing?.version===2&&sameScaPublicKey(remote.key?.public_key,existing.publicJwk)){
-   const privateJwk=await crypto.subtle.exportKey("jwk",existing.privateKey).catch(()=>null);
-   if(privateJwk){await saveScaAccountKey(privateJwk,existing.publicJwk);return existing;}
-   throw new Error("This device's private key is unavailable. Restore it with the recovery code from your original device.");
-  }
-  // Compatibility path for accounts that still have a legacy plaintext backup. It is immediately
-  // converted to a recovery-code-encrypted backup by saveScaAccountKey.
-  if(remote.privateJwk&&remote.key?.public_key)return restoreScaDeviceKey(remote.privateJwk,remote.key.public_key);
-  // A new device can restore only from the encrypted backup and the code saved on the original device.
-  if(remote.backup?.v===1&&remote.key?.public_key){
-   const payload=await requestScaRecoveryCode(remote.backup);
-   if(!sameScaPublicKey(payload.publicJwk,remote.key.public_key))throw new Error("The recovery backup does not match the account's current encryption key. Use the recovery code from the device that most recently updated your messages.");
-   return restoreScaDeviceKey(payload.privateJwk,payload.publicJwk);
-  }
-  if(existing)return rotateScaLegacyDeviceKey(existing,remote.key?.public_key||null);
-  if(remote.key)throw new Error("Your original device must open SCA Messages once to create a recovery code. Keep its browser data intact.");
-  return createFirstScaDeviceKey();
- })();
- try{return await scaDeviceKeyPromise;}finally{scaDeviceKeyPromise=null;}
-}
-let scaEnsuredDeviceKeyPromise=null;
-async function ensureScaPublicKey(){
- if(scaEnsuredDeviceKeyPromise)return scaEnsuredDeviceKeyPromise;
- scaEnsuredDeviceKeyPromise=(async()=>{
-  const local=await getScaDeviceKey();
-  const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key,key_version").eq("user_id",user.id).maybeSingle();if(error)throw error;
-  if(!data||!sameScaPublicKey(data.public_key,local.publicJwk))throw new Error("The account encryption key does not match this device. Refresh the page and retry account key sync.");
-  return local;
- })();
- try{return await scaEnsuredDeviceKeyPromise;}catch(error){scaEnsuredDeviceKeyPromise=null;throw error;}
-}
-async function scaMessageKey(friendId,conversationId,salt){
- const local=await ensureScaPublicKey();const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key").eq("user_id",friendId).maybeSingle();if(error)throw error;
- if(!data?.public_key)throw new Error("Your friend needs to open SCA Messages once to register their encryption key.");
- return deriveScaMessageKeyWithPrivate(local.privateKey,data.public_key,conversationId,salt);
-}
-function scaB64(bytes){let s="";for(const b of bytes)s+=String.fromCharCode(b);return btoa(s);}
-function scaUnB64(value){return Uint8Array.from(atob(value),c=>c.charCodeAt(0));}
-async function encryptScaMessage(text,friendId,conversationId){
- const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await scaMessageKey(friendId,conversationId,salt);
- const encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(text));
- return {v:1,salt:scaB64(salt),iv:scaB64(iv),ciphertext:scaB64(new Uint8Array(encrypted))};
-}
-async function decryptScaMessage(envelope,friendId,conversationId){
- if(!envelope||envelope.v!==1)throw new Error("Unsupported encrypted message.");
- const key=await scaMessageKey(friendId,conversationId,scaUnB64(envelope.salt));
- const clear=await crypto.subtle.decrypt({name:"AES-GCM",iv:scaUnB64(envelope.iv)},key,scaUnB64(envelope.ciphertext));return new TextDecoder().decode(clear);
-}
-
 async function renderScaMessagesDraft(){
  scaPrimary.classList.add("sca-messaging-active");
  scaPrimary.innerHTML='<div class="sca-dm-layout"><aside class="sca-dm-sidebar"><div class="sca-dm-friend-list" id="sca-dm-friend-list"><p class="sca-dm-no-friends">Loading friends…</p></div></aside><section class="sca-dm-conversation" id="sca-dm-conversation"><div class="sca-dm-empty"><div class="sca-dm-empty-icon">✉</div><strong>Select a friend</strong></div></section></div>';
@@ -1148,41 +917,8 @@ async function openScaConversation(friend,picture){
   }
   messages.scrollTop=messages.scrollHeight;
  }
- async function decryptRows(rows){
-  const result=[];
-  const needsPrivateKey=rows.some(item=>item.ciphertext?.v===1);
-  let keyReady=!needsPrivateKey;
-  if(needsPrivateKey){
-   try{await ensureScaPublicKey();keyReady=true;}
-   catch(error){console.warn("SCA message key is unavailable on this device:",error);}
-  }
-  for(const item of rows){
-   let clearText="";
-   try{
-    if(item.ciphertext?.v===0)clearText=String(item.ciphertext.plaintext??"");
-    else if(!keyReady)throw new Error("Message key recovery is required on this device.");
-    else clearText=await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);
-   }catch(error){clearText="Unable to decrypt on this device.";}
-   result.push({...item,clearText});
-  }
-  return result;
- }
- async function encryptViewedPlainMessages(render=true){
-  const pending=cachedRows.filter(item=>item.read_at&&item.ciphertext?.v===0);
-  let changed=false;
-  for(const item of pending){
-   try{
-    const envelope=await encryptScaMessage(item.clearText??item.ciphertext.plaintext,friend.friend_id,conversationId);
-    const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:envelope}).eq("id",item.id).not("read_at","is",null);
-    if(error)throw error;
-    cachedRows=cachedRows.map(row=>row.id===item.id?{...row,ciphertext:envelope}:row);
-    await setScaCachedMessages(conversationId,cachedRows);changed=true;
-   }catch(error){console.warn("Could not encrypt viewed first-contact message yet:",error.message);}
-  }
-  if(changed&&render)renderMessageRows(cachedRows);
-  return changed;
- }
- let messagesLoading=false,messagesReloadQueued=false,historyLoaded=false;
+ async function decryptRows(rows){return rows.map(item=>({...item,clearText:item.ciphertext?.v===0?String(item.ciphertext.plaintext??""):"[This message used the retired encryption system and cannot be displayed.]"}));}
+  let messagesLoading=false,messagesReloadQueued=false,historyLoaded=false;
  async function syncCachedReadStatuses(render=true){
   if(!cachedRows.length)return false;
   const ids=cachedRows.map(item=>item.id);
@@ -1192,9 +928,9 @@ async function openScaConversation(friend,picture){
   let changed=false;
   cachedRows=cachedRows.map(item=>{if(!statuses.has(item.id))return item;const readAt=statuses.get(item.id)||null;if((item.read_at||null)===readAt)return item;changed=true;return {...item,read_at:readAt};});
   if(changed)await setScaCachedMessages(conversationId,cachedRows);
-  const encrypted=await encryptViewedPlainMessages(render);
+  
   if(changed&&render)renderMessageRows(cachedRows);
-  return changed||encrypted;
+  return changed;
  }
  async function markIncomingMessagesRead(render=true){
   if(document.visibilityState!=="visible"||!panel.isConnected)return false;
@@ -1204,7 +940,7 @@ async function openScaConversation(friend,picture){
    const readAtById=new Map(data.map(item=>[item.id,item.read_at]));
    cachedRows=cachedRows.map(item=>readAtById.has(item.id)?{...item,read_at:readAtById.get(item.id)}:item);
    await setScaCachedMessages(conversationId,cachedRows);
-   await encryptViewedPlainMessages(render);
+   
    if(render)renderMessageRows(cachedRows);
    return true;
   }
@@ -1301,7 +1037,7 @@ async function openScaConversation(friend,picture){
    if(resolvedId&&resolvedId!==conversationId)console.warn("Conversation id changed for cached friend; retaining the cached conversation until refreshed.");
   }).catch(error=>console.warn("Could not refresh conversation id:",error));
  }
- ensureScaPublicKey().catch(error=>console.warn("Could not sync account message key:",error));
+ // No encryption-key setup is needed.
  await loadMessages();
  messages.classList.remove("sca-dm-cache-ready");if(scaDmChannel)await supabase.removeChannel(scaDmChannel);
  let remoteTypingExpiry=null;
@@ -1311,7 +1047,7 @@ async function openScaConversation(friend,picture){
    const updated=payload.new,index=cachedRows.findIndex(item=>item.id===updated.id);
    if(index<0)return;
    cachedRows[index]={...cachedRows[index],read_at:updated.read_at||null,ciphertext:updated.ciphertext??cachedRows[index].ciphertext};
-   if(updated.ciphertext?.v===1){try{cachedRows[index].clearText=await decryptScaMessage(updated.ciphertext,friend.friend_id,conversationId);}catch(error){cachedRows[index].clearText="Unable to decrypt on this device.";}}
+   if(updated.ciphertext?.v===1)cachedRows[index].clearText="[This message used the retired encryption system and cannot be displayed.]"
    await setScaCachedMessages(conversationId,cachedRows).catch(console.warn);
    renderMessageRows(cachedRows);
   })
@@ -1359,35 +1095,19 @@ async function openScaConversation(friend,picture){
    if(scaDmChannelReady)scaDmChannel?.send({type:"broadcast",event:"typing",payload:{userId:user.id,typing:true}}).then(status=>{if(status!=="ok")console.warn("SCA typing heartbeat was not acknowledged:",status);}).catch(error=>console.warn("SCA typing heartbeat failed:",error));
   },2000);
  }
- let preparedDraftText="",preparedDraftEnvelope=null,preparedDraftPromise=Promise.resolve(null),draftPreparationVersion=0;
- input.addEventListener("input",()=>{
-  const draft=input.value;
-  broadcastTyping(draft.length>0);
-  const version=++draftPreparationVersion;
-  preparedDraftText=draft;preparedDraftEnvelope=null;
-  if(!draft.length||!cachedRows.some(item=>item.ciphertext?.v===1)){preparedDraftPromise=Promise.resolve(null);return;}
-  // Prepare encryption locally as each character changes. Draft contents are
-  // never broadcast or written to the database before the user presses Enter.
-  preparedDraftPromise=encryptScaMessage(draft,friend.friend_id,conversationId).then(envelope=>{
-   if(version===draftPreparationVersion&&preparedDraftText===draft)preparedDraftEnvelope=envelope;
-   return envelope;
-  }).catch(error=>{if(version===draftPreparationVersion)console.warn("Could not prepare encrypted draft:",error);return null;});
- });
- let pendingSendCount=0;
+ input.addEventListener("input",()=>broadcastTyping(input.value.length>0));
+  let pendingSendCount=0;
  composer.addEventListener("submit",event=>{
   event.preventDefault();
   const text=input.value.trim();if(!text||text.length>300)return;
   const messageId=crypto.randomUUID(),createdAt=new Date().toISOString();
-  const useEncryption=cachedRows.some(item=>item.ciphertext?.v===1);
-  const draftPromise=preparedDraftText===input.value?preparedDraftPromise:Promise.resolve(null);
-  const draftEnvelope=preparedDraftText===input.value?preparedDraftEnvelope:null;
-  const optimistic={id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:{v:0,plaintext:text},created_at:createdAt,read_at:null,clearText:text};
+    const optimistic={id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:{v:0,plaintext:text},created_at:createdAt,read_at:null,clearText:text};
   cachedRows=[...cachedRows,optimistic];setScaCachedMessages(conversationId,cachedRows).catch(console.warn);renderMessageRows(cachedRows);
   input.value="";count.hidden=true;count.textContent="";input.style.height="";send.disabled=true;
-  draftPreparationVersion++;preparedDraftText="";preparedDraftEnvelope=null;preparedDraftPromise=Promise.resolve(null);
+  
   broadcastTyping(false);input.focus();pendingSendCount++;
   (async()=>{
-   const envelope=useEncryption?(draftEnvelope||await draftPromise||await encryptScaMessage(text,friend.friend_id,conversationId)):optimistic.ciphertext;
+   const envelope=optimistic.ciphertext;
    cachedRows=cachedRows.map(item=>item.id===messageId?{...item,ciphertext:envelope}:item);
    await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);
    const result=await supabase.from("coolanas_dm_messages").insert({id:messageId,conversation_id:conversationId,sender_id:user.id,ciphertext:envelope});
