@@ -931,7 +931,11 @@ async function importScaAccountKey(privateJwk,publicJwk){
  return record;
 }
 async function saveScaKeyRecord(record){await putScaStoredKey(user.id,record);}
-async function restoreScaDeviceKey(privateJwk,publicJwk){return importScaAccountKey(privateJwk,publicJwk);}
+async function restoreScaDeviceKey(privateJwk,publicJwk){
+ const record=await importScaAccountKey(privateJwk,publicJwk);
+ await saveScaAccountKey(privateJwk,publicJwk);
+ return record;
+}
 async function deriveScaMessageKeyWithPrivate(privateKey,peerPublicJwk,conversationId,salt){
  const peer=await crypto.subtle.importKey("jwk",peerPublicJwk,{name:"ECDH",namedCurve:"P-256"},false,[]);
  const bits=await crypto.subtle.deriveBits({name:"ECDH",public:peer},privateKey,256);
@@ -975,10 +979,7 @@ async function rotateScaLegacyDeviceKey(legacyRecord,expectedPublicKey){
    offset+=(rows||[]).length;if(!rows||rows.length<100)break;
   }
  }
- for(const item of updates){
-  const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:item.ciphertext}).eq("id",item.id);
-  if(error)throw error;
- }
+ // The database RPC applies every ciphertext update and the key/backup change in one transaction.
  const created=await createScaEncryptedBackup(privateJwk,publicJwk);
  await showScaRecoveryCode(created.code);
  const {error:rotationError}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{
