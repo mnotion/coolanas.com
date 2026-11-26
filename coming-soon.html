@@ -839,7 +839,7 @@ async function rotateScaLegacyDeviceKey(legacyRecord,expectedPublicKey){
  const pending={version:2,privateKey,publicJwk};
  await putScaStoredKey(user.id+":pending",pending);
  const {error:rotationError}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{p_public_key:publicJwk,p_backup:backup,p_updates:updates,p_expected_public_key:expectedPublicKey});
- if(rotationError){await deleteScaStoredKey(user.id+":pending");throw rotationError;}
+ if(rotationError){await deleteScaStoredKey(user.id+":pending");alert("The key migration did not complete, so the recovery code shown was not activated. Keep this device's browser data intact and retry after resolving the issue. "+(rotationError.message||""));throw rotationError;}
  await saveScaKeyRecord(pending);await deleteScaStoredKey(user.id+":pending");
  return pending;
 }
@@ -852,7 +852,7 @@ async function createFirstScaDeviceKey(expectedPublicKey=null){
  const pending={version:2,privateKey,publicJwk};
  await putScaStoredKey(user.id+":pending",pending);
  const {error}=await supabase.rpc("coolanas_dm_rotate_encryption_key",{p_public_key:publicJwk,p_backup:backup,p_updates:[],p_expected_public_key:expectedPublicKey});
- if(error){await deleteScaStoredKey(user.id+":pending");throw error;}
+ if(error){await deleteScaStoredKey(user.id+":pending");alert("Encryption setup did not complete, so the recovery code shown was not activated. Retry setup and save the new code. "+(error.message||""));throw error;}
  await saveScaKeyRecord(pending);await deleteScaStoredKey(user.id+":pending");
  return pending;
 }
@@ -868,7 +868,10 @@ async function getScaDeviceKey(){
   if(pending)await deleteScaStoredKey(user.id+":pending");
   const existing=await getScaStoredKey(user.id);
   if(existing?.version===2){
-   if(remote.backup&&remote.key?.key_version===2)return existing;
+   if(remote.backup&&remote.key?.key_version===2){
+    if(sameScaPublicKey(remote.key.public_key,existing.publicJwk))return existing;
+    return restoreScaDeviceKey(remote.backup);
+   }
    return rotateScaLegacyDeviceKey(existing,remote.key?.public_key||null);
   }
   if(existing){
@@ -884,7 +887,10 @@ async function getScaDeviceKey(){
 async function ensureScaPublicKey(){
  const local=await getScaDeviceKey();
  const {data,error}=await supabase.from("coolanas_dm_keys").select("public_key,key_version").eq("user_id",user.id).maybeSingle();if(error)throw error;
- if(!sameScaPublicKey(data?.public_key,local.publicJwk)||data?.key_version!==2){
+ if(data&&!sameScaPublicKey(data.public_key,local.publicJwk)){
+  throw new Error("This device's message key does not match the account's current key. Restore the account recovery backup instead of replacing the key.");
+ }
+ if(!data||data.key_version!==2){
   const result=await supabase.from("coolanas_dm_keys").upsert({user_id:user.id,public_key:local.publicJwk,key_version:2},{onConflict:"user_id"});if(result.error)throw result.error;
  }
  return local;
