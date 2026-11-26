@@ -922,7 +922,7 @@ async function saveScaAccountKey(privateJwk,publicJwk){
 }
 async function importScaAccountKey(privateJwk,publicJwk){
  const privateKey=await crypto.subtle.importKey("jwk",privateJwk,{name:"ECDH",namedCurve:"P-256"},false,["deriveBits"]);
- const record={version:2,privateKey,publicJwk};
+ const record={version:2,privateKey,publicJwk,privateJwk};
  await saveScaKeyRecord(record);
  return record;
 }
@@ -981,7 +981,7 @@ async function rotateScaLegacyDeviceKey(legacyRecord,expectedPublicKey){
   p_updates:updates,p_expected_public_key:expectedPublicKey
  });
  if(rotationError)throw rotationError;
- const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
+ const record={version:2,privateKey,publicJwk,privateJwk};await saveScaKeyRecord(record);return record;
 }
 async function createFirstScaDeviceKey(){
  const pair=await crypto.subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveBits"]);
@@ -992,7 +992,7 @@ async function createFirstScaDeviceKey(){
   p_updates:[],p_expected_public_key:null
  });
  if(error)throw error;
- const record={version:2,privateKey,publicJwk};await saveScaKeyRecord(record);return record;
+ const record={version:2,privateKey,publicJwk,privateJwk};await saveScaKeyRecord(record);return record;
 }
 let scaDeviceKeyPromise=null;
 async function getScaDeviceKey(){
@@ -1004,9 +1004,17 @@ async function getScaDeviceKey(){
   const existing=await getScaStoredKey(user.id);
   // Keep a matching local key and synchronise it to the authenticated account's backend record.
   if(existing?.version===2&&sameScaPublicKey(remote.key?.public_key,existing.publicJwk)){
-   const privateJwk=await crypto.subtle.exportKey("jwk",existing.privateKey).catch(()=>null);
-   if(privateJwk){await saveScaAccountKey(privateJwk,existing.publicJwk);return existing;}
-   throw new Error("This device's private key is unavailable. Restore it with the recovery code from your original device.");
+   // Older cached CryptoKeys were non-extractable. Prefer the persisted JWK, then the
+   // backend copy; if neither exists, rotate from the still-usable local CryptoKey.
+   const privateJwk=existing.privateJwk||await crypto.subtle.exportKey("jwk",existing.privateKey).catch(()=>null);
+   if(privateJwk){
+    const record={...existing,privateJwk};
+    await saveScaAccountKey(privateJwk,existing.publicJwk);
+    await saveScaKeyRecord(record);
+    return record;
+   }
+   if(remote.privateJwk)return restoreScaDeviceKey(remote.privateJwk,remote.key.public_key);
+   return rotateScaLegacyDeviceKey(existing,remote.key.public_key);
   }
   // Restore directly from the account-managed backend private key on every new device.
   if(remote.privateJwk&&remote.key?.public_key)return restoreScaDeviceKey(remote.privateJwk,remote.key.public_key);
