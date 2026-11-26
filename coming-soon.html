@@ -1129,7 +1129,7 @@ async function initGuildChat(){
    }).subscribe();
  }
 }
-\nconst scaWorkspace=document.getElementById("sca-workspace");
+const scaWorkspace=document.getElementById("sca-workspace");
 const scaMain=document.getElementById("sca-main");
 const scaPrimary=document.getElementById("sca-primary-panel");
 const scaGuildUsersPanel=document.getElementById("sca-guild-users-panel");
@@ -1178,8 +1178,7 @@ function openScaSection(section){
       addGuildMember(value);
     });
     lastGuildTimerMarkup="";
-    initGuildPanel();
-    initGuildChat();
+    initGuildPanel().then(()=>initGuildChat()).catch(error=>console.error("Guild initialisation failed:",error));
     return;
   }
   if(section!=="friends"){scaPrimary.replaceChildren();return;}
