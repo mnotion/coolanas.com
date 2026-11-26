@@ -768,8 +768,8 @@ html:not(.dark-mode) .sca-guild-timer-card{box-shadow:0 0 0 1px rgba(0,0,0,.04),
 
 
 /* Guild layout and interaction corrections */
-.sca-guild-active .sca-sidebar{opacity:0;transform:translate(-125%,-50%);pointer-events:none;transition:transform .22s ease,opacity .18s ease}
-.sca-main[data-section="guild"]{margin-left:18px!important;width:calc(100vw - 36px)!important;padding:112px 30px 82px!important;grid-template-columns:minmax(0,1fr) 290px!important}
+.sca-guild-active .sca-sidebar{opacity:1;transform:translateY(-50%);pointer-events:auto;width:68px;transition:width .22s ease,transform .22s ease,opacity .18s ease}.sca-guild-active .sca-nav-item{justify-content:center;padding:0}.sca-guild-active .sca-nav-item span{display:none}
+.sca-main[data-section="guild"]{margin-left:104px!important;width:calc(100vw - 122px)!important;padding:112px 30px 82px!important;grid-template-columns:minmax(0,1fr) 290px!important}
 .sca-main[data-section="guild"] .sca-guild-timer-card{height:176px;min-height:0}
 .sca-guild-members-head{align-items:center!important;justify-content:center!important;text-align:center}
 .sca-guild-title{text-align:center!important;width:100%}
@@ -799,7 +799,7 @@ html:not(.dark-mode) .sca-guild-chat-message.mine .sca-guild-chat-bubble{backgro
 html.dark-mode .sca-guild-user-row.status-working{background:rgba(45,170,95,.13)!important}
 html.dark-mode .sca-guild-user-row.status-paused{background:rgba(202,157,61,.12)!important}
 @media(max-width:760px){
- .sca-main[data-section="guild"]{margin-left:8px!important;width:calc(100vw - 16px)!important;padding:104px 10px 78px!important;grid-template-columns:minmax(0,1fr) 210px!important}
+ .sca-main[data-section="guild"]{margin-left:82px!important;width:calc(100vw - 90px)!important;padding:104px 10px 78px!important;grid-template-columns:minmax(0,1fr) 210px!important}
 }
 @media(max-width:520px){
  .sca-main[data-section="guild"]{padding:92px 8px 76px!important;grid-template-columns:minmax(0,1fr) 142px!important}
@@ -1195,7 +1195,7 @@ function openScaSection(section){
     if(button.dataset.scaSection===section)button.setAttribute("aria-current","page");
     else button.removeAttribute("aria-current");
   });
-  scaWorkspace.classList.toggle("is-expanded",section==="friends");
+  scaWorkspace.classList.toggle("is-expanded",section==="friends"||section==="guild");
   if(section==="friends"){friendRail.classList.remove("is-open");friendRail.dataset.tab="search";}
   if(section==="guild"){friendRail.classList.remove("is-open");friendRail.dataset.tab="";}
   scaMain.dataset.section=section;
