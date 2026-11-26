@@ -552,7 +552,7 @@ html.dark-mode .menu-item{background:#292929!important;color:#eee!important}
 @keyframes scaDmFlash{0%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0)}25%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}50%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}75%{background-image:radial-gradient(#ddd 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}100%{background-image:radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0),radial-gradient(#fff 3px,transparent 0)}}
 .sca-dm-messages[aria-busy="true"]::before{content:"Loading message history…";display:block;width:100%;padding:8px 0 12px;text-align:center;color:var(--muted-color,#8b929a);font-size:11px;letter-spacing:.02em}
 @keyframes sca-dm-message-enter{from{opacity:0;transform:translateY(7px) scale(.99)}to{opacity:1;transform:translateY(0) scale(1)}}
-.sca-dm-message-enter{animation:sca-dm-message-enter .24s cubic-bezier(.2,.75,.25,1) both;animation-delay:calc(var(--sca-message-order,0)*18ms)}
+.sca-dm-message-enter{animation:sca-dm-message-enter .24s cubic-bezier(.2,.75,.25,1) both;animation-delay:var(--sca-message-delay,0ms)}
 @media(prefers-reduced-motion:reduce){.sca-dm-typing-indicator,.sca-dm-uiverse-loader,.sca-dm-message-enter{transition:none;animation:none}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
@@ -704,8 +704,8 @@ async function getScaStoredKey(keyId=user.id){const db=await scaDmDbPromise;retu
 async function putScaStoredKey(keyId,value){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").put(value,keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
 async function deleteScaStoredKey(keyId){const db=await scaDmDbPromise;return new Promise((resolve,reject)=>{const tx=db.transaction("keys","readwrite");tx.objectStore("keys").delete(keyId);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
 function sameScaPublicKey(a,b){return Boolean(a&&b&&a.kty==="EC"&&b.kty==="EC"&&a.crv===b.crv&&a.x===b.x&&a.y===b.y);}
-function scaRecoveryCodeText(bytes){return scaB64(bytes).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"").match(/.{1,8}/g).join("-");}
-function normalizeScaRecoveryCode(value){return String(value||"").replace(/[-\s]/g,"").replace(/=/g,"");}
+function scaRecoveryCodeText(bytes){return Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("").match(/.{1,8}/g).join("-");}
+function normalizeScaRecoveryCode(value){return String(value||"").replace(/[-\s]/g,"").toLowerCase();}
 async function deriveScaRecoveryKey(code,salt,iterations){
  const material=await crypto.subtle.importKey("raw",new TextEncoder().encode(normalizeScaRecoveryCode(code)),"PBKDF2",false,["deriveKey"]);
  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
@@ -983,11 +983,12 @@ async function openScaConversation(friend,picture){
  function renderMessageRows(rows,animatedIds=null){
   messages.replaceChildren();
   let previousSenderId=null,arrivalOrder=0;
+  const animationGap=animatedIds?.size?Math.max(2,Math.min(14,2800/animatedIds.size)):0;
   for(const message of rows){
    const mine=message.sender_id===user.id;
    const sameSender=previousSenderId===message.sender_id;
    const row=document.createElement("div");row.className="sca-dm-message-row "+(mine?"mine":"theirs")+(sameSender?" same-sender":"");
-   if(animatedIds?.has(message.id)){row.classList.add("sca-dm-message-enter");row.style.setProperty("--sca-message-order",String(Math.min(arrivalOrder++,28)));}
+   if(animatedIds?.has(message.id)){row.classList.add("sca-dm-message-enter");row.style.setProperty("--sca-message-delay",String(arrivalOrder++*animationGap)+"ms");}
    previousSenderId=message.sender_id;
    const avatar=document.createElement("div");avatar.className="sca-dm-message-avatar";
    if(!sameSender){const avatarElement=mine?avatarNode("You",ownProfilePicture):avatarNode(friend.username,picture);avatar.append(avatarElement);}
@@ -1005,45 +1006,53 @@ async function openScaConversation(friend,picture){
   for(const item of rows){let clearText="";try{clearText=item.ciphertext?.v===0?String(item.ciphertext.plaintext??""):await decryptScaMessage(item.ciphertext,friend.friend_id,conversationId);}catch(e){clearText="Unable to decrypt on this device.";}result.push({...item,clearText});}
   return result;
  }
- async function encryptViewedPlainMessages(){
+ async function encryptViewedPlainMessages(render=true){
   const pending=cachedRows.filter(item=>item.read_at&&item.ciphertext?.v===0);
+  let changed=false;
   for(const item of pending){
    try{
     const envelope=await encryptScaMessage(item.clearText??item.ciphertext.plaintext,friend.friend_id,conversationId);
     const {error}=await supabase.from("coolanas_dm_messages").update({ciphertext:envelope}).eq("id",item.id).not("read_at","is",null);
     if(error)throw error;
     cachedRows=cachedRows.map(row=>row.id===item.id?{...row,ciphertext:envelope}:row);
-    await setScaCachedMessages(conversationId,cachedRows);
+    await setScaCachedMessages(conversationId,cachedRows);changed=true;
    }catch(error){console.warn("Could not encrypt viewed first-contact message yet:",error.message);}
   }
-  if(pending.length)renderMessageRows(cachedRows);
+  if(changed&&render)renderMessageRows(cachedRows);
+  return changed;
  }
  let messagesLoading=false,messagesReloadQueued=false,historyLoaded=false;
- async function syncCachedReadStatuses(){
-  if(!cachedRows.length)return;
+ async function syncCachedReadStatuses(render=true){
+  if(!cachedRows.length)return false;
   const ids=cachedRows.map(item=>item.id);
   const {data,error}=await supabase.from("coolanas_dm_messages").select("id,read_at").eq("conversation_id",conversationId).in("id",ids);
   if(error)throw error;
   const statuses=new Map((data||[]).map(item=>[item.id,item.read_at]));
   let changed=false;
   cachedRows=cachedRows.map(item=>{if(!statuses.has(item.id))return item;const readAt=statuses.get(item.id)||null;if((item.read_at||null)===readAt)return item;changed=true;return {...item,read_at:readAt};});
-  if(changed){await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);}
-  await encryptViewedPlainMessages();
+  if(changed)await setScaCachedMessages(conversationId,cachedRows);
+  const encrypted=await encryptViewedPlainMessages(render);
+  if(changed&&render)renderMessageRows(cachedRows);
+  return changed||encrypted;
  }
- async function markIncomingMessagesRead(){
-  if(document.visibilityState!=="visible"||!panel.isConnected)return;
+ async function markIncomingMessagesRead(render=true){
+  if(document.visibilityState!=="visible"||!panel.isConnected)return false;
   const {data,error}=await supabase.from("coolanas_dm_messages").update({read_at:new Date().toISOString()}).eq("conversation_id",conversationId).neq("sender_id",user.id).is("read_at",null).select("id,read_at");
   if(error)throw error;
   if(data?.length){
    const readAtById=new Map(data.map(item=>[item.id,item.read_at]));
    cachedRows=cachedRows.map(item=>readAtById.has(item.id)?{...item,read_at:readAtById.get(item.id)}:item);
-   await setScaCachedMessages(conversationId,cachedRows);renderMessageRows(cachedRows);
-   await encryptViewedPlainMessages();
+   await setScaCachedMessages(conversationId,cachedRows);
+   await encryptViewedPlainMessages(render);
+   if(render)renderMessageRows(cachedRows);
+   return true;
   }
+  return false;
  }
  async function loadMessages(){
   if(messagesLoading){messagesReloadQueued=true;return;}
   messagesLoading=true;messages.setAttribute("aria-busy","true");
+  const animatedIds=new Set();
   try{
    do{
     messagesReloadQueued=false;
@@ -1060,18 +1069,19 @@ async function openScaConversation(friend,picture){
      const rawAdditions=page.filter(item=>!known.has(item.id));
      if(rawAdditions.length){
       const additions=await decryptRows(rawAdditions);
-      const animatedIds=new Set(additions.map(item=>item.id));
+      for(const item of additions)animatedIds.add(item.id);
       cachedRows=[...cachedRows,...additions].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)||String(a.id).localeCompare(String(b.id)));
       await setScaCachedMessages(conversationId,cachedRows);
-      renderMessageRows(cachedRows,animatedIds);
      }
      offset+=page.length;
      if(page.length<100)break;
     }
     historyLoaded=true;
    }while(messagesReloadQueued);
-   await syncCachedReadStatuses();
-   await markIncomingMessagesRead();
+   await syncCachedReadStatuses(false);
+   await markIncomingMessagesRead(false);
+   if(animatedIds.size)renderMessageRows(cachedRows,animatedIds);
+   else renderMessageRows(cachedRows);
   }finally{messagesLoading=false;messages.setAttribute("aria-busy","false");}
  }
  let cachedRows=[];
