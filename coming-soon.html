@@ -727,21 +727,21 @@ body.sca-guild-active .sca-workspace{height:100dvh;min-height:0;overflow:hidden}
 .sca-guild-invite-accept{background:#4779bd;color:#fff}
 .sca-guild-invite-decline{background:rgba(120,120,120,.13);color:inherit}
 .sca-guild-pending-line{margin:0;color:#9299a5;font-size:11px;line-height:1.4}
-.sca-guild-share-bucket{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:42px;padding:0 10px;border:1px solid rgba(120,120,120,.18);border-radius:11px;background:rgba(120,120,120,.07);color:inherit;font-size:12px;font-weight:650;cursor:pointer}
-.sca-guild-share-bucket svg{width:18px;height:18px;flex:none}
-.sca-guild-share-dialog{width:min(440px,calc(100vw - 32px));padding:22px;border:1px solid rgba(120,120,120,.2);border-radius:18px;background:var(--sca-surface,#242424);color:inherit;box-shadow:0 20px 70px rgba(0,0,0,.35)}
-.sca-guild-share-dialog::backdrop{background:rgba(0,0,0,.55);backdrop-filter:blur(3px)}
-.sca-guild-share-dialog h2{margin:0 0 14px;font-size:18px}
-.sca-guild-share-dialog label{display:grid;gap:6px;margin:12px 0;font-size:12px;font-weight:650}
-.sca-guild-share-dialog select{width:100%;height:40px;padding:0 10px;border:1px solid rgba(120,120,120,.2);border-radius:9px;background:transparent;color:inherit}
-.sca-guild-share-dialog select option{color:#222}
-.sca-guild-share-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-.sca-guild-share-actions button{min-height:36px;padding:0 13px;border:0;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer}
-.sca-guild-share-close{background:rgba(120,120,120,.14);color:inherit}
-.sca-guild-share-submit{background:#4779bd;color:#fff}
+
+
+
+
+
+
+
+
+
+
+
+
 html:not(.dark-mode) .sca-guild-chat-layout{border-color:rgba(0,0,0,.1);box-shadow:0 0 0 1px rgba(0,0,0,.025),0 4px 18px rgba(0,0,0,.07)}
 html:not(.dark-mode) .sca-guild-timer-card{box-shadow:0 0 0 1px rgba(0,0,0,.04),0 4px 18px rgba(0,0,0,.07)}
-html:not(.dark-mode) .sca-guild-share-dialog{background:#fff}
+
 @media(max-width:760px){
  .sca-main[data-section="guild"]{padding:108px 12px 78px!important;grid-template-columns:minmax(0,1fr) 210px!important;gap:9px!important}
  .sca-main[data-section="guild"] .sca-guild-timer-card{height:142px}
@@ -754,8 +754,8 @@ html:not(.dark-mode) .sca-guild-share-dialog{background:#fff}
  .sca-main[data-section="guild"]{padding:92px 8px 76px!important;grid-template-columns:minmax(0,1fr) 142px!important;gap:7px!important}
  .sca-guild-chat-layout{grid-template-columns:52px minmax(0,1fr)}
  .sca-guild-channel-panel{padding:10px 4px}
- .sca-guild-share-bucket{padding:0 3px;font-size:0}
- .sca-guild-share-bucket svg{width:20px;height:20px}
+
+
  .sca-main[data-section="guild"] .sca-guild-users-panel{padding:9px!important;gap:9px}
  .sca-guild-title{font-size:18px}
  .sca-guild-add-form{flex-wrap:wrap;padding:6px}
@@ -987,37 +987,6 @@ async function addGuildMember(username){
  }catch(error){if(status)status.textContent=error.message||"Could not send the invitation.";}
  finally{if(submit)submit.disabled=false;}
 }
-async function openGuildBucketShareDialog(){
- let dialog=document.getElementById("sca-guild-share-dialog");
- if(!dialog){
-  dialog=document.createElement("dialog");dialog.id="sca-guild-share-dialog";dialog.className="sca-guild-share-dialog";
-  dialog.innerHTML='<h2>Share a bucket</h2><p class="sca-guild-share-status" id="sca-guild-share-status">Loading your folders…</p><label>Bucket<select id="sca-guild-share-folder"><option value="">Choose a folder</option></select></label><label>Share with<select id="sca-guild-share-user"><option value="">Choose a Coolanas user</option></select></label><div class="sca-guild-share-actions"><button type="button" class="sca-guild-share-close" id="sca-guild-share-close">Cancel</button><button type="button" class="sca-guild-share-submit" id="sca-guild-share-submit">Send invitation</button></div>';
-  document.body.append(dialog);
-  dialog.querySelector("#sca-guild-share-close").addEventListener("click",()=>dialog.close());
-  dialog.querySelector("#sca-guild-share-submit").addEventListener("click",async()=>{
-   const folder=dialog.querySelector("#sca-guild-share-folder").value,recipient=dialog.querySelector("#sca-guild-share-user").value,status=dialog.querySelector("#sca-guild-share-status"),button=dialog.querySelector("#sca-guild-share-submit");
-   if(!folder||!recipient){status.textContent="Choose a bucket and a user.";return;}
-   button.disabled=true;status.textContent="Sending bucket invitation…";
-   try{const {error}=await supabase.functions.invoke("coolanas-files-b2",{body:{action:"bucket_share_invite",bucketId:folder,recipientId:recipient}});if(error)throw error;status.textContent="Bucket invitation sent.";button.disabled=false;}
-   catch(error){status.textContent=error.message||"Could not share this bucket.";button.disabled=false;}
-  });
- }
- const status=dialog.querySelector("#sca-guild-share-status"),folderSelect=dialog.querySelector("#sca-guild-share-folder"),userSelect=dialog.querySelector("#sca-guild-share-user"),submit=dialog.querySelector("#sca-guild-share-submit");
- status.textContent="Loading your folders and users…";folderSelect.replaceChildren(new Option("Choose a folder",""));userSelect.replaceChildren(new Option("Choose a Coolanas user",""));submit.disabled=true;
- dialog.showModal();
- try{
-  const [files,users]=await Promise.all([
-   supabase.functions.invoke("coolanas-files-b2",{body:{action:"list"}}),
-   supabase.functions.invoke("coolanas-files-b2",{body:{action:"bucket_share_users"}})
-  ]);
-  if(files.error)throw files.error;if(users.error)throw users.error;
-  const folders=(files.data?.items||[]).filter(item=>item.item_type==="folder"&&item.parent_id==null);
-  for(const item of folders)folderSelect.add(new Option(item.name,item.id));
-  for(const item of users.data?.users||[])userSelect.add(new Option(item.username,item.userId));
-  status.textContent=folders.length?"Choose a folder and a user to invite.":"No folders found. Create a folder in Files first.";
-  submit.disabled=!folders.length||!(users.data?.users||[]).length;
- }catch(error){status.textContent=error.message||"Could not load bucket sharing options.";}
-}
 async function initGuildPanel(){
  if(guildStopwatchChannel){await supabase.removeChannel(guildStopwatchChannel);guildStopwatchChannel=null;}
  if(guildStopwatchTick){clearInterval(guildStopwatchTick);guildStopwatchTick=null;}
@@ -1075,7 +1044,7 @@ function openScaSection(section){
     return;
   }
   if(section==="guild"){
-    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Study timer"><div class="sca-guild-time" id="sca-guild-time" role="timer" aria-live="off"></div></section></div><div class="sca-guild-chat-layout"><aside class="sca-guild-channel-panel" aria-label="Guild tools"><button type="button" class="sca-guild-share-bucket" id="sca-guild-share-bucket" title="Share a storage bucket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16l-1.5 13h-13L4 7Z"/><path d="M3 4h18M9 7l1 13m5-13-1 13"/></svg><span>Share bucket</span></button></aside><section class="sca-guild-message-panel" aria-label="Guild messages"><div class="sca-guild-message-space" aria-hidden="true"></div><div class="sca-guild-message-composer"><div class="sca-guild-message-input-wrap"><textarea rows="1" placeholder="Write a message…" aria-label="Message" disabled></textarea><button class="sca-guild-message-send" type="button" aria-label="Send message" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div></section></div>';
+    scaPrimary.innerHTML='<div class="sca-guild-layout"><section class="sca-guild-timer-card" aria-label="Study timer"><div class="sca-guild-time" id="sca-guild-time" role="timer" aria-live="off"></div></section></div><div class="sca-guild-chat-layout"><aside class="sca-guild-channel-panel" aria-label="Guild tools"></aside><section class="sca-guild-message-panel" aria-label="Guild messages"><div class="sca-guild-message-space" aria-hidden="true"></div><div class="sca-guild-message-composer"><div class="sca-guild-message-input-wrap"><textarea rows="1" placeholder="Write a message…" aria-label="Message" disabled></textarea><button class="sca-guild-message-send" type="button" aria-label="Send message" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div></div></section></div>';
     document.documentElement.classList.add("sca-guild-active");
     document.body.classList.add("sca-guild-active");
     const addToggle=document.getElementById("sca-guild-add-toggle");
@@ -1088,7 +1057,6 @@ function openScaSection(section){
       event.preventDefault();const value=document.getElementById("sca-guild-add-username")?.value||"";
       addGuildMember(value);
     });
-    document.getElementById("sca-guild-share-bucket")?.addEventListener("click",openGuildBucketShareDialog);
     initGuildPanel();
     return;
   }
