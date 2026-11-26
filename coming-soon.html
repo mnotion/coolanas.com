@@ -921,7 +921,7 @@ async function saveScaAccountKey(privateJwk,publicJwk){
   encryptedBackup=created.backup;
  }
  // The server stores only the recovery-code-encrypted backup, never a plaintext private JWK.
- const {error}=await supabase.from("coolanas_dm_key_backups").upsert({user_id:user.id,backup:encryptedBackup},{onConflict:"user_id"});
+ const {error}=await supabase.from("coolanas_dm_key_backups").upsert({user_id:user.id,private_key:null,backup:encryptedBackup},{onConflict:"user_id"});
  if(error)throw error;
 }
 async function importScaAccountKey(privateJwk,publicJwk){
