@@ -1323,6 +1323,54 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-input,
  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter-row{transition:none!important}
 }
+
+/* Keep toolbar geometry fixed; animate the search as an overlay, not a flex item */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar{
+ position:relative!important;display:block!important;width:100%!important;height:40px!important;
+ min-height:40px!important;margin:0 0 10px!important;overflow:visible!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter-row{
+ position:absolute!important;left:48px!important;right:0!important;top:0!important;
+ display:flex!important;flex-wrap:nowrap!important;justify-content:center!important;
+ align-items:center!important;width:auto!important;max-width:none!important;
+ height:40px!important;margin:0!important;overflow:hidden!important;
+ transition:opacity .22s ease,transform .3s cubic-bezier(.16,1,.3,1)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-widget{
+ position:absolute!important;z-index:5!important;left:0!important;top:0!important;
+ display:block!important;flex:none!important;width:40px!important;min-width:40px!important;
+ height:40px!important;margin:0!important;overflow:hidden!important;
+ transition:width .48s cubic-bezier(.16,1,.3,1)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-input{
+ position:absolute!important;inset:0!important;display:block!important;
+ width:40px!important;min-width:0!important;max-width:none!important;height:40px!important;
+ box-sizing:border-box!important;padding:0 0 0 40px!important;
+ transition:width .48s cubic-bezier(.16,1,.3,1),padding .48s cubic-bezier(.16,1,.3,1)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-icon{
+ position:absolute!important;left:0!important;top:0!important;width:40px!important;height:40px!important;
+ z-index:2!important;pointer-events:none!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar.is-search-open .sca-guild-search-widget{
+ width:100%!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar.is-search-open .sca-guild-search-input{
+ width:100%!important;padding:0 16px 0 44px!important;cursor:text!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar.is-search-open .sca-guild-filter-row{
+ opacity:0!important;transform:translateX(12px)!important;visibility:hidden!important;
+ pointer-events:none!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar:not(.is-search-open) .sca-guild-filter-row{
+ opacity:1!important;transform:translateX(0)!important;visibility:visible!important;
+ pointer-events:auto!important;
+}
+@media(prefers-reduced-motion:reduce){
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-widget,
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-input,
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter-row{transition:none!important}
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
