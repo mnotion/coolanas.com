@@ -3032,5 +3032,36 @@ setAvatar(googleAvatarUrl);try{await refreshProfilePicture();}catch(error){conso
 }
 </style>
 
+
+<style id="sca-bazaar-equal-panel-heights">
+/* Give both Bazaar columns the same outer height, including the timer panel's 24px extension. */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack,
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-active-users-stack{
+ height:calc(min(68vh,660px) + 24px)!important;
+ min-height:444px!important;
+ box-sizing:border-box!important;
+ align-self:start!important;
+ transform:none!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack>.sca-guild-public-card{
+ height:100%!important;
+ min-height:0!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-active-users-stack>.sca-guild-secondary-card{
+ height:auto!important;
+ min-height:0!important;
+ flex:1 1 auto!important;
+ align-self:stretch!important;
+}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{
+  height:min(64vh,600px)!important;min-height:360px!important;
+ }
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-active-users-stack{
+  height:320px!important;min-height:320px!important;
+ }
+}
+</style>
+
 </body>
 </html>
