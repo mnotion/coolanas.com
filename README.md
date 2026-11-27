@@ -7,7 +7,7 @@ Coolanas is a static web application with Supabase authentication and a Backblaz
 - `index.html` is the sign-in page.
 - `dashboard.html` is the account home and study dashboard.
 - `exhibitions.html` is the file workspace. `files.html` redirects older links to it.
-- `analytics.html`, `settings.html`, and `coming-soon.html` are the other workspace pages.
+- `analytics.html`, `settings.html`, and `sca.html` are the other workspace pages.
 - `auth-callback.html` completes email verification.
 - `css/<page>.css` contains the styles for that page.
 - `js/<page>.js` contains that page's browser behavior.
