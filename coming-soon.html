@@ -924,6 +924,13 @@ html.dark-mode .sca-guild-wizard-back{background:#30343c;border-color:#4a505a;co
 @media(max-width:760px){.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{gap:12px}.sca-guild-entry-card{height:clamp(350px,55vh,540px)!important;padding:16px!important}.sca-guild-creation-overlay{padding:12px}.sca-guild-creation-panel{min-height:calc(100dvh - 24px);padding:22px;border-radius:18px}}
 @media(max-width:560px){.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(260px,42vh) minmax(220px,30vh);overflow:auto}.sca-guild-entry-card{height:100%!important}.sca-guild-entry-stack{min-height:0}.sca-guild-wizard-steps{gap:2px}.sca-guild-wizard-step{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.sca-guild-create-trigger{transition:none}}
+
+.sca-guild-members-head{display:flex;flex-direction:column;align-items:center;gap:10px}
+.sca-guild-manage-actions{display:flex;gap:7px}
+.sca-guild-manage-actions[hidden]{display:none!important}
+.sca-guild-manage-actions button{height:30px;padding:0 12px;border:1px solid rgba(120,120,120,.2);border-radius:8px;background:rgba(120,120,120,.07);color:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.sca-guild-manage-actions button:last-child{color:#bd5555;border-color:rgba(190,75,75,.25)}
+.sca-guild-upload-current{color:#8b95a3;font-size:11px;font-weight:400}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -967,7 +974,7 @@ html.dark-mode .sca-guild-wizard-back{background:#30343c;border-color:#4a505a;co
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
     <section class="sca-panel" id="sca-primary-panel"></section>
-    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><div class="sca-guild-members-head"><h1 class="sca-guild-title">Guild</h1></div><div class="sca-guild-invites" id="sca-guild-invites" aria-live="polite"></div><h2 class="sca-guild-members-label">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div><button class="sca-guild-add-toggle" id="sca-guild-add-toggle" type="button" aria-expanded="false" aria-controls="sca-guild-add-form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 19v1"/><circle cx="10" cy="7" r="4"/><path d="M19 8v6m-3-3h6"/></svg>Invite</button><form class="sca-guild-add-form" id="sca-guild-add-form" hidden><input id="sca-guild-add-username" type="text" autocomplete="off" minlength="4" maxlength="100" placeholder="Search exact username…" aria-label="Username to invite"><button id="sca-guild-add-submit" type="submit">Send invite</button></form><p class="sca-guild-add-status" id="sca-guild-add-status" role="status" aria-live="polite"></p></aside>
+    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><div class="sca-guild-members-head"><h1 class="sca-guild-title">Guild</h1><div class="sca-guild-manage-actions" id="sca-guild-manage-actions" hidden><button type="button" id="sca-guild-edit-button">Edit</button><button type="button" id="sca-guild-disband-button">Disband</button></div></div><div class="sca-guild-invites" id="sca-guild-invites" aria-live="polite"></div><h2 class="sca-guild-members-label">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div><button class="sca-guild-add-toggle" id="sca-guild-add-toggle" type="button" aria-expanded="false" aria-controls="sca-guild-add-form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 19v1"/><circle cx="10" cy="7" r="4"/><path d="M19 8v6m-3-3h6"/></svg>Invite</button><form class="sca-guild-add-form" id="sca-guild-add-form" hidden><input id="sca-guild-add-username" type="text" autocomplete="off" minlength="4" maxlength="100" placeholder="Search exact username…" aria-label="Username to invite"><button id="sca-guild-add-submit" type="submit">Send invite</button></form><p class="sca-guild-add-status" id="sca-guild-add-status" role="status" aria-live="polite"></p></aside>
   </main>
 </div>
 <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
@@ -1097,6 +1104,8 @@ async function loadGuildUsers(){
   if(inviteResult.error)throw inviteResult.error;
   const addToggle=document.getElementById("sca-guild-add-toggle");
   if(addToggle)addToggle.hidden=currentGuild.owner_id!==user.id;
+  const manage=document.getElementById("sca-guild-manage-actions");
+  if(manage)manage.hidden=currentGuild.owner_id!==user.id;
   const directoryUsers=Array.isArray(directoryResult.data?.users)?directoryResult.data.users:[];
   guildPictureDirectory=new Map(directoryUsers.map(entry=>[String(entry.username||"").toLowerCase(),entry]));
   const members=Array.isArray(currentGuild.members)?currentGuild.members:[];
@@ -1179,6 +1188,18 @@ async function refreshGuildMemberStatuses(){
  }
 }
 
+
+function guildImageExtension(file){const map={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"};return map[file.type]||null;}
+async function uploadGuildImage(file,kind){
+ if(!file)return null;
+ const extension=guildImageExtension(file);
+ if(!extension)throw new Error("Use a JPG, PNG, WEBP or GIF image.");
+ if(file.size>10*1024*1024)throw new Error("Guild images must be 10 MB or smaller.");
+ const path=user.id+"/"+crypto.randomUUID()+"/"+kind+"."+extension;
+ const {error}=await supabase.storage.from("coolanas-guild-assets").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});
+ if(error)throw error;
+ return supabase.storage.from("coolanas-guild-assets").getPublicUrl(path).data.publicUrl;
+}
 // Guild directory and creation wizard
 let guildCreationStep=1;
 let guildCreationDraft={name:"",description:"",isPublic:true,bannerUrl:"",pictureUrl:"",colour:"#6f91c8",invitees:""};
@@ -1232,8 +1253,9 @@ function renderGuildCreationWizard(){
   const wrap=guildElement("label","sca-guild-wizard-field");wrap.append(guildElement("span","","Publicity"));
   const select=document.createElement("select");select.id="sca-guild-create-public";[["public","Public — discoverable by everyone"],["private","Private — invite only"]].forEach(([v,l])=>{const o=document.createElement("option");o.value=v;o.textContent=l;select.append(o);});select.value=guildCreationDraft.isPublic?"public":"private";wrap.append(select);form.append(wrap);
  }else if(guildCreationStep===2){
-  field("Guild banner image URL","sca-guild-create-banner","url",guildCreationDraft.bannerUrl,"https://…");
-  field("Guild profile picture URL","sca-guild-create-picture","url",guildCreationDraft.pictureUrl,"https://…");
+  const uploadField=(label,id,kind,current)=>{const wrap=guildElement("label","sca-guild-wizard-field");wrap.append(guildElement("span","",label));const input=document.createElement("input");input.type="file";input.accept="image/png,image/jpeg,image/webp,image/gif";input.id=id;input.addEventListener("change",()=>{guildCreationDraft[kind]=input.files?.[0]||null;});wrap.append(input);if(current)wrap.append(guildElement("small","sca-guild-upload-current","An image is currently uploaded. Choose a new file to replace it."));form.append(wrap);};
+  uploadField("Guild banner","sca-guild-create-banner","bannerFile",guildCreationDraft.bannerUrl);
+  uploadField("Guild profile picture","sca-guild-create-picture","pictureFile",guildCreationDraft.pictureUrl);
   const wrap=guildElement("label","sca-guild-wizard-field");wrap.append(guildElement("span","","Guild colour"));
   const colour=document.createElement("input");colour.type="color";colour.id="sca-guild-create-colour";colour.value=guildCreationDraft.colour;wrap.append(colour);form.append(wrap);
  }else if(guildCreationStep===3){
@@ -1251,17 +1273,18 @@ function renderGuildCreationWizard(){
 function saveGuildWizardDraft(){
  const value=id=>document.getElementById(id)?.value;
  if(guildCreationStep===1){guildCreationDraft.name=value("sca-guild-create-name")||"";guildCreationDraft.description=value("sca-guild-create-description")||"";guildCreationDraft.isPublic=value("sca-guild-create-public")==="public";}
- if(guildCreationStep===2){guildCreationDraft.bannerUrl=value("sca-guild-create-banner")||"";guildCreationDraft.pictureUrl=value("sca-guild-create-picture")||"";guildCreationDraft.colour=value("sca-guild-create-colour")||"#6f91c8";}
+ if(guildCreationStep===2){guildCreationDraft.colour=value("sca-guild-create-colour")||"#6f91c8";}
  if(guildCreationStep===4)guildCreationDraft.invitees=value("sca-guild-create-invites")||"";
 }
-function openGuildCreationWizard(){guildCreationStep=1;guildCreationDraft={name:"",description:"",isPublic:true,bannerUrl:"",pictureUrl:"",colour:"#6f91c8",invitees:""};renderGuildCreationWizard();}
+function openGuildCreationWizard(){guildCreationStep=1;guildCreationDraft={name:"",description:"",isPublic:true,bannerUrl:"",pictureUrl:"",bannerFile:null,pictureFile:null,colour:"#6f91c8",invitees:""};renderGuildCreationWizard();}
 async function createGuildFromWizard(button){
  if(button.disabled)return;
- const validImageUrl=value=>{if(!value)return true;try{const url=new URL(value);return url.protocol==="https:"||url.protocol==="http:";}catch{return false;}};
- if(!validImageUrl(guildCreationDraft.bannerUrl)||!validImageUrl(guildCreationDraft.pictureUrl)){const form=document.getElementById("sca-guild-wizard-form");let error=form.querySelector(".sca-guild-create-error");if(!error){error=guildElement("p","sca-guild-create-error");form.append(error);}error.textContent="Banner and profile picture must use valid HTTP or HTTPS image URLs.";return;}
- button.disabled=true;button.textContent="Creating…";
+ button.disabled=true;button.textContent="Uploading…";
  try{
-  const {data,error}=await supabase.rpc("coolanas_guild_create",{p_name:guildCreationDraft.name.trim(),p_description:guildCreationDraft.description.trim(),p_is_public:guildCreationDraft.isPublic,p_banner_url:guildCreationDraft.bannerUrl.trim()||null,p_picture_url:guildCreationDraft.pictureUrl.trim()||null,p_colour:guildCreationDraft.colour});
+  const bannerUrl=await uploadGuildImage(guildCreationDraft.bannerFile,"banner");
+  const pictureUrl=await uploadGuildImage(guildCreationDraft.pictureFile,"profile");
+  button.textContent="Creating…";
+  const {data,error}=await supabase.rpc("coolanas_guild_create",{p_name:guildCreationDraft.name.trim(),p_description:guildCreationDraft.description.trim(),p_is_public:guildCreationDraft.isPublic,p_banner_url:bannerUrl,p_picture_url:pictureUrl,p_colour:guildCreationDraft.colour});
   if(error)throw error;
   currentGuild=data;
   const usernames=[...new Set(guildCreationDraft.invitees.split(/[\n,]+/).map(v=>v.trim()).filter(Boolean))];
@@ -1272,6 +1295,48 @@ async function createGuildFromWizard(button){
   if(failed.length)console.warn("Some Guild invitations failed:",failed);
  }catch(error){console.error("Guild creation failed:",error);button.disabled=false;button.textContent="Create Guild";let message=document.getElementById("sca-guild-create-error");if(!message){message=guildElement("p","sca-guild-create-error");message.id="sca-guild-create-error";document.querySelector(".sca-guild-wizard-form")?.append(message);}message.textContent=error.message||"Could not create Guild.";}
 }
+
+
+async function openGuildEditDialog(){
+ if(!currentGuild)return;
+ const overlay=guildElement("div","sca-guild-creation-overlay");overlay.id="sca-guild-edit-overlay";overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");
+ document.body.append(overlay);document.body.classList.add("sca-guild-creation-open");
+ const panel=guildElement("section","sca-guild-creation-panel");const head=guildElement("header","sca-guild-wizard-header");
+ head.append(guildElement("h1","","Edit Guild"));
+ const close=guildElement("button","sca-guild-wizard-close","×");close.type="button";close.addEventListener("click",()=>{overlay.remove();document.body.classList.remove("sca-guild-creation-open");});head.append(close);panel.append(head);
+ const form=guildElement("form","sca-guild-wizard-form");form.style.marginTop="28px";
+ const makeField=(label,id,type,value)=>{const wrap=guildElement("label","sca-guild-wizard-field");wrap.append(guildElement("span","",label));const input=document.createElement("input");input.type=type;input.id=id;input.value=value||"";wrap.append(input);form.append(wrap);return input;};
+ makeField("Guild name","sca-guild-edit-name","text",currentGuild.name);
+ const descWrap=guildElement("label","sca-guild-wizard-field");descWrap.append(guildElement("span","","Description"));const desc=document.createElement("textarea");desc.id="sca-guild-edit-description";desc.value=currentGuild.description||"";descWrap.append(desc);form.append(descWrap);
+ const pubWrap=guildElement("label","sca-guild-wizard-field");pubWrap.append(guildElement("span","","Publicity"));const pub=document.createElement("select");pub.id="sca-guild-edit-public";[["public","Public"],["private","Private"]].forEach(([v,l])=>{const o=document.createElement("option");o.value=v;o.textContent=l;pub.append(o);});pub.value=currentGuild.is_public?"public":"private";pubWrap.append(pub);form.append(pubWrap);
+ const upload=(label,id,current)=>{const wrap=guildElement("label","sca-guild-wizard-field");wrap.append(guildElement("span","",label));const input=document.createElement("input");input.type="file";input.accept="image/png,image/jpeg,image/webp,image/gif";input.id=id;wrap.append(input);if(current)wrap.append(guildElement("small","sca-guild-upload-current","An image is currently uploaded. Choose a new file to replace it."));form.append(wrap);return input;};
+ const banner=upload("Replace Guild banner","sca-guild-edit-banner",currentGuild.banner_url);
+ const picture=upload("Replace Guild profile picture","sca-guild-edit-picture",currentGuild.picture_url);
+ const colour=makeField("Guild colour","sca-guild-edit-colour","color",currentGuild.colour||"#6f91c8");
+ const error=guildElement("p","sca-guild-create-error");form.append(error);
+ const footer=guildElement("footer","sca-guild-wizard-footer");const cancel=guildElement("button","sca-guild-wizard-back","Cancel");cancel.type="button";cancel.addEventListener("click",()=>close.click());
+ const save=guildElement("button","sca-guild-wizard-next","Save changes");save.type="submit";footer.append(cancel,save);form.append(footer);panel.append(form);overlay.append(panel);
+ form.addEventListener("submit",async event=>{
+  event.preventDefault();save.disabled=true;save.textContent="Saving…";
+  try{
+   const bannerUrl=banner.files?.[0]?await uploadGuildImage(banner.files[0],"banner"):currentGuild.banner_url||null;
+   const pictureUrl=picture.files?.[0]?await uploadGuildImage(picture.files[0],"profile"):currentGuild.picture_url||null;
+   const {data,error:rpcError}=await supabase.rpc("coolanas_guild_update",{p_guild_id:currentGuild.id,p_name:document.getElementById("sca-guild-edit-name").value,p_description:desc.value,p_is_public:pub.value==="public",p_banner_url:bannerUrl,p_picture_url:pictureUrl,p_colour:colour.value});
+   if(rpcError)throw rpcError;currentGuild={...currentGuild,...data};overlay.remove();document.body.classList.remove("sca-guild-creation-open");await initGuildPanel();
+  }catch(err){error.textContent=err.message||"Could not update Guild.";save.disabled=false;save.textContent="Save changes";}
+ });
+}
+async function disbandCurrentGuild(){
+ if(!currentGuild||currentGuild.owner_id!==user.id)return;
+ const name=currentGuild.name||"this Guild";
+ if(!confirm("Disband "+name+"? This permanently deletes the Guild, its membership, invitations and chat history."))return;
+ const {error}=await supabase.rpc("coolanas_guild_disband",{p_guild_id:currentGuild.id});
+ if(error){alert(error.message||"Could not disband Guild.");return;}
+ if(guildChatChannel){await supabase.removeChannel(guildChatChannel);guildChatChannel=null;}
+ await initGuildPanel();
+}
+document.getElementById("sca-guild-edit-button")?.addEventListener("click",openGuildEditDialog);
+document.getElementById("sca-guild-disband-button")?.addEventListener("click",disbandCurrentGuild);
 
 async function initGuildPanel(){
  if(guildStatusRefresh){clearInterval(guildStatusRefresh);guildStatusRefresh=null;}
