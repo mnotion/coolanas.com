@@ -1408,6 +1408,20 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
 .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter:hover{
  box-shadow:0 5px 13px rgba(20,25,35,.16),0 2px 4px rgba(20,25,35,.08)!important;
 }
+
+/* Restore the search control shadow and give it a little more separation */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-widget{
+ left:26px!important;
+ overflow:visible!important;
+ box-shadow:none!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-input{
+ box-shadow:0 5px 14px rgba(0,0,0,.22),0 2px 5px rgba(0,0,0,.14)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar.is-search-open .sca-guild-search-widget{
+ left:26px!important;
+ width:calc(100% - 26px)!important;
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
