@@ -1474,17 +1474,38 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
 }
 
 
-/* Anchor the Guild create action close to the bottom edge of the card at every viewport size. */
-.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger{
+/* Anchor Create directly to the Guild card itself, not its outer layout stack. */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{
+  position:relative!important;
+  overflow:hidden!important;
+  isolation:isolate;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-list{
+  padding-bottom:78px!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card>.sca-guild-create-trigger{
   position:absolute!important;
   top:auto!important;
-  bottom:8px!important;
+  right:auto!important;
+  bottom:12px!important;
   left:50%!important;
-  margin:0 0 0 -24px!important;
-  box-shadow:0 8px 20px rgba(0,0,0,.34),0 2px 5px rgba(0,0,0,.22)!important;
+  z-index:20!important;
+  margin:0!important;
+  transform:translateX(-50%)!important;
+  box-shadow:
+    0 0 24px 12px rgba(255,255,255,.98),
+    0 0 58px 25px rgba(255,255,255,.92),
+    0 12px 30px rgba(0,0,0,.24)!important;
 }
-.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger:hover{
-  box-shadow:0 10px 24px rgba(0,0,0,.38),0 3px 7px rgba(0,0,0,.24)!important;
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card>.sca-guild-create-trigger:hover{
+  transform:translateX(-50%) translateY(-2px)!important;
+  box-shadow:
+    0 0 30px 15px rgba(255,255,255,1),
+    0 0 72px 30px rgba(255,255,255,.96),
+    0 16px 36px rgba(0,0,0,.28)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card>.sca-guild-create-trigger:active{
+  transform:translateX(-50%) translateY(1px)!important;
 }
 
 </style>
@@ -1953,7 +1974,7 @@ async function initGuildPanel(){
  const hasGuild=await loadGuildUsers();
  if(hasGuild===false){
   scaGuildUsersPanel.hidden=true;
-  scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild and Bucket sections"><div class="sca-guild-entry-stack"><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guilds"><header class="sca-guild-entry-head"><h1>Guilds</h1><p>Discover public Guilds</p></header><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild">+</button></div></div>';
+  scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild and Bucket sections"><div class="sca-guild-entry-stack"><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guilds"><header class="sca-guild-entry-head"><h1>Guilds</h1><p>Discover public Guilds</p></header><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild">+</button></section></div></div>';
   loadPublicGuildDirectory();
   document.getElementById("sca-guild-create-trigger")?.addEventListener("click",openGuildCreationWizard);
   return;
