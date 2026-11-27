@@ -1528,7 +1528,21 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
 .sca-active-filter:focus-visible{outline:2px solid #64a7e8;outline-offset:3px}
 @media(max-width:760px){.sca-active-toolbar{gap:8px;flex-wrap:wrap}.sca-active-filter-row{gap:6px}.sca-active-filter{height:33px;padding:0 10px}.sca-active-search-input:focus,.sca-active-search-input:not(:placeholder-shown){width:min(220px,calc(100vw - 130px))}}
 html.dark-mode .sca-active-search-input{background:#191a1e;color:#fff}
-.sca-active-user{aspect-ratio:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:10px 6px;border:1px solid rgba(75,135,220,.18);border-radius:10px;background:rgba(75,135,220,.045);text-align:center}
+.sca-active-user{aspect-ratio:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:10px 6px;border:1px solid rgba(75,135,220,.18);border-radius:10px;background:rgba(75,135,220,.045);text-align:center;transition:background-color .35s ease,border-color .35s ease,color .35s ease}
+.sca-active-user.study-time-1h{background:#edf3fc;border-color:#d5e3f8}
+.sca-active-user.study-time-2h{background:#e5eefb;border-color:#c8daf5}
+.sca-active-user.study-time-3h{background:#dbe8fa;border-color:#b8d0f1}
+.sca-active-user.study-time-5h{background:#cbdcf5;border-color:#a5c2ec}
+.sca-active-user.study-time-7h{background:#b8d0f0;border-color:#8eafe2}
+.sca-active-user.study-time-10h{background:#f8dddd;border-color:#eaa5a5}
+.sca-active-user.study-time-10h .sca-active-user-name,.sca-active-user.study-time-10h .sca-active-user-timer{color:#b42332}
+html.dark-mode .sca-active-user.study-time-1h{background:#27364b;border-color:#3b5270}
+html.dark-mode .sca-active-user.study-time-2h{background:#2a3d56;border-color:#456184}
+html.dark-mode .sca-active-user.study-time-3h{background:#2d4564;border-color:#4d6f9b}
+html.dark-mode .sca-active-user.study-time-5h{background:#324e73;border-color:#5b80b0}
+html.dark-mode .sca-active-user.study-time-7h{background:#385b88;border-color:#6b94c6}
+html.dark-mode .sca-active-user.study-time-10h{background:#512a32;border-color:#a64a56}
+html.dark-mode .sca-active-user.study-time-10h .sca-active-user-name,html.dark-mode .sca-active-user.study-time-10h .sca-active-user-timer{color:#ff9aa5}
 .sca-active-user-avatar{width:42px;height:42px;flex:none;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:#e8edf5;color:#53657e;font-size:13px;font-weight:700}
 .sca-active-user-avatar img{width:100%;height:100%;object-fit:cover}
 .sca-active-user-identity{display:grid;justify-items:center;gap:5px;width:100%;min-width:0}
@@ -2046,7 +2060,19 @@ function tickScaActiveTimers(){
   const elapsed=Number(timer.dataset.elapsedMs)||0;
   const started=Date.parse(timer.dataset.startedAt||"");
   const running=Number.isFinite(started)?Math.max(0,Date.now()+scaActiveTimersClockOffset-started):0;
-  timer.textContent=formatPublicStudyTime(elapsed+running);
+  const totalMs=elapsed+running;
+  timer.textContent=formatPublicStudyTime(totalMs);
+  const card=timer.closest(".sca-active-user");
+  if(card){
+   card.classList.remove("study-time-1h","study-time-2h","study-time-3h","study-time-5h","study-time-7h","study-time-10h");
+   const hours=totalMs/3600000;
+   if(hours>=10)card.classList.add("study-time-10h");
+   else if(hours>=7)card.classList.add("study-time-7h");
+   else if(hours>=5)card.classList.add("study-time-5h");
+   else if(hours>=3)card.classList.add("study-time-3h");
+   else if(hours>=2)card.classList.add("study-time-2h");
+   else if(hours>=1)card.classList.add("study-time-1h");
+  }
  });
 }
 async function loadScaActiveTimers(){
