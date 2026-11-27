@@ -1488,7 +1488,10 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
   left:50%!important;
   z-index:20!important;
   margin:0!important;
-  transform:translateX(-50%)!important;
+  transform:translateX(-50%) scale(1)!important;
+  border:15px solid #fff!important;
+  box-sizing:content-box!important;
+  transition:transform .22s ease,box-shadow .22s ease!important;
   box-shadow:
     0 0 165px 105px rgba(255,255,255,1),
     0 0 240px 135px rgba(255,255,255,.38),
@@ -1496,7 +1499,7 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
     0 14px 34px rgba(0,0,0,.24)!important;
 }
 .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack>.sca-guild-create-trigger:hover{
-  transform:translateX(-50%) translateY(-2px)!important;
+  transform:translateX(-50%) translateY(-2px) scale(1.12)!important;
   box-shadow:
     0 0 190px 120px rgba(255,255,255,1),
     0 0 280px 155px rgba(255,255,255,.42),
