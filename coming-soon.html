@@ -1143,6 +1143,17 @@ html.dark-mode .sca-guild-join-button{background:color-mix(in srgb,var(--guild-a
  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{grid-template-columns:minmax(0,1fr)!important}
  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-secondary-card{height:320px!important;min-height:320px!important}
 }
+
+/* Vertically centre both Bazaar columns in the available viewport */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{
+ min-height:calc(100vh - 150px)!important;
+ align-content:center!important;
+ align-items:center!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack,
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-secondary-card{
+ align-self:center!important;
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
