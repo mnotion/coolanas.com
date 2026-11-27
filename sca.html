@@ -1439,6 +1439,33 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
   box-shadow:none!important;
   transform:none!important;
 }
+
+/* Final Guild filter fix: the absolutely positioned row was clipping its children. */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar{
+  overflow:visible!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter-row{
+  top:-2px!important;
+  height:44px!important;
+  min-height:44px!important;
+  overflow:visible!important;
+  padding:4px 0!important;
+  box-sizing:border-box!important;
+  align-items:center!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter{
+  height:36px!important;
+  min-height:36px!important;
+  box-sizing:border-box!important;
+  box-shadow:none!important;
+  transform:none!important;
+  transition:background .18s ease,color .18s ease!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter:hover,
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter.is-active{
+  box-shadow:none!important;
+  transform:none!important;
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
