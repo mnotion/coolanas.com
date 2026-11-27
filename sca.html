@@ -1515,6 +1515,7 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
 .sca-active-user-avatar{width:36px;height:36px;flex:none;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:#e8edf5;color:#53657e;font-size:13px;font-weight:700}
 .sca-active-user-avatar img{width:100%;height:100%;object-fit:cover}
 .sca-active-user-name{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--sca-text,#252a32);font-size:13px;font-weight:650}
+.sca-active-user-identity{display:grid;gap:3px;min-width:0;flex:1}.sca-active-user-study-status{color:#8992a0;font-size:10px}.sca-active-user-timer{flex:none;color:var(--sca-text,#252a32);font-size:13px;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:.02em}
 .sca-active-user-dot{width:8px;height:8px;flex:none;border-radius:50%;background:#27b875;box-shadow:0 0 0 3px rgba(39,184,117,.12)}
 .sca-active-users-message{margin:4px 0;color:#8992a0;font-size:12px}
 html.dark-mode .sca-active-users-head{border-color:rgba(255,255,255,.1)}
@@ -1996,8 +1997,16 @@ document.getElementById("sca-guild-leave-button")?.addEventListener("click",leav
 document.getElementById("sca-guild-disband-button")?.addEventListener("click",disbandCurrentGuild);
 
 
-let scaActiveUsersOffset=0,scaActiveUsersLoading=false,scaActiveUsersExhausted=false;
-function renderScaActiveUser(person){
+let scaActiveTimersPoll=null,scaActiveTimersTick=null,scaActiveTimersClockOffset=0,scaActiveTimersLoading=false;
+function formatPublicStudyTime(milliseconds){
+ let total=Math.max(0,Math.floor(milliseconds/1000));
+ const days=Math.floor(total/86400);total%=86400;
+ const hours=Math.floor(total/3600);total%=3600;
+ const minutes=Math.floor(total/60);const seconds=total%60;
+ const clock=[String(hours).padStart(2,"0"),String(minutes).padStart(2,"0"),String(seconds).padStart(2,"0")].join(":");
+ return days?days+"d "+clock:clock;
+}
+function renderScaActiveTimer(person){
  const row=document.createElement("div");row.className="sca-active-user";row.setAttribute("role","listitem");
  const avatar=document.createElement("span");avatar.className="sca-active-user-avatar";
  const label=(person.username||"User").trim();
@@ -2005,41 +2014,61 @@ function renderScaActiveUser(person){
   const img=document.createElement("img");img.src=person.avatar_url;img.alt="";img.loading="lazy";
   img.onerror=()=>{img.remove();avatar.textContent=(label[0]||"U").toUpperCase();};avatar.append(img);
  }else avatar.textContent=(label[0]||"U").toUpperCase();
+ const identity=document.createElement("div");identity.className="sca-active-user-identity";
  const name=document.createElement("strong");name.className="sca-active-user-name";name.textContent=label;
- const dot=document.createElement("span");dot.className="sca-active-user-dot";dot.setAttribute("aria-label","Online");
- row.append(avatar,name,dot);return row;
+ const status=document.createElement("span");status.className="sca-active-user-study-status";status.textContent="Studying";
+ identity.append(name,status);
+ const timer=document.createElement("time");timer.className="sca-active-user-timer";timer.dateTime=person.started_at||"";
+ timer.dataset.elapsedMs=String(Math.max(0,Number(person.elapsed_ms)||0));
+ timer.dataset.startedAt=person.started_at||"";
+ timer.textContent=formatPublicStudyTime(Number(timer.dataset.elapsedMs));
+ row.append(avatar,identity,timer);return row;
 }
-async function loadScaActiveUsers(reset=false){
- const list=document.getElementById("sca-active-users-list");if(!list||scaActiveUsersLoading||(!reset&&scaActiveUsersExhausted))return;
- if(reset){scaActiveUsersOffset=0;scaActiveUsersExhausted=false;list.replaceChildren();}
- scaActiveUsersLoading=true;
- let loading=list.querySelector(".sca-active-users-message");
- if(!list.children.length){loading=document.createElement("p");loading.className="sca-active-users-message";loading.textContent="Loading active users…";list.append(loading);}
+function tickScaActiveTimers(){
+ const list=document.getElementById("sca-active-users-list");if(!list)return;
+ list.querySelectorAll(".sca-active-user-timer").forEach(timer=>{
+  const elapsed=Number(timer.dataset.elapsedMs)||0;
+  const started=Date.parse(timer.dataset.startedAt||"");
+  const running=Number.isFinite(started)?Math.max(0,Date.now()+scaActiveTimersClockOffset-started):0;
+  timer.textContent=formatPublicStudyTime(elapsed+running);
+ });
+}
+async function loadScaActiveTimers(){
+ const list=document.getElementById("sca-active-users-list");
+ if(!list||!list.isConnected||scaActiveTimersLoading)return;
+ scaActiveTimersLoading=true;
  try{
-  const {data,error}=await supabase.rpc("coolanas_active_users",{p_limit:20,p_offset:scaActiveUsersOffset});
+  const {data,error}=await supabase.rpc("coolanas_public_running_timers",{p_limit:500});
   if(error)throw error;
-  loading?.remove();
-  const people=Array.isArray(data)?data:[];
-  people.forEach(person=>list.append(renderScaActiveUser(person)));
-  scaActiveUsersOffset+=people.length;
-  if(people.length<20)scaActiveUsersExhausted=true;
-  if(!list.children.length){const empty=document.createElement("p");empty.className="sca-active-users-message";empty.textContent="No users are active right now.";list.append(empty);}
+  const timers=Array.isArray(data)?data:[];
+  const serverNow=Date.parse(timers[0]?.server_now||"");
+  if(Number.isFinite(serverNow))scaActiveTimersClockOffset=serverNow-Date.now();
+  const fragment=document.createDocumentFragment();
+  timers.forEach(person=>fragment.append(renderScaActiveTimer(person)));
+  if(!timers.length){
+   const empty=document.createElement("p");empty.className="sca-active-users-message";
+   empty.textContent="No one is studying right now.";fragment.append(empty);
+  }
+  list.replaceChildren(fragment);
+  tickScaActiveTimers();
  }catch(error){
-  console.warn("Could not load active users:",error);
-  if(loading){loading.textContent="Active users could not be loaded.";}
-  else if(!list.children.length){const message=document.createElement("p");message.className="sca-active-users-message";message.textContent="Active users could not be loaded.";list.append(message);}
- }finally{scaActiveUsersLoading=false;}
+  console.warn("Could not load live study timers:",error);
+  if(!list.children.length){const message=document.createElement("p");message.className="sca-active-users-message";message.textContent="Live study timers could not be loaded.";list.append(message);}
+ }finally{scaActiveTimersLoading=false;}
 }
 function initScaActiveUsersPanel(){
- const list=document.getElementById("sca-active-users-list");if(!list||list.dataset.ready==="true")return;
+ const list=document.getElementById("sca-active-users-list");
+ if(!list||list.dataset.ready==="true")return;
  list.dataset.ready="true";
- list.addEventListener("scroll",()=>{
-  if(list.scrollTop+list.clientHeight>=list.scrollHeight-90)loadScaActiveUsers();
- });
- loadScaActiveUsers(true);
- setInterval(()=>{
-  if(document.visibilityState==="visible"&&list.isConnected&&list.scrollTop<35)loadScaActiveUsers(true);
- },30000);
+ loadScaActiveTimers();
+ if(scaActiveTimersPoll)clearInterval(scaActiveTimersPoll);
+ if(scaActiveTimersTick)clearInterval(scaActiveTimersTick);
+ scaActiveTimersPoll=setInterval(()=>{
+  if(document.visibilityState==="visible"&&list.isConnected)loadScaActiveTimers();
+ },5000);
+ scaActiveTimersTick=setInterval(()=>{
+  if(document.visibilityState==="visible"&&list.isConnected)tickScaActiveTimers();
+ },1000);
 }
 
 async function initGuildPanel(){
@@ -2176,7 +2205,7 @@ let scaGuildView="guilds";let scaGuildBazaarRequested=false;
 function renderGuildBazaar(){
  scaGuildView="bazaar";
  scaGuildUsersPanel.hidden=true;
- scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><div class="sca-guild-toolbar"><div class="sca-guild-search-widget"><input id="sca-guild-directory-search-input" class="sca-guild-search-input" type="search" maxlength="80" placeholder="Type to search…" autocomplete="off" aria-label="Search public Guilds"><span class="sca-guild-search-icon" aria-hidden="true"><svg viewBox="0 0 512 512"><circle cx="221" cy="221" r="157" fill="none" stroke="currentColor" stroke-width="32"></circle><path d="M338 338 448 448" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"></path></svg></span></div><div class="sca-guild-filter-row" role="group" aria-label="Filter public Guilds"><button type="button" class="sca-guild-filter" data-guild-filter="study-time" title="Study time">Study time</button><button type="button" class="sca-guild-filter" data-guild-filter="new" title="Newest Guilds">New</button><button type="button" class="sca-guild-filter" data-guild-filter="attendance" title="Attendance">Attendance</button><button type="button" class="sca-guild-filter" data-guild-filter="rank" title="Rank">Rank</button><button type="button" class="sca-guild-filter" data-guild-filter="members" title="Member count">Members</button><button type="button" class="sca-guild-filter" data-guild-filter="activity" title="Activity">Activity</button></div></div><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guild directory"><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild"><span class="sca-guild-create-sign">+</span><span class="sca-guild-create-text">Create</span></button></div><section class="sca-guild-entry-card sca-guild-secondary-card" aria-label="Active users">\n  <header class="sca-active-users-head"><div><h2>Active users</h2><p>People online right now</p></div><span class="sca-active-live"><i></i> LIVE</span></header>   <div class="sca-active-users-list" id="sca-active-users-list" role="list" aria-live="polite"><p class="sca-active-users-message">Loading active users…</p></div> </section></div>';
+ scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><div class="sca-guild-toolbar"><div class="sca-guild-search-widget"><input id="sca-guild-directory-search-input" class="sca-guild-search-input" type="search" maxlength="80" placeholder="Type to search…" autocomplete="off" aria-label="Search public Guilds"><span class="sca-guild-search-icon" aria-hidden="true"><svg viewBox="0 0 512 512"><circle cx="221" cy="221" r="157" fill="none" stroke="currentColor" stroke-width="32"></circle><path d="M338 338 448 448" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"></path></svg></span></div><div class="sca-guild-filter-row" role="group" aria-label="Filter public Guilds"><button type="button" class="sca-guild-filter" data-guild-filter="study-time" title="Study time">Study time</button><button type="button" class="sca-guild-filter" data-guild-filter="new" title="Newest Guilds">New</button><button type="button" class="sca-guild-filter" data-guild-filter="attendance" title="Attendance">Attendance</button><button type="button" class="sca-guild-filter" data-guild-filter="rank" title="Rank">Rank</button><button type="button" class="sca-guild-filter" data-guild-filter="members" title="Member count">Members</button><button type="button" class="sca-guild-filter" data-guild-filter="activity" title="Activity">Activity</button></div></div><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guild directory"><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild"><span class="sca-guild-create-sign">+</span><span class="sca-guild-create-text">Create</span></button></div><section class="sca-guild-entry-card sca-guild-secondary-card" aria-label="Active users">\n  <header class="sca-active-users-head"><div><h2>Studying now</h2><p>Live account timers</p></div><span class="sca-active-live"><i></i> LIVE</span></header>   <div class="sca-active-users-list" id="sca-active-users-list" role="list" aria-live="polite"><p class="sca-active-users-message">Loading active users…</p></div> </section></div>';
  loadPublicGuildDirectory();
  initScaActiveUsersPanel();
  const directorySearch=document.getElementById("sca-guild-directory-search-input");
