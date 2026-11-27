@@ -1492,7 +1492,7 @@ function stopScaTypingBroadcast(){
 }
 window.addEventListener("pagehide",stopScaTypingBroadcast);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")stopScaTypingBroadcast();});
-let scaGuildView="guilds";
+let scaGuildView="guilds";let scaGuildBazaarRequested=false;
 function renderGuildBazaar(){
  scaGuildView="bazaar";
  scaGuildUsersPanel.hidden=true;
@@ -1502,8 +1502,9 @@ function renderGuildBazaar(){
  const bazaar=document.getElementById("sca-guild-bazaar-nav");if(bazaar)bazaar.setAttribute("aria-current","page");
 }
 document.getElementById("sca-guild-bazaar-nav")?.addEventListener("click",()=>{
- if(scaMain.dataset.section!=="guild")openScaSection("guild");
- renderGuildBazaar();
+ if(scaMain.dataset.section==="guild"){renderGuildBazaar();return;}
+ scaGuildBazaarRequested=true;
+ openScaSection("guild");
 });
 function openScaSection(section){
   if(!scaButtons.some(button=>button.dataset.scaSection===section))section="friends";
@@ -1518,7 +1519,7 @@ function openScaSection(section){
   scaWorkspace.classList.toggle("is-expanded",section==="friends"||section==="guild");
   if(section==="friends"){friendRail.classList.remove("is-open");friendRail.dataset.tab="search";}
   if(section==="guild"){friendRail.classList.remove("is-open");friendRail.dataset.tab="";}
-  if(section==="guild"){scaGuildView="guilds";const bazaar=document.getElementById("sca-guild-bazaar-nav");if(bazaar)bazaar.removeAttribute("aria-current");}
+  if(section==="guild"){scaGuildView=scaGuildBazaarRequested?"bazaar":"guilds";scaGuildBazaarRequested=false;const bazaar=document.getElementById("sca-guild-bazaar-nav");if(bazaar)bazaar.removeAttribute("aria-current");}
   scaMain.dataset.section=section;
   scaMain.hidden=false;
   scaGuildUsersPanel.hidden=section!=="guild";
@@ -1541,7 +1542,7 @@ function openScaSection(section){
       addGuildMember(value);
     });
     lastGuildTimerMarkup="";
-    initGuildPanel().then(()=>initGuildChat()).catch(error=>console.error("Guild initialisation failed:",error));
+    initGuildPanel().then(()=>{if(scaGuildView==="bazaar")renderGuildBazaar();else initGuildChat();}).catch(error=>console.error("Guild initialisation failed:",error));
     return;
   }
   if(section!=="friends"){scaPrimary.replaceChildren();return;}
