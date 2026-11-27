@@ -1466,6 +1466,33 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
   box-shadow:none!important;
   transform:none!important;
 }
+
+/* Guild directory: let the card and its shadow extend past the workspace viewport.
+   The directory becomes the document scroll area instead of being clipped by
+   the fixed-height Guild workspace shell. */
+html.sca-guild-active:has(.sca-guild-entry-grid),
+html.sca-guild-active:has(.sca-guild-entry-grid) body,
+body.sca-guild-active:has(.sca-guild-entry-grid){
+  height:auto!important;
+  min-height:100%!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+}
+body.sca-guild-active .sca-workspace:has(.sca-main[data-section="guild"] .sca-guild-entry-grid){
+  height:auto!important;
+  min-height:100dvh!important;
+  overflow:visible!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid){
+  height:auto!important;
+  min-height:100dvh!important;
+  overflow:visible!important;
+  padding-bottom:110px!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) #sca-primary-panel{
+  overflow:visible!important;
+}
+
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
