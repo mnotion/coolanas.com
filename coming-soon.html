@@ -974,7 +974,7 @@ html.dark-mode .sca-guild-wizard-back{background:#30343c;border-color:#4a505a;co
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
     <section class="sca-panel" id="sca-primary-panel"></section>
-    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><div class="sca-guild-members-head"><h1 class="sca-guild-title">Guild</h1><div class="sca-guild-manage-actions" id="sca-guild-manage-actions" hidden><button type="button" id="sca-guild-edit-button">Edit</button><button type="button" id="sca-guild-disband-button">Disband</button></div></div><div class="sca-guild-invites" id="sca-guild-invites" aria-live="polite"></div><h2 class="sca-guild-members-label">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div><button class="sca-guild-add-toggle" id="sca-guild-add-toggle" type="button" aria-expanded="false" aria-controls="sca-guild-add-form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 19v1"/><circle cx="10" cy="7" r="4"/><path d="M19 8v6m-3-3h6"/></svg>Invite</button><form class="sca-guild-add-form" id="sca-guild-add-form" hidden><input id="sca-guild-add-username" type="text" autocomplete="off" minlength="4" maxlength="100" placeholder="Search exact username…" aria-label="Username to invite"><button id="sca-guild-add-submit" type="submit">Send invite</button></form><p class="sca-guild-add-status" id="sca-guild-add-status" role="status" aria-live="polite"></p></aside>
+    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><div class="sca-guild-members-head"><h1 class="sca-guild-title">Guild</h1><div class="sca-guild-manage-actions" id="sca-guild-manage-actions"><button type="button" id="sca-guild-edit-button" hidden>Edit</button><button type="button" id="sca-guild-leave-button" hidden>Leave Guild</button><button type="button" id="sca-guild-disband-button" hidden>Disband</button></div></div><div class="sca-guild-invites" id="sca-guild-invites" aria-live="polite"></div><h2 class="sca-guild-members-label">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div><button class="sca-guild-add-toggle" id="sca-guild-add-toggle" type="button" aria-expanded="false" aria-controls="sca-guild-add-form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 19v1"/><circle cx="10" cy="7" r="4"/><path d="M19 8v6m-3-3h6"/></svg>Invite</button><form class="sca-guild-add-form" id="sca-guild-add-form" hidden><input id="sca-guild-add-username" type="text" autocomplete="off" minlength="4" maxlength="100" placeholder="Search exact username…" aria-label="Username to invite"><button id="sca-guild-add-submit" type="submit">Send invite</button></form><p class="sca-guild-add-status" id="sca-guild-add-status" role="status" aria-live="polite"></p></aside>
   </main>
 </div>
 <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
@@ -1104,8 +1104,11 @@ async function loadGuildUsers(){
   if(inviteResult.error)throw inviteResult.error;
   const addToggle=document.getElementById("sca-guild-add-toggle");
   if(addToggle)addToggle.hidden=currentGuild.owner_id!==user.id;
-  const manage=document.getElementById("sca-guild-manage-actions");
-  if(manage)manage.hidden=currentGuild.owner_id!==user.id;
+  const isOwner=currentGuild.owner_id===user.id;
+  const manage=document.getElementById("sca-guild-manage-actions");if(manage)manage.hidden=false;
+  const editButton=document.getElementById("sca-guild-edit-button");if(editButton)editButton.hidden=!isOwner;
+  const disbandButton=document.getElementById("sca-guild-disband-button");if(disbandButton)disbandButton.hidden=!isOwner;
+  const leaveButton=document.getElementById("sca-guild-leave-button");if(leaveButton)leaveButton.hidden=isOwner;
   const directoryUsers=Array.isArray(directoryResult.data?.users)?directoryResult.data.users:[];
   guildPictureDirectory=new Map(directoryUsers.map(entry=>[String(entry.username||"").toLowerCase(),entry]));
   const members=Array.isArray(currentGuild.members)?currentGuild.members:[];
@@ -1335,7 +1338,17 @@ async function disbandCurrentGuild(){
  if(guildChatChannel){await supabase.removeChannel(guildChatChannel);guildChatChannel=null;}
  await initGuildPanel();
 }
+async function leaveCurrentGuild(){
+ if(!currentGuild||currentGuild.owner_id===user.id)return;
+ const name=currentGuild.name||"this Guild";
+ if(!confirm("Leave "+name+"? You will lose access to its members and chat."))return;
+ const {error}=await supabase.rpc("coolanas_guild_leave",{p_guild_id:currentGuild.id});
+ if(error){alert(error.message||"Could not leave Guild.");return;}
+ if(guildChatChannel){await supabase.removeChannel(guildChatChannel);guildChatChannel=null;}
+ await initGuildPanel();
+}
 document.getElementById("sca-guild-edit-button")?.addEventListener("click",openGuildEditDialog);
+document.getElementById("sca-guild-leave-button")?.addEventListener("click",leaveCurrentGuild);
 document.getElementById("sca-guild-disband-button")?.addEventListener("click",disbandCurrentGuild);
 
 async function initGuildPanel(){
