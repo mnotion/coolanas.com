@@ -12,6 +12,20 @@ if (sessionError || !session) {
 }
 await window.CoolanasTheme?.loadForSession(session);
 const user = session.user;
+
+function startCoolanasPresence(session){
+  if(!session?.user)return;
+  const send=async()=>{
+    if(document.visibilityState!=="visible")return;
+    const {error}=await supabase.rpc("coolanas_set_user_presence");
+    if(error)console.warn("Could not update Coolanas presence:",error.message);
+  };
+  send().catch(console.warn);
+  setInterval(()=>send().catch(console.warn),30000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")send().catch(console.warn);});
+}
+
+startCoolanasPresence(session);
 const filesFunction = "coolanas-files-b2";
 const bucketSvg =
     "<svg class=\"folder-icon bucket-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5.1 8.2C3.3 5.1 5.7 2.5 12 2.5s8.7 2.6 6.9 5.7\"/><path d=\"M3.2 8.2h17.6l-2 12.1c-4.4 1.6-9.2 1.6-13.6 0L3.2 8.2Z\"/><path d=\"M3.2 8.2c4.9 1.1 12.7 1.1 17.6 0\"/><path d=\"M6.1 17.5c3.8 1 8 1 11.8 0\"/></svg>";
