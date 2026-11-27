@@ -953,6 +953,13 @@ html.dark-mode .sca-guild-wizard-back{background:#30343c;border-color:#4a505a;co
 .sca-guild-page-button:disabled{opacity:.3;cursor:default}
 .sca-guild-page-label{color:#8992a0;font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
 html.dark-mode .sca-guild-page-button{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#e5e7eb}
+
+/* Apply the configured Guild colour as the section accent */
+.sca-guild-heading{border-top:3px solid var(--guild-accent,#829bc2);border-radius:3px;padding-top:12px}
+.sca-guild-title{text-decoration-color:var(--guild-accent,#829bc2);text-decoration-line:underline;text-decoration-thickness:3px;text-underline-offset:7px}
+.sca-guild-users-panel{border-top:3px solid var(--guild-accent,#829bc2)!important}
+.sca-guild-add-toggle,.sca-guild-message-composer button{border-color:color-mix(in srgb,var(--guild-accent,#829bc2) 55%,transparent)!important}
+.sca-guild-user-row{border-left:2px solid color-mix(in srgb,var(--guild-accent,#829bc2) 60%,transparent)}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1116,6 +1123,9 @@ async function loadGuildUsers(){
   const guildResult=await supabase.rpc("coolanas_guild_get_or_create");
   if(guildResult.error)throw guildResult.error;
   currentGuild=guildResult.data||null;
+  const guildAccent=/^#[0-9a-f]{6}$/i.test(currentGuild?.colour||"")?currentGuild.colour:"#829bc2";
+  const guildRoot=document.querySelector(".sca-main[data-section='guild']");
+  if(guildRoot)guildRoot.style.setProperty("--guild-accent",guildAccent);
   if(!currentGuild){
    scaGuildUserList.replaceChildren();
    const addToggle=document.getElementById("sca-guild-add-toggle");
