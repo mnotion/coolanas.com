@@ -1474,16 +1474,17 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
 }
 
 
-/* Keep the Guild create action inside the directory card and give it a clear shadow. */
-@media(min-width:761px){
-  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger{
-    top:auto!important;
-    bottom:18px!important;
-    box-shadow:0 8px 20px rgba(0,0,0,.34),0 2px 5px rgba(0,0,0,.22)!important;
-  }
-  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger:hover{
-    box-shadow:0 10px 24px rgba(0,0,0,.38),0 3px 7px rgba(0,0,0,.24)!important;
-  }
+/* Anchor the Guild create action close to the bottom edge of the card at every viewport size. */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger{
+  position:absolute!important;
+  top:auto!important;
+  bottom:8px!important;
+  left:50%!important;
+  margin:0 0 0 -24px!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.34),0 2px 5px rgba(0,0,0,.22)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger:hover{
+  box-shadow:0 10px 24px rgba(0,0,0,.38),0 3px 7px rgba(0,0,0,.24)!important;
 }
 
 </style>
