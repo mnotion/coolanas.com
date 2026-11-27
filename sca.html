@@ -1473,6 +1473,18 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
   contain:layout!important;
 }
 
+
+/* Keep the Guild create action inside the directory card and give it a clear shadow. */
+@media(min-width:761px){
+  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger{
+    top:calc(100% - 58px)!important;
+    box-shadow:0 8px 20px rgba(0,0,0,.34),0 2px 5px rgba(0,0,0,.22)!important;
+  }
+  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger:hover{
+    box-shadow:0 10px 24px rgba(0,0,0,.38),0 3px 7px rgba(0,0,0,.24)!important;
+  }
+}
+
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
