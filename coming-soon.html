@@ -1158,7 +1158,7 @@ async function addGuildMember(username){
  const status=document.getElementById("sca-guild-add-status"),submit=document.getElementById("sca-guild-add-submit");
  if(status)status.textContent="Checking username…";if(submit)submit.disabled=true;
  try{
-  const {data,error}=await supabase.rpc("coolanas_guild_invite_user",{p_username:username.trim()});
+  const {data,error}=await supabase.rpc("coolanas_guild_invite_user",{p_username:username.trim(),p_guild_id:currentGuild?.id});
   if(error)throw error;
   const input=document.getElementById("sca-guild-add-username");if(input)input.value="";
   if(status)status.textContent="Invitation sent to "+(data?.username||username)+". They must accept before joining.";
