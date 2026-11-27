@@ -2159,7 +2159,6 @@ async function initGuildPanel(){
   scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild and Bucket sections"><div class="sca-guild-entry-stack"><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guilds"><header class="sca-guild-entry-head"><h1>Guilds</h1><p>Discover public Guilds</p></header><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild">+</button></div></div>';
   loadPublicGuildDirectory();
   initScaActiveUsersPanel();
-  initScaActiveTimerSearch();
   document.getElementById("sca-guild-create-trigger")?.addEventListener("click",openGuildCreationWizard);
   return;
  }
@@ -2283,29 +2282,9 @@ let scaGuildView="guilds";let scaGuildBazaarRequested=false;
 function renderGuildBazaar(){
  scaGuildView="bazaar";
  scaGuildUsersPanel.hidden=true;
- scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><div class="sca-guild-toolbar"><div class="sca-guild-search-widget"><input id="sca-guild-directory-search-input" class="sca-guild-search-input" type="search" maxlength="80" placeholder="Type to search…" autocomplete="off" aria-label="Search public Guilds"><span class="sca-guild-search-icon" aria-hidden="true"><svg viewBox="0 0 512 512"><circle cx="221" cy="221" r="157" fill="none" stroke="currentColor" stroke-width="32"></circle><path d="M338 338 448 448" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"></path></svg></span></div></div><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guild directory"><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild"><span class="sca-guild-create-sign">+</span><span class="sca-guild-create-text">Create</span></button></div><div class="sca-active-users-stack"><section class="sca-guild-entry-card sca-guild-secondary-card" aria-label="Active users">\n  <header class="sca-active-users-head"><div><h2>Studying now</h2></div></header>   <div class="sca-active-users-list" id="sca-active-users-list" role="list" aria-live="polite"><p class="sca-active-users-message">Loading active users…</p></div> </section><div class="sca-active-toolbar"><div class="sca-active-search-widget"><input type="search" class="sca-active-search-input" id="sca-active-search-input" placeholder="Search studying members…" aria-label="Search studying members"><span class="sca-active-search-icon" aria-hidden="true"><svg viewBox="0 0 512 512"><circle cx="221" cy="221" r="157" fill="none" stroke="currentColor" stroke-width="32"></circle><path d="M338 338 448 448" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"></path></svg></span></div></div></div></div>';
+ scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guild directory"><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild"><span class="sca-guild-create-sign">+</span><span class="sca-guild-create-text">Create</span></button></div><div class="sca-active-users-stack"><section class="sca-guild-entry-card sca-guild-secondary-card" aria-label="Active users">\n  <header class="sca-active-users-head"><div><h2>Studying now</h2></div></header>   <div class="sca-active-users-list" id="sca-active-users-list" role="list" aria-live="polite"><p class="sca-active-users-message">Loading active users…</p></div> </section></div></div>';
  loadPublicGuildDirectory();
  initScaActiveUsersPanel();
- const directorySearch=document.getElementById("sca-guild-directory-search-input");
- const applyGuildDirectoryFilters=()=>{
-  const query=(directorySearch?.value||"").trim().toLocaleLowerCase();
-  const cards=[...document.querySelectorAll("#sca-guild-public-list .sca-guild-public-item")];
-  cards.forEach(card=>{card.hidden=!!query&&!card.textContent.toLocaleLowerCase().includes(query);});
-  const active=[...document.querySelectorAll(".sca-guild-filter.is-active")].map(button=>button.dataset.guildFilter);
-  const sort=active.includes("members")?"members":"new";
-  const host=document.getElementById("sca-guild-public-list");
-  cards.sort((a,b)=>sort==="members"?(Number(b.dataset.memberCount||0)-Number(a.dataset.memberCount||0)):Number(b.dataset.createdAt||0)-Number(a.dataset.createdAt||0));
-  cards.forEach(card=>host.append(card));
- };
- directorySearch?.addEventListener("input",applyGuildDirectoryFilters);
- const guildToolbar=directorySearch?.closest(".sca-guild-toolbar");
- directorySearch?.addEventListener("focus",()=>guildToolbar?.classList.add("is-search-open"));
- directorySearch?.addEventListener("blur",()=>guildToolbar?.classList.remove("is-search-open"));
- document.querySelectorAll(".sca-guild-filter").forEach(button=>button.addEventListener("click",()=>{
-  button.classList.toggle("is-active");
-  button.setAttribute("aria-pressed",String(button.classList.contains("is-active")));
-  applyGuildDirectoryFilters();
- }));
  document.getElementById("sca-guild-create-trigger")?.addEventListener("click",openGuildCreationWizard);
  const bazaar=document.getElementById("sca-guild-bazaar-nav");if(bazaar)bazaar.setAttribute("aria-current","page");
 }
