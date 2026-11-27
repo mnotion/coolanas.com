@@ -35,7 +35,7 @@ as $$
   join auth.users u on u.id=p.id
   where auth.uid() is not null
     and p.username is not null
-    and presence.last_seen_at >= clock_timestamp() - interval '90 seconds'
+    and presence.last_seen_at >= now() - interval '90 seconds'
   order by presence.last_seen_at desc,p.username asc
   limit least(greatest(coalesce(p_limit,20),1),20)
   offset greatest(coalesce(p_offset,0),0);
