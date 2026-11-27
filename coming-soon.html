@@ -931,6 +931,15 @@ html.dark-mode .sca-guild-wizard-back{background:#30343c;border-color:#4a505a;co
 .sca-guild-manage-actions button{height:30px;padding:0 12px;border:1px solid rgba(120,120,120,.2);border-radius:8px;background:rgba(120,120,120,.07);color:inherit;font-size:11px;font-weight:700;cursor:pointer}
 .sca-guild-manage-actions button:last-child{color:#bd5555;border-color:rgba(190,75,75,.25)}
 .sca-guild-upload-current{color:#8b95a3;font-size:11px;font-weight:400}
+
+/* Secondary Bazaar destination nested below Guild in the sidebar */
+.sca-guild-bazaar-nav{display:none;align-items:center;justify-content:center;min-height:34px;margin-top:-3px;padding:0 8px;border:0;border-radius:8px;background:transparent;color:inherit;opacity:.38;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;letter-spacing:.04em;cursor:pointer;transition:opacity .16s ease,background .16s ease}
+.sca-guild-active .sca-guild-bazaar-nav{display:flex}
+.sca-guild-bazaar-nav:hover{opacity:.85;background:rgba(120,140,170,.09)}
+.sca-guild-bazaar-nav[aria-current="page"]{opacity:.95;color:#8eadd8;background:rgba(90,130,190,.1)}
+.sca-guild-active .sca-sidebar{grid-auto-rows:min-content}
+.sca-guild-active .sca-guild-bazaar-nav{width:100%}
+@media(max-width:620px){.sca-guild-active .sca-guild-bazaar-nav{min-height:28px;margin-top:-5px;font-size:10px}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -952,6 +961,9 @@ html.dark-mode .sca-guild-wizard-back{background:#30343c;border-color:#4a505a;co
     <button class="sca-nav-item" type="button" data-sca-section="guild">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5M9 9h.01M15 9h.01M12 12h.01"/></svg>
       <span>Guild</span>
+    </button>
+    <button class="sca-guild-bazaar-nav" type="button" id="sca-guild-bazaar-nav" aria-label="Bazaar" title="Bazaar">
+      <span>Bazaar</span>
     </button>
   </aside>
   <aside class="sca-friends-rail" id="sca-friends-rail" aria-label="Friends and requests">
@@ -1480,6 +1492,19 @@ function stopScaTypingBroadcast(){
 }
 window.addEventListener("pagehide",stopScaTypingBroadcast);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")stopScaTypingBroadcast();});
+let scaGuildView="guilds";
+function renderGuildBazaar(){
+ scaGuildView="bazaar";
+ scaGuildUsersPanel.hidden=true;
+ scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guilds"><header class="sca-guild-entry-head"><h1>Guilds</h1><p>Discover public Guilds</p></header><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button">Create a Guild</button></div><section class="sca-guild-entry-card sca-guild-buckets-card" aria-label="Buckets"><h1>Buckets</h1></section></div>';
+ loadPublicGuildDirectory();
+ document.getElementById("sca-guild-create-trigger")?.addEventListener("click",openGuildCreationWizard);
+ const bazaar=document.getElementById("sca-guild-bazaar-nav");if(bazaar)bazaar.setAttribute("aria-current","page");
+}
+document.getElementById("sca-guild-bazaar-nav")?.addEventListener("click",()=>{
+ if(scaMain.dataset.section!=="guild")openScaSection("guild");
+ renderGuildBazaar();
+});
 function openScaSection(section){
   if(!scaButtons.some(button=>button.dataset.scaSection===section))section="friends";
   if(section!=="friends")stopScaTypingBroadcast();
@@ -1493,6 +1518,7 @@ function openScaSection(section){
   scaWorkspace.classList.toggle("is-expanded",section==="friends"||section==="guild");
   if(section==="friends"){friendRail.classList.remove("is-open");friendRail.dataset.tab="search";}
   if(section==="guild"){friendRail.classList.remove("is-open");friendRail.dataset.tab="";}
+  if(section==="guild"){scaGuildView="guilds";const bazaar=document.getElementById("sca-guild-bazaar-nav");if(bazaar)bazaar.removeAttribute("aria-current");}
   scaMain.dataset.section=section;
   scaMain.hidden=false;
   scaGuildUsersPanel.hidden=section!=="guild";
