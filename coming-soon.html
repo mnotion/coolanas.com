@@ -1422,6 +1422,23 @@ html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
  left:26px!important;
  width:calc(100% - 26px)!important;
 }
+
+/* Keep Guild directory filters visually contained by the directory outline. */
+.sca-main[data-section="guild"] .sca-guild-filter-row,
+.sca-guild-filter-row{overflow:visible!important}
+.sca-main[data-section="guild"] .sca-guild-filter,
+.sca-guild-filter{
+  box-shadow:none!important;
+  transform:none!important;
+  transition:background .18s ease,color .18s ease!important;
+}
+.sca-main[data-section="guild"] .sca-guild-filter:hover,
+.sca-main[data-section="guild"] .sca-guild-filter.is-active,
+.sca-guild-filter:hover,
+.sca-guild-filter.is-active{
+  box-shadow:none!important;
+  transform:none!important;
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
