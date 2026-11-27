@@ -988,6 +988,33 @@ html.dark-mode .sca-guild-page-button{background:rgba(255,255,255,.06);border-co
 html.dark-mode .sca-guild-public-item{background:color-mix(in srgb,var(--guild-accent,#829bc2) 20%,#252a33)!important}
 html.dark-mode .sca-guild-join-button{background:color-mix(in srgb,var(--guild-accent,#829bc2) 30%,#252a33);color:#f4f6fa}
 @media(prefers-reduced-motion:reduce){.sca-guild-create-trigger,.sca-guild-create-sign,.sca-guild-create-text{transition:none!important}}
+
+/* Bazaar spacing, card sizing and scrollbar-free list */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{align-items:center!important}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{align-self:center;min-height:0;gap:0}
+.sca-guild-directory-title{font-family:Georgia,"Times New Roman",serif!important;font-size:clamp(30px,3vw,40px)!important;font-weight:800!important;letter-spacing:-.035em!important;line-height:1.1;margin:0 0 16px!important;text-align:center}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(68vh,660px)!important;min-height:420px!important;padding:14px 14px 14px 14px!important;overflow:hidden!important}
+.sca-guild-public-list{height:100%;min-height:0;box-sizing:border-box;padding:12px 12px 12px 12px!important;gap:12px!important;overflow-y:auto!important;overflow-x:hidden!important;scrollbar-width:none!important;-ms-overflow-style:none}
+.sca-guild-public-list::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+.sca-guild-public-item{margin:0!important;flex:0 0 auto;overflow:hidden}
+.sca-guild-public-item-line{padding:0!important}
+.sca-guild-public-description{padding:0!important;margin:0 0 8px!important}
+.sca-guild-join-button{margin:0 0 10px auto!important}
+.sca-guild-create-trigger::before{content:none!important;display:none!important}
+.sca-guild-create-trigger{width:48px!important;height:48px!important;min-width:48px!important;justify-content:flex-start!important;border-radius:14px!important;transition:width .32s cubic-bezier(.2,.8,.2,1),box-shadow .32s,transform .15s!important}
+.sca-guild-create-sign{width:48px!important;min-width:48px!important;max-width:48px!important;flex:0 0 48px!important;padding:0!important;font-size:29px!important;line-height:1!important;transition:all .32s cubic-bezier(.2,.8,.2,1)!important}
+.sca-guild-create-text{right:10px!important;width:0!important;opacity:0!important;padding:0!important;text-align:center;transition:width .32s cubic-bezier(.2,.8,.2,1),opacity .22s ease .06s!important}
+.sca-guild-create-trigger:hover{width:126px!important;box-shadow:0 9px 24px rgba(0,0,0,.24)!important}
+.sca-guild-create-trigger:hover .sca-guild-create-sign{width:48px!important;min-width:48px!important;max-width:48px!important;padding:0!important}
+.sca-guild-create-trigger:hover .sca-guild-create-text{width:58px!important;opacity:1!important}
+.sca-guild-creation-overlay{opacity:0;perspective:1400px;transform:translateY(34px) scale(.94);filter:blur(7px);transition:opacity .68s ease,transform .78s cubic-bezier(.16,1,.3,1),filter .68s ease}
+.sca-guild-creation-overlay.is-open{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+.sca-guild-creation-overlay .sca-guild-creation-panel{opacity:0;transform:translateY(42px) rotateX(7deg) scale(.94);transform-origin:50% 100%;transition:transform .82s cubic-bezier(.16,1,.3,1),opacity .58s ease;box-shadow:0 28px 90px rgba(0,0,0,.2)}
+.sca-guild-creation-overlay.is-open .sca-guild-creation-panel{opacity:1;transform:translateY(0) rotateX(0) scale(1)}
+.sca-guild-creation-overlay.is-closing{opacity:0;transform:translateY(26px) scale(.96);filter:blur(5px);pointer-events:none;transition:opacity .55s ease,transform .62s cubic-bezier(.7,0,.84,0),filter .55s ease}
+.sca-guild-creation-overlay.is-closing .sca-guild-creation-panel{opacity:0;transform:translateY(36px) rotateX(-6deg) scale(.95);transition:transform .58s ease,opacity .48s ease}
+@media(max-width:760px){.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(64vh,600px)!important;min-height:360px!important}}
+@media(prefers-reduced-motion:reduce){.sca-guild-creation-overlay,.sca-guild-creation-overlay .sca-guild-creation-panel{transition:none!important;animation:none!important}.sca-guild-create-trigger,.sca-guild-create-sign,.sca-guild-create-text{transition:none!important}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1315,8 +1342,12 @@ async function loadPublicGuildDirectory(page=1){
  }catch(error){console.error("Public Guild directory failed:",error);host.replaceChildren(guildElement("p","sca-guild-public-empty","Could not load public Guilds."));}
 }
 function closeGuildCreationWizard(){
- document.getElementById("sca-guild-creation-overlay")?.remove();
- document.body.classList.remove("sca-guild-creation-open");
+ const overlay=document.getElementById("sca-guild-creation-overlay");
+ if(!overlay||overlay.classList.contains("is-closing"))return;
+ overlay.classList.add("is-closing");
+ const finish=()=>{overlay.remove();document.body.classList.remove("sca-guild-creation-open");};
+ overlay.addEventListener("animationend",finish,{once:true});
+ setTimeout(()=>{if(overlay.isConnected)finish();},700);
 }
 function renderGuildCreationWizard(){
  let overlay=document.getElementById("sca-guild-creation-overlay");
@@ -1324,6 +1355,7 @@ function renderGuildCreationWizard(){
   overlay=guildElement("div","sca-guild-creation-overlay");overlay.id="sca-guild-creation-overlay";
   overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");overlay.setAttribute("aria-labelledby","sca-guild-wizard-title");
   document.body.append(overlay);document.body.classList.add("sca-guild-creation-open");
+  requestAnimationFrame(()=>requestAnimationFrame(()=>overlay.classList.add("is-open")));
  }
  overlay.replaceChildren();
  const panel=guildElement("section","sca-guild-creation-panel");
