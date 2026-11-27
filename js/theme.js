@@ -12,12 +12,12 @@
   const loads = new Map();
   const retryTimers = new Map();
 
-  const apply = value => {
-    mode = value === "dark" ? "dark" : "light";
-    root.classList.toggle("dark-mode", mode === "dark");
-    root.dataset.theme = mode;
+  const apply = () => {
+    mode = "light";
+    root.classList.remove("dark-mode");
+    root.dataset.theme = "light";
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = mode === "dark" ? "#17191d" : "#ffffff";
+    if (meta) meta.content = "#ffffff";
     window.dispatchEvent(new CustomEvent("coolanas:themechange", {detail:{mode}}));
   };
 
@@ -44,10 +44,9 @@
     }
   };
 
-  const set = value => {
-    const next = value === "dark" ? "dark" : "light";
-    apply(next);
-    if (userId) void persistTheme(next);
+  const set = () => {
+    apply();
+    if (userId) void persistTheme("light");
   };
 
   async function flushThemeOnExit() {
@@ -116,12 +115,7 @@
     if (loads.has(nextUserId)) return loads.get(nextUserId);
 
     const task = (async () => {
-      let cachedMode = null;
-      try {
-        const cached = localStorage.getItem("coolanas-theme:" + nextUserId);
-        if (cached === "dark" || cached === "light") cachedMode = cached;
-      } catch {}
-      if (cachedMode) apply(cachedMode);
+      apply();
 
       const {data, error} = await supabase.functions.invoke("coolanas-files-b2", {
         body: {action:"settings_get"}
@@ -132,15 +126,11 @@
       const settings = data?.settings && typeof data.settings === "object" ? data.settings : {};
       const cloudTheme = settings.theme === "dark" || settings.theme === "light"
         ? settings.theme : null;
-      // Cloud JSON is authoritative. During a capped B2 import, do not write a
-      // guessed light default: an older dark preference may still be in settings.json.
       const importPending = data?.legacyImportPending === true;
-      const selectedTheme = cloudTheme || cachedMode || (importPending ? null : "light");
-      if (selectedTheme) {
-        apply(selectedTheme);
-        try { localStorage.setItem("coolanas-theme:" + nextUserId, selectedTheme); } catch {}
-        if (!cloudTheme && !importPending) await persistTheme(selectedTheme);
-      }
+      // Light is the sole supported appearance; overwrite any older saved dark preference.
+      apply();
+      try { localStorage.setItem("coolanas-theme:" + nextUserId, "light"); } catch {}
+      if (!importPending && cloudTheme !== "light") await persistTheme("light");
       ready = true;
       if (!importPending) retryTimers.delete(nextUserId);
       window.dispatchEvent(new CustomEvent("coolanas:settingsready", {
