@@ -1237,7 +1237,7 @@ function renderGuildCreationWizard(){
   const wrap=guildElement("label","sca-guild-wizard-field");wrap.append(guildElement("span","","Guild colour"));
   const colour=document.createElement("input");colour.type="color";colour.id="sca-guild-create-colour";colour.value=guildCreationDraft.colour;wrap.append(colour);form.append(wrap);
  }else if(guildCreationStep===3){
-  form.append(guildElement("p","sca-guild-wizard-placeholder","Guild creation policies and rules will be configured here later."));
+  form.append(guildElement("div","sca-guild-wizard-placeholder",""));
  }else{
   field("Invite by username","sca-guild-create-invites","textarea",guildCreationDraft.invitees,"Enter usernames separated by commas or new lines");
   form.append(guildElement("p","sca-guild-wizard-hint","Invitations are sent after the Guild is created. Invitees must accept before joining."));
@@ -1256,14 +1256,17 @@ function saveGuildWizardDraft(){
 }
 function openGuildCreationWizard(){guildCreationStep=1;guildCreationDraft={name:"",description:"",isPublic:true,bannerUrl:"",pictureUrl:"",colour:"#6f91c8",invitees:""};renderGuildCreationWizard();}
 async function createGuildFromWizard(button){
- if(button.disabled)return;button.disabled=true;button.textContent="Creating…";
+ if(button.disabled)return;
+ const validImageUrl=value=>{if(!value)return true;try{const url=new URL(value);return url.protocol==="https:"||url.protocol==="http:";}catch{return false;}};
+ if(!validImageUrl(guildCreationDraft.bannerUrl)||!validImageUrl(guildCreationDraft.pictureUrl)){const form=document.getElementById("sca-guild-wizard-form");let error=form.querySelector(".sca-guild-create-error");if(!error){error=guildElement("p","sca-guild-create-error");form.append(error);}error.textContent="Banner and profile picture must use valid HTTP or HTTPS image URLs.";return;}
+ button.disabled=true;button.textContent="Creating…";
  try{
   const {data,error}=await supabase.rpc("coolanas_guild_create",{p_name:guildCreationDraft.name.trim(),p_description:guildCreationDraft.description.trim(),p_is_public:guildCreationDraft.isPublic,p_banner_url:guildCreationDraft.bannerUrl.trim()||null,p_picture_url:guildCreationDraft.pictureUrl.trim()||null,p_colour:guildCreationDraft.colour});
   if(error)throw error;
   currentGuild=data;
   const usernames=[...new Set(guildCreationDraft.invitees.split(/[\n,]+/).map(v=>v.trim()).filter(Boolean))];
   const failed=[];
-  for(const username of usernames){const result=await supabase.rpc("coolanas_guild_invite_user",{p_username:username});if(result.error)failed.push(username+": "+result.error.message);}
+  for(const username of usernames){const result=await supabase.rpc("coolanas_guild_invite_user",{p_username:username,p_guild_id:data.id});if(result.error)failed.push(username+": "+result.error.message);}
   closeGuildCreationWizard();
   await initGuildPanel();
   if(failed.length)console.warn("Some Guild invitations failed:",failed);
