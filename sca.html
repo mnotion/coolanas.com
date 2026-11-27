@@ -3004,5 +3004,42 @@ setAvatar(googleAvatarUrl);try{await refreshProfilePicture();}catch(error){conso
 }
 </style>
 
+
+<style id="sca-guild-plus-specificity-correction">
+/* Match and override the original high-specificity Guild placement selectors. */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack>.sca-guild-create-trigger{
+ position:absolute!important;
+ top:-54px!important;
+ right:8px!important;
+ bottom:auto!important;
+ left:auto!important;
+ margin:0!important;
+ align-self:auto!important;
+ width:36px!important;
+ min-width:36px!important;
+ max-width:36px!important;
+ height:36px!important;
+ min-height:36px!important;
+ padding:0!important;
+ display:grid!important;
+ place-items:center!important;
+ border:1px solid rgba(80,125,190,.24)!important;
+ border-radius:50%!important;
+ background:#202020!important;
+ color:#fff!important;
+ font-size:22px!important;
+ line-height:1!important;
+ transform:none!important;
+ box-shadow:0 4px 12px rgba(0,0,0,.16)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack>.sca-guild-create-trigger:hover{
+ top:-54px!important;right:8px!important;left:auto!important;
+ width:36px!important;min-width:36px!important;transform:scale(1.04)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack>.sca-guild-create-trigger:active{
+ transform:scale(.96)!important;
+}
+</style>
+
 </body>
 </html>
