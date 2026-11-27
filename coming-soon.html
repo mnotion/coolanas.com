@@ -1154,6 +1154,47 @@ html.dark-mode .sca-guild-join-button{background:color-mix(in srgb,var(--guild-a
 .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-secondary-card{
  align-self:center!important;
 }
+
+/* Centre the Guild directory card itself, not its card-plus-create-button stack */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{
+ height:calc(100dvh - 150px)!important;
+ min-height:0!important;
+ align-items:center!important;
+ align-content:center!important;
+ box-sizing:border-box!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{
+ position:relative!important;
+ align-self:center!important;
+ height:min(68vh,660px)!important;
+ min-height:420px!important;
+ padding:0!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{
+ height:100%!important;
+ min-height:0!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger{
+ position:absolute!important;
+ top:calc(100% + 14px)!important;
+ left:50%!important;
+ margin:0 0 0 -24px!important;
+ align-self:auto!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-secondary-card{
+ align-self:center!important;
+}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{
+  height:auto!important;min-height:0!important;
+ }
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{
+  height:min(64vh,600px)!important;min-height:360px!important;
+ }
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-create-trigger{
+  position:relative!important;top:auto!important;left:auto!important;margin:14px auto 0!important;
+ }
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
