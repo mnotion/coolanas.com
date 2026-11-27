@@ -3020,5 +3020,17 @@ setAvatar(googleAvatarUrl);try{await refreshProfilePicture();}catch(error){conso
 }
 </style>
 
+
+<style id="sca-bazaar-column-vertical-alignment">
+/* Align the Guild directory and Studying now cards on the same top edge. */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{
+ align-items:start!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-active-users-stack{
+ align-self:start!important;
+ transform:none!important;
+}
+</style>
+
 </body>
 </html>
