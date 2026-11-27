@@ -940,21 +940,6 @@ html.dark-mode .sca-guild-wizard-back{background:#30343c;border-color:#4a505a;co
 .sca-guild-active .sca-sidebar{grid-auto-rows:min-content}
 .sca-guild-active .sca-guild-bazaar-nav{width:100%}
 @media(max-width:620px){.sca-guild-active .sca-guild-bazaar-nav{min-height:28px;margin-top:-5px;font-size:10px}}
-
-/* Low-opacity default Guild identity artwork */
-.sca-guild-public-banner{height:66px;position:relative;overflow:hidden;background:#f5f6f8}
-.sca-guild-public-banner img{display:block;width:100%;height:100%;object-fit:cover;opacity:1}
-.sca-guild-public-banner img.is-default{opacity:.22}
-.sca-guild-public-avatar{width:38px;height:38px;flex:none;border-radius:11px;object-fit:cover;background:#fff}
-.sca-guild-public-avatar.is-default{opacity:.28;padding:2px;box-sizing:border-box}
-.sca-guild-members-head{width:100%}
-.sca-guild-brand-banner{width:100%;height:82px;overflow:hidden;border-radius:12px;background:#f5f6f8}
-.sca-guild-brand-banner img{display:block;width:100%;height:100%;object-fit:cover}
-.sca-guild-brand-banner img.is-default{opacity:.2}
-.sca-guild-brand-identity{display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
-.sca-guild-brand-avatar{width:42px;height:42px;flex:none;border-radius:50%;object-fit:cover;background:#fff}
-.sca-guild-brand-avatar.is-default{opacity:.28;padding:2px;box-sizing:border-box}
-html.dark-mode .sca-guild-public-banner,html.dark-mode .sca-guild-brand-banner{background:#30343c}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1001,7 +986,7 @@ html.dark-mode .sca-guild-public-banner,html.dark-mode .sca-guild-brand-banner{b
   </aside>
   <main class="sca-main" id="sca-main" aria-live="polite">
     <section class="sca-panel" id="sca-primary-panel"></section>
-    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><div class="sca-guild-members-head"><div class="sca-guild-brand-banner" id="sca-guild-brand-banner"><img src="https://raw.githubusercontent.com/mnotion/coolanas.com/development/assets/guild-default-banner.svg" alt=""></div><div class="sca-guild-brand-identity"><img class="sca-guild-brand-avatar is-default" id="sca-guild-brand-avatar" src="https://raw.githubusercontent.com/mnotion/coolanas.com/development/assets/guild-default-avatar.svg" alt=""><h1 class="sca-guild-title">Guild</h1></div><div class="sca-guild-manage-actions" id="sca-guild-manage-actions"><button type="button" id="sca-guild-edit-button" hidden>Edit</button><button type="button" id="sca-guild-leave-button" hidden>Leave Guild</button><button type="button" id="sca-guild-disband-button" hidden>Disband</button></div></div><div class="sca-guild-invites" id="sca-guild-invites" aria-live="polite"></div><h2 class="sca-guild-members-label">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div><button class="sca-guild-add-toggle" id="sca-guild-add-toggle" type="button" aria-expanded="false" aria-controls="sca-guild-add-form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 19v1"/><circle cx="10" cy="7" r="4"/><path d="M19 8v6m-3-3h6"/></svg>Invite</button><form class="sca-guild-add-form" id="sca-guild-add-form" hidden><input id="sca-guild-add-username" type="text" autocomplete="off" minlength="4" maxlength="100" placeholder="Search exact username…" aria-label="Username to invite"><button id="sca-guild-add-submit" type="submit">Send invite</button></form><p class="sca-guild-add-status" id="sca-guild-add-status" role="status" aria-live="polite"></p></aside>
+    <aside class="sca-panel sca-guild-users-panel" id="sca-guild-users-panel" aria-label="Guild members" hidden><div class="sca-guild-members-head"><h1 class="sca-guild-title">Guild</h1><div class="sca-guild-manage-actions" id="sca-guild-manage-actions"><button type="button" id="sca-guild-edit-button" hidden>Edit</button><button type="button" id="sca-guild-leave-button" hidden>Leave Guild</button><button type="button" id="sca-guild-disband-button" hidden>Disband</button></div></div><div class="sca-guild-invites" id="sca-guild-invites" aria-live="polite"></div><h2 class="sca-guild-members-label">Members</h2><div class="sca-guild-user-list" id="sca-guild-user-list" aria-live="polite"><p class="sca-guild-users-message">Loading members…</p></div><button class="sca-guild-add-toggle" id="sca-guild-add-toggle" type="button" aria-expanded="false" aria-controls="sca-guild-add-form"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1.5a4.5 4.5 0 0 0-4.5-4.5h-3A4.5 4.5 0 0 0 4 19v1"/><circle cx="10" cy="7" r="4"/><path d="M19 8v6m-3-3h6"/></svg>Invite</button><form class="sca-guild-add-form" id="sca-guild-add-form" hidden><input id="sca-guild-add-username" type="text" autocomplete="off" minlength="4" maxlength="100" placeholder="Search exact username…" aria-label="Username to invite"><button id="sca-guild-add-submit" type="submit">Send invite</button></form><p class="sca-guild-add-status" id="sca-guild-add-status" role="status" aria-live="polite"></p></aside>
   </main>
 </div>
 <button id="profile-button" class="profile-button" type="button" aria-label="Open account menu" aria-expanded="false" aria-controls="profile-drawer"><img id="profile-avatar" alt="" hidden><span id="profile-avatar-fallback" aria-hidden="true">?</span></button>
@@ -1118,11 +1103,6 @@ async function loadGuildUsers(){
   const guildResult=await supabase.rpc("coolanas_guild_get_or_create");
   if(guildResult.error)throw guildResult.error;
   currentGuild=guildResult.data||null;
-  if(currentGuild){
-   const banner=document.querySelector("#sca-guild-brand-banner img");if(banner){banner.src=currentGuild.banner_url||"https://raw.githubusercontent.com/mnotion/coolanas.com/development/assets/guild-default-banner.svg";banner.classList.toggle("is-default",!currentGuild.banner_url);}
-   const avatar=document.getElementById("sca-guild-brand-avatar");if(avatar){avatar.src=currentGuild.picture_url||"https://raw.githubusercontent.com/mnotion/coolanas.com/development/assets/guild-default-avatar.svg";avatar.classList.toggle("is-default",!currentGuild.picture_url);}
-   const title=document.querySelector(".sca-guild-title");if(title)title.textContent=currentGuild.name||"Guild";
-  }
   if(!currentGuild){
    scaGuildUserList.replaceChildren();
    const addToggle=document.getElementById("sca-guild-add-toggle");
@@ -1249,10 +1229,9 @@ async function loadPublicGuildDirectory(){
   if(!guilds.length){host.append(guildElement("p","sca-guild-public-empty","No public Guilds yet."));return;}
   guilds.forEach(guild=>{
    const card=guildElement("article","sca-guild-public-item");
-   const banner=guildElement("div","sca-guild-public-banner"+(guild.banner_url?"":" is-default"));
-   const bannerImage=document.createElement("img");bannerImage.alt="";bannerImage.loading="lazy";bannerImage.src=guild.banner_url||"https://raw.githubusercontent.com/mnotion/coolanas.com/development/assets/guild-default-banner.svg";bannerImage.onerror=()=>{bannerImage.src="https://raw.githubusercontent.com/mnotion/coolanas.com/development/assets/guild-default-banner.svg";bannerImage.classList.add("is-default");};if(!guild.banner_url)bannerImage.classList.add("is-default");banner.append(bannerImage);card.append(banner);
+   if(guild.banner_url){const banner=guildElement("div","sca-guild-public-banner");banner.style.backgroundImage="url("+JSON.stringify(guild.banner_url).slice(1,-1)+")";card.append(banner);}
    const line=guildElement("div","sca-guild-public-item-line");
-   const img=document.createElement("img");img.className="sca-guild-public-avatar"+(guild.picture_url?"":" is-default");img.alt="";img.loading="lazy";img.src=guild.picture_url||"https://raw.githubusercontent.com/mnotion/coolanas.com/development/assets/guild-default-avatar.svg";img.onerror=()=>{img.src="https://raw.githubusercontent.com/mnotion/coolanas.com/development/assets/guild-default-avatar.svg";img.classList.add("is-default");};line.append(img);
+   if(guild.picture_url){const img=document.createElement("img");img.className="sca-guild-public-avatar";img.alt="";img.loading="lazy";img.src=guild.picture_url;img.onerror=()=>img.remove();line.append(img);}
    const copy=guildElement("div","sca-guild-public-copy");copy.append(guildElement("strong","",guild.name||"Guild"),guildElement("span","",String(guild.member_count||0)+" members"));
    line.append(copy);card.append(line);
    if(guild.description)card.append(guildElement("p","sca-guild-public-description",guild.description));
