@@ -1568,7 +1568,7 @@ html.dark-mode .sca-active-user-name,html.dark-mode .sca-active-user-timer{color
 .sca-guild-create-trigger .sca-guild-create-sign{display:block!important;font-size:22px!important;line-height:1!important}
 .sca-guild-create-trigger .sca-guild-create-text{display:none!important}
 .sca-guild-create-trigger:hover{width:36px!important;min-width:36px!important;transform:scale(1.04)!important}
-.sca-active-search-icon{transform:translateX(-4px)!important}
+
 
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
@@ -2925,6 +2925,28 @@ setAvatar(googleAvatarUrl);try{await refreshProfilePicture();}catch(error){conso
 </script>
   <script src="/js/upload-manager.js?v=3" defer></script>
 
+
+
+<style id="sca-guild-control-position-fix">
+/* Keep these overrides after the site-wide theme stylesheet. */
+.sca-guild-entry-stack{position:relative!important}
+.sca-guild-create-trigger{
+ position:absolute!important;top:-54px!important;right:0!important;left:auto!important;bottom:auto!important;
+ width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;
+ margin:0!important;padding:0!important;display:grid!important;place-items:center!important;
+ border:1px solid rgba(80,125,190,.24)!important;border-radius:50%!important;
+ background:#202020!important;color:#fff!important;font-size:22px!important;line-height:1!important;
+ box-shadow:0 4px 12px rgba(0,0,0,.16)!important;transform:none!important;
+}
+.sca-guild-create-trigger:hover{width:36px!important;height:36px!important;transform:scale(1.04)!important}
+.sca-active-search-widget{position:relative!important}
+.sca-active-search-icon{
+ position:absolute!important;top:0!important;left:0!important;right:auto!important;bottom:auto!important;
+ width:40px!important;height:40px!important;padding:9px!important;margin:0!important;
+ display:grid!important;place-items:center!important;transform:none!important;
+}
+.sca-active-search-icon svg{width:100%!important;height:100%!important;display:block!important}
+</style>
 
 </body>
 </html>
