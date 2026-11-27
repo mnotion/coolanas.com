@@ -1104,6 +1104,12 @@ html.dark-mode .sca-guild-join-button{background:color-mix(in srgb,var(--guild-a
  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(64vh,600px)!important;min-height:360px!important}
 }
 @media(prefers-reduced-motion:reduce){.sca-guild-public-item{transition:none!important}}
+
+/* Ensure every public Guild card fills the directory column */
+.sca-guild-public-list{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;width:100%!important;min-width:0!important}
+.sca-guild-public-list>.sca-guild-public-item{display:grid!important;width:100%!important;min-width:0!important;max-width:none!important;align-self:stretch!important;justify-self:stretch!important;flex:0 0 auto!important;box-sizing:border-box!important}
+.sca-guild-public-list>.sca-guild-public-item>.sca-guild-public-banner{display:block!important;width:100%!important;min-width:0!important;grid-column:1/-1!important}
+.sca-guild-public-list>.sca-guild-public-item>.sca-guild-public-body,.sca-guild-public-list>.sca-guild-public-item>.sca-guild-public-footer{width:100%!important;min-width:0!important;box-sizing:border-box!important}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
