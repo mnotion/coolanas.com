@@ -2026,7 +2026,8 @@ async function loadScaActiveUsers(reset=false){
   if(!list.children.length){const empty=document.createElement("p");empty.className="sca-active-users-message";empty.textContent="No users are active right now.";list.append(empty);}
  }catch(error){
   console.warn("Could not load active users:",error);
-  if(!list.children.length){const message=document.createElement("p");message.className="sca-active-users-message";message.textContent="Active users could not be loaded.";list.append(message);}
+  if(loading){loading.textContent="Active users could not be loaded.";}
+  else if(!list.children.length){const message=document.createElement("p");message.className="sca-active-users-message";message.textContent="Active users could not be loaded.";list.append(message);}
  }finally{scaActiveUsersLoading=false;}
 }
 function initScaActiveUsersPanel(){
@@ -2180,6 +2181,7 @@ function renderGuildBazaar(){
   <div class="sca-active-users-list" id="sca-active-users-list" role="list" aria-live="polite"><p class="sca-active-users-message">Loading active users…</p></div>
 </section></div>';
  loadPublicGuildDirectory();
+ initScaActiveUsersPanel();
  const directorySearch=document.getElementById("sca-guild-directory-search-input");
  const applyGuildDirectoryFilters=()=>{
   const query=(directorySearch?.value||"").trim().toLocaleLowerCase();
