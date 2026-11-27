@@ -1015,6 +1015,67 @@ html.dark-mode .sca-guild-join-button{background:color-mix(in srgb,var(--guild-a
 #sca-guild-creation-overlay.is-closing .sca-guild-creation-panel{opacity:0;transform:translateY(36px) rotateX(-6deg) scale(.95);transition:transform .58s ease,opacity .48s ease}
 @media(max-width:760px){.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(64vh,600px)!important;min-height:360px!important}}
 @media(prefers-reduced-motion:reduce){#sca-guild-creation-overlay,#sca-guild-creation-overlay .sca-guild-creation-panel{transition:none!important;animation:none!important}.sca-guild-create-trigger,.sca-guild-create-sign,.sca-guild-create-text{transition:none!important}}
+
+/* Final Bazaar layout and control refinements */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) #sca-primary-panel{
+ align-items:flex-start!important;justify-content:flex-start!important;
+ padding:26px 24px 34px!important;overflow:visible!important;box-sizing:border-box;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{
+ height:auto!important;min-height:100%;align-content:center!important;align-items:center!important;
+ padding:10px 0 18px!important;overflow:visible!important;box-sizing:border-box;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{
+ align-self:center!important;gap:0!important;min-height:0!important;padding:0 0 8px!important;
+}
+.sca-guild-directory-title{
+ display:block;position:relative;overflow:visible!important;line-height:1.25!important;
+ margin:0 0 18px!important;padding:6px 0 8px!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{
+ flex:none!important;height:min(68vh,660px)!important;min-height:420px!important;
+ margin:0!important;overflow:hidden!important;padding:0!important;
+}
+.sca-guild-public-list{
+ height:100%!important;max-height:100%;padding:12px 12px!important;
+ gap:12px!important;box-sizing:border-box;
+}
+.sca-guild-public-item{margin:0!important;flex:0 0 auto!important}
+.sca-guild-public-copy strong{opacity:1!important;color:#252a32!important}
+.sca-guild-public-copy span,.sca-guild-public-description{
+ opacity:1!important;color:#7c8797!important;font-weight:500!important;
+}
+.sca-guild-public-description{margin:8px 0!important;padding:0!important}
+.sca-guild-join-button{
+ position:relative;z-index:0;display:inline-block!important;
+ min-width:66px;height:auto!important;margin:0 12px 12px auto!important;
+ padding:.68em 1.45em!important;border:0!important;border-radius:6em!important;
+ background:#fff!important;color:#20242b!important;
+ font:600 11px/1.2 Inter,ui-sans-serif,system-ui,sans-serif!important;
+ text-transform:uppercase;text-decoration:none;cursor:pointer;
+ transition:transform .2s,box-shadow .2s!important;overflow:visible!important;
+}
+.sca-guild-join-button::after{
+ content:"";display:block;position:absolute;inset:0;width:100%;height:100%;
+ border-radius:100px;background:#fff;z-index:-1;
+ transition:transform .4s,opacity .4s;
+}
+.sca-guild-join-button:hover{transform:translateY(-3px)!important;box-shadow:0 10px 20px rgba(0,0,0,.2)!important}
+.sca-guild-join-button:hover::after{transform:scaleX(1.4) scaleY(1.6);opacity:0}
+.sca-guild-join-button:active{transform:translateY(-1px)!important;box-shadow:0 5px 10px rgba(0,0,0,.2)!important}
+.sca-guild-join-button:disabled{opacity:.65;cursor:default;transform:none!important;box-shadow:none!important}
+.sca-guild-join-button.is-joined{background:#e9edf3!important;color:#566171!important}
+.sca-guild-join-button.is-joined::after{display:none}
+.sca-guild-create-trigger:hover{width:112px!important}
+.sca-guild-create-sign{width:42px!important;min-width:42px!important;max-width:42px!important;flex:0 0 42px!important}
+.sca-guild-create-trigger:hover .sca-guild-create-sign{width:42px!important;min-width:42px!important;max-width:42px!important}
+.sca-guild-create-text{right:7px!important}
+.sca-guild-create-trigger:hover .sca-guild-create-text{width:52px!important}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) #sca-primary-panel{padding:18px 14px 28px!important}
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(64vh,600px)!important;min-height:360px!important}
+}
+@media(prefers-reduced-motion:reduce){.sca-guild-join-button,.sca-guild-join-button::after{transition:none!important}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
