@@ -25,6 +25,20 @@ if (sessionError || !session?.user) {
   location.replace("/index.html");
   throw new Error("Sign in required.");
 }
+
+function startCoolanasPresence(session){
+  if(!session?.user)return;
+  const send=async()=>{
+    if(document.visibilityState!=="visible")return;
+    const {error}=await supabase.rpc("coolanas_set_user_presence");
+    if(error)console.warn("Could not update Coolanas presence:",error.message);
+  };
+  send().catch(console.warn);
+  setInterval(()=>send().catch(console.warn),30000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")send().catch(console.warn);});
+}
+
+startCoolanasPresence(session);
 await window.CoolanasTheme?.loadForSession(session);
 const accountKey = key => key + ":" + session.user.id;
 supabase.auth.onAuthStateChange((_event, nextSession) => {

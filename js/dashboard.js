@@ -9,6 +9,19 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     experimental: {passkey: true}
   }
 });
+
+function startCoolanasPresence(session){
+  if(!session?.user)return;
+  const send=async()=>{
+    if(document.visibilityState!=="visible")return;
+    const {error}=await supabase.rpc("coolanas_set_user_presence");
+    if(error)console.warn("Could not update Coolanas presence:",error.message);
+  };
+  send().catch(console.warn);
+  setInterval(()=>send().catch(console.warn),30000);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")send().catch(console.warn);});
+}
+
 // Google sign-in return and username setup.
 const accountStatus = document.getElementById("account-status");
 const usernameForm = document.getElementById("username-form");
@@ -1489,6 +1502,7 @@ try {
   if (isAuthCallback) {
     accountStatus.textContent = "Completing Google sign-in…";
     session = await getCallbackSession();
+    startCoolanasPresence(session);
     if (!session) {
       throw new Error(
           "Google returned without an active Coolanas session. Return to sign-in and try again.");
@@ -1505,6 +1519,7 @@ try {
     const {data: {session: storedSession}, error} = await supabase.auth.getSession();
     if (error) throw error;
     session = storedSession;
+    startCoolanasPresence(session);
     if (session) await window.CoolanasTheme?.loadForSession(session);
     if (!session) {
       accountStatus.textContent = "You are not signed in.";
