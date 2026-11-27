@@ -1076,6 +1076,34 @@ html.dark-mode .sca-guild-join-button{background:color-mix(in srgb,var(--guild-a
  .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(64vh,600px)!important;min-height:360px!important}
 }
 @media(prefers-reduced-motion:reduce){.sca-guild-join-button,.sca-guild-join-button::after{transition:none!important}}
+
+/* Bazaar card structure: prevent clipping, align content and anchor actions */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid){display:block!important;overflow-y:auto!important;overflow-x:hidden!important;min-height:100%;height:auto!important;padding:28px 24px 36px!important;box-sizing:border-box}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) #sca-primary-panel{display:block!important;overflow:visible!important;height:auto!important;min-height:0!important;align-self:stretch!important;padding:0!important;margin:0!important}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;align-items:center!important;gap:28px!important;width:min(1120px,100%)!important;height:auto!important;min-height:0!important;margin:0 auto!important;padding:0 0 24px!important;overflow:visible!important}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{display:flex!important;flex-direction:column!important;align-self:center!important;gap:0!important;min-height:0!important;padding:0 0 10px!important;overflow:visible!important}
+.sca-guild-directory-title{display:block!important;position:static!important;overflow:visible!important;line-height:1.3!important;margin:0 0 20px!important;padding:10px 0!important;clip:auto!important}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{display:block!important;height:min(68vh,660px)!important;min-height:420px!important;max-height:none!important;padding:0!important;margin:0!important;overflow:hidden!important;box-sizing:border-box!important}
+.sca-guild-public-list{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:12px!important;height:100%!important;max-height:100%!important;min-height:0!important;padding:12px!important;overflow-y:auto!important;overflow-x:hidden!important;box-sizing:border-box!important}
+.sca-guild-public-item{position:relative!important;display:grid!important;grid-template-rows:auto 1fr auto!important;flex:0 0 auto!important;min-height:146px!important;overflow:hidden!important;box-sizing:border-box!important;border:2px solid color-mix(in srgb,var(--guild-accent,#829bc2) 58%,transparent)!important;border-radius:15px!important;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease!important}
+.sca-guild-public-item:hover{transform:translateY(-3px)!important;box-shadow:0 12px 25px color-mix(in srgb,var(--guild-accent,#829bc2) 22%,transparent)!important;border-color:color-mix(in srgb,var(--guild-accent,#829bc2) 82%,transparent)!important}
+.sca-guild-public-banner{height:66px!important;width:100%!important;border-radius:0!important;grid-row:1}
+.sca-guild-public-body{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:5px!important;min-width:0!important;padding:10px 12px 2px!important;box-sizing:border-box!important}
+.sca-guild-public-item-line{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:11px!important;width:100%!important;min-width:0!important;padding:0!important;margin:0!important;box-sizing:border-box!important}
+.sca-guild-public-avatar{display:block!important;position:static!important;flex:0 0 40px!important;width:40px!important;height:40px!important;min-width:40px!important;max-width:40px!important;border-radius:11px!important;object-fit:cover!important;object-position:center!important;margin:0!important}
+.sca-guild-public-copy{display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:flex-start!important;gap:3px!important;min-width:0!important;max-width:100%!important;padding:0!important;margin:0!important;line-height:1.3!important}
+.sca-guild-public-copy strong{display:block!important;margin:0!important;padding:0!important;line-height:1.3!important;opacity:1!important}
+.sca-guild-public-copy span{display:block!important;margin:0!important;padding:0!important;line-height:1.3!important;opacity:1!important}
+.sca-guild-public-description{display:block!important;margin:3px 0 0!important;padding:0!important;line-height:1.4!important;opacity:1!important}
+.sca-guild-public-footer{display:flex!important;justify-content:flex-end!important;align-items:center!important;min-height:48px!important;padding:0 12px 10px!important;box-sizing:border-box!important}
+.sca-guild-join-button{margin:0!important}
+.sca-guild-create-trigger{margin:14px auto 0!important;align-self:center!important}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid){padding:20px 14px 30px!important}
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{grid-template-columns:minmax(0,1fr)!important;gap:20px!important}
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(64vh,600px)!important;min-height:360px!important}
+}
+@media(prefers-reduced-motion:reduce){.sca-guild-public-item{transition:none!important}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1377,18 +1405,21 @@ async function loadPublicGuildDirectory(page=1){
    const accent=/^#[0-9a-f]{6}$/i.test(guild.colour||"")?guild.colour:"#829bc2";
    const card=guildElement("article","sca-guild-public-item");card.style.setProperty("--guild-accent",accent);
    if(guild.banner_url){const banner=guildElement("div","sca-guild-public-banner");banner.style.backgroundImage="url("+JSON.stringify(guild.banner_url).slice(1,-1)+")";card.append(banner);}
+   const body=guildElement("div","sca-guild-public-body");
    const line=guildElement("div","sca-guild-public-item-line");
-   if(guild.picture_url){const img=document.createElement("img");img.className="sca-guild-public-avatar";img.alt="";img.loading="lazy";img.src=guild.picture_url;img.onerror=()=>img.remove();line.append(img);}
+   if(guild.picture_url){const img=document.createElement("img");img.className="sca-guild-public-avatar";img.alt="";img.loading="lazy";img.src=guild.picture_url;img.onerror=()=>{img.remove();};line.append(img);}
    const copy=guildElement("div","sca-guild-public-copy");copy.append(guildElement("strong","",guild.name||"Guild"),guildElement("span","",String(guild.member_count||0)+" members"));
-   line.append(copy);card.append(line);
-   if(guild.description)card.append(guildElement("p","sca-guild-public-description",guild.description));
+   line.append(copy);body.append(line);
+   if(guild.description)body.append(guildElement("p","sca-guild-public-description",guild.description));
+   card.append(body);
+   const footer=guildElement("div","sca-guild-public-footer");
    const join=guildElement("button","sca-guild-join-button","Join");join.type="button";join.addEventListener("click",async()=>{
     join.disabled=true;join.textContent="Joining…";
     const {error:joinError}=await supabase.rpc("coolanas_guild_join_public",{p_guild_id:guild.id});
     if(joinError){console.error("Guild join failed:",joinError);join.disabled=false;join.textContent="Join";alert(joinError.message||"Could not join this Guild.");return;}
     join.textContent="Joined";join.classList.add("is-joined");
    });
-   card.append(join);
+   footer.append(join);card.append(footer);
    host.append(card);
   });
   let pagination=document.getElementById("sca-guild-public-pagination");
