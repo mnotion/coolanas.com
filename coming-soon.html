@@ -1243,6 +1243,42 @@ html.dark-mode .sca-guild-search-input{background:#191a1e;color:#fff}
 .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) #sca-primary-panel::after{background:transparent!important;box-shadow:none!important;pointer-events:none!important}
 html.dark-mode .sca-guild-filter{background:#191a1e;color:#f4f4f5}
 @media(max-width:760px){.sca-guild-toolbar{flex-wrap:wrap!important;gap:8px!important}.sca-guild-filter-row{gap:6px}.sca-guild-filter{height:33px;padding:0 10px}}
+
+/* Expand search across the full toolbar; collapse filters while searching */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar{
+ display:flex!important;align-items:center!important;justify-content:center!important;
+ gap:8px!important;width:100%!important;min-width:0!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter-row{
+ flex:0 0 auto!important;display:flex!important;align-items:center!important;
+ justify-content:center!important;gap:7px!important;flex-wrap:nowrap!important;
+ min-width:0!important;transition:opacity .2s ease,transform .2s ease;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-search-widget{
+ flex:0 0 40px!important;width:40px!important;min-width:40px!important;
+ transition:flex-basis .3s ease,width .3s ease;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar:focus-within{
+ justify-content:stretch!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar:focus-within .sca-guild-filter-row{
+ display:none!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar:focus-within .sca-guild-search-widget{
+ flex:1 1 100%!important;width:100%!important;min-width:0!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar:focus-within .sca-guild-search-input{
+ width:100%!important;max-width:none!important;cursor:text!important;
+ padding-right:16px!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar:focus-within .sca-guild-search-input::placeholder{
+ color:#b8bac2!important;opacity:1!important;
+}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar{flex-wrap:wrap!important;justify-content:center!important}
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-filter-row{flex-wrap:wrap!important}
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-toolbar:focus-within{flex-wrap:nowrap!important}
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
