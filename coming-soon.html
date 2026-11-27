@@ -1128,6 +1128,21 @@ html.dark-mode .sca-guild-join-button{background:color-mix(in srgb,var(--guild-a
 .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{
  width:100%!important;max-width:100%!important;
 }
+
+/* Two equal Bazaar columns; secondary space reserved for future content */
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ align-items:start!important;gap:28px!important;width:min(1120px,100%)!important;
+}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{width:100%!important;max-width:none!important}
+.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-secondary-card{
+ display:block!important;width:100%!important;height:min(68vh,660px)!important;min-height:420px!important;
+ padding:0!important;align-self:start!important;
+}
+@media(max-width:760px){
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{grid-template-columns:minmax(0,1fr)!important}
+ .sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-secondary-card{height:320px!important;min-height:320px!important}
+}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1719,7 +1734,7 @@ let scaGuildView="guilds";let scaGuildBazaarRequested=false;
 function renderGuildBazaar(){
  scaGuildView="bazaar";
  scaGuildUsersPanel.hidden=true;
- scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><h1 class="sca-guild-directory-title">Guilds</h1><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guild directory"><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild"><span class="sca-guild-create-sign">+</span><span class="sca-guild-create-text">Create</span></button></div><section class="sca-guild-entry-card sca-guild-buckets-card" aria-label="Buckets"><h1>Buckets</h1></section></div>';
+ scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guild directory"><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild"><span class="sca-guild-create-sign">+</span><span class="sca-guild-create-text">Create</span></button></div><section class="sca-guild-entry-card sca-guild-secondary-card" aria-label="Guild space"></section><section class="sca-guild-entry-card sca-guild-buckets-card" aria-label="Buckets"><h1>Buckets</h1></section></div>';
  loadPublicGuildDirectory();
  document.getElementById("sca-guild-create-trigger")?.addEventListener("click",openGuildCreationWizard);
  const bazaar=document.getElementById("sca-guild-bazaar-nav");if(bazaar)bazaar.setAttribute("aria-current","page");
