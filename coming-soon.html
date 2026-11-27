@@ -1212,19 +1212,17 @@ html.dark-mode .sca-guild-search-controls input{background:#292d34;border-color:
 html.dark-mode .sca-guild-search-controls button{background:#303c50;color:#c6d9f6}
 @media(max-width:760px){.sca-guild-search-content{padding:22px}}
 
-/* Bazaar: compact search control above Guild listings; keep adjacent panel empty */
-.sca-guild-directory-search-trigger{align-self:flex-end;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;margin:0 0 10px;padding:0 15px;border:1px solid rgba(100,130,175,.24);border-radius:12px;background:#eaf0fa;color:#345d91;font:650 12px Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;transition:transform .2s,box-shadow .2s}
-.sca-guild-directory-search-trigger:hover{transform:translateY(-2px);box-shadow:0 7px 16px rgba(0,0,0,.1)}
-.sca-guild-directory-search-trigger span{font-size:21px;line-height:1}
-.sca-guild-directory-search{display:flex;gap:8px;margin:0 0 10px}
-.sca-guild-directory-search[hidden]{display:none!important}
-.sca-guild-directory-search input{height:40px;min-width:0;flex:1;padding:0 12px;border:1px solid rgba(120,135,155,.28);border-radius:11px;background:rgba(128,145,168,.07);color:inherit;font:500 13px Inter,ui-sans-serif,system-ui,sans-serif}
-.sca-guild-directory-search button{padding:0 15px;border:0;border-radius:11px;background:#e8eef9;color:#315b91;font-weight:700;cursor:pointer}
-.sca-guild-directory-search [hidden]{display:none!important}
-.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{padding-top:34px!important}
-.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-stack{height:auto!important}
-.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(68vh,660px)!important;min-height:420px!important}
-@media(max-width:760px){.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-entry-grid{padding-top:18px!important}}
+/* Uiverse-inspired expanding Guild search input */
+.sca-guild-search-widget{--sca-search-size:40px;position:relative;align-self:flex-start;width:var(--sca-search-size);height:var(--sca-search-size);margin:0 0 10px 0;color:#fff;z-index:2}
+.sca-guild-search-input{box-sizing:border-box;width:var(--sca-search-size);height:var(--sca-search-size);padding:0 10px 0 40px;border:0!important;outline:none!important;border-radius:50px;background:#191a1e;color:#fff;font:500 13px Inter,ui-sans-serif,system-ui,sans-serif;box-shadow:1.5px 1.5px 3px #0e0e0e,-1.5px -1.5px 3px rgb(95 94 94 / 25%),inset 0 0 0 #0e0e0e,inset 0 0 0 #5f5e5e;cursor:pointer;transition:width .3s ease,box-shadow .3s ease}
+.sca-guild-search-input::placeholder{color:transparent;opacity:0;transition:opacity .2s}
+.sca-guild-search-input:focus,.sca-guild-search-input:not(:placeholder-shown){width:220px;cursor:text;box-shadow:inset 1.5px 1.5px 3px #0e0e0e,inset -1.5px -1.5px 3px #5f5e5e}
+.sca-guild-search-input:focus::placeholder{color:#b8bac2;opacity:1}
+.sca-guild-search-icon{position:absolute;top:0;left:0;display:grid;place-items:center;width:40px;height:40px;padding:9px;box-sizing:border-box;pointer-events:none;color:#f3f3f5}
+.sca-guild-search-icon svg{display:block;width:100%;height:100%}
+.sca-guild-public-item[hidden]{display:none!important}
+html.dark-mode .sca-guild-search-input{background:#191a1e;color:#fff}
+@media(max-width:760px){.sca-guild-search-input:focus,.sca-guild-search-input:not(:placeholder-shown){width:min(220px,calc(100vw - 130px))}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
@@ -1816,12 +1814,10 @@ let scaGuildView="guilds";let scaGuildBazaarRequested=false;
 function renderGuildBazaar(){
  scaGuildView="bazaar";
  scaGuildUsersPanel.hidden=true;
- scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><button class="sca-guild-directory-search-trigger" id="sca-guild-directory-search-trigger" type="button" aria-expanded="false"><span aria-hidden="true">⌕</span> Search</button><form class="sca-guild-directory-search" id="sca-guild-directory-search" hidden><input id="sca-guild-directory-search-input" type="search" maxlength="80" placeholder="Filter these Guilds…" autocomplete="off"><button type="submit">Search</button></form><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guild directory"><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild"><span class="sca-guild-create-sign">+</span><span class="sca-guild-create-text">Create</span></button></div><section class="sca-guild-entry-card sca-guild-secondary-card" aria-label="Empty Bazaar panel"></section></div>';
+ scaPrimary.innerHTML='<div class="sca-guild-entry-grid" aria-label="Guild Bazaar"><div class="sca-guild-entry-stack"><div class="sca-guild-search-widget"><input id="sca-guild-directory-search-input" class="sca-guild-search-input" type="search" maxlength="80" placeholder="Type to search…" autocomplete="off" aria-label="Search public Guilds"><span class="sca-guild-search-icon" aria-hidden="true"><svg viewBox="0 0 512 512"><circle cx="221" cy="221" r="157" fill="none" stroke="currentColor" stroke-width="32"></circle><path d="M338 338 448 448" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"></path></svg></span></div><section class="sca-guild-entry-card sca-guild-public-card" aria-label="Guild directory"><div class="sca-guild-public-list" id="sca-guild-public-list"><p class="sca-guild-public-empty">Loading public Guilds…</p></div></section><button class="sca-guild-create-trigger" id="sca-guild-create-trigger" type="button" aria-label="Create a Guild" title="Create a Guild"><span class="sca-guild-create-sign">+</span><span class="sca-guild-create-text">Create</span></button></div><section class="sca-guild-entry-card sca-guild-secondary-card" aria-label="Empty Bazaar panel"></section></div>';
  loadPublicGuildDirectory();
- const searchToggle=document.getElementById("sca-guild-directory-search-trigger");
- const searchForm=document.getElementById("sca-guild-directory-search");
- searchToggle?.addEventListener("click",()=>{const opening=searchForm.hidden;searchForm.hidden=!opening;searchToggle.setAttribute("aria-expanded",String(opening));if(opening)document.getElementById("sca-guild-directory-search-input")?.focus();});
- searchForm?.addEventListener("submit",event=>{event.preventDefault();const query=(document.getElementById("sca-guild-directory-search-input")?.value||"").trim().toLocaleLowerCase();document.querySelectorAll("#sca-guild-public-list .sca-guild-public-item").forEach(card=>{card.hidden=!!query&&!card.textContent.toLocaleLowerCase().includes(query);});});
+ const directorySearch=document.getElementById("sca-guild-directory-search-input");
+ directorySearch?.addEventListener("input",()=>{const query=directorySearch.value.trim().toLocaleLowerCase();document.querySelectorAll("#sca-guild-public-list .sca-guild-public-item").forEach(card=>{card.hidden=!!query&&!card.textContent.toLocaleLowerCase().includes(query);});});
  document.getElementById("sca-guild-create-trigger")?.addEventListener("click",openGuildCreationWizard);
  const bazaar=document.getElementById("sca-guild-bazaar-nav");if(bazaar)bazaar.setAttribute("aria-current","page");
 }
