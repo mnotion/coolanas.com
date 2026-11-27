@@ -17,23 +17,8 @@ function setStatus(id, message, type = "") {
   el.textContent = message;
   el.className = "status" + (type ? " " + type : "");
 }
-function applyTheme(mode) {
-  window.CoolanasTheme?.apply(mode);
-  document.documentElement.classList.toggle("dark-mode", mode === "dark");
-  document.documentElement.dataset.theme = mode;
-  $("theme-switch").setAttribute("aria-checked", String(mode === "dark"));
-  $("theme-label").textContent = mode === "dark" ? "On" : "Off";
-}
-applyTheme(window.CoolanasTheme?.get() || "light");
-window.addEventListener("coolanas:themechange", event => applyTheme(event.detail?.mode || "light"));
-$("theme-switch").addEventListener("click", () => {
-  const next = document.documentElement.classList.contains("dark-mode") ? "light" : "dark";
-  window.CoolanasTheme?.set(next);
-  applyTheme(next);
-});
-window.addEventListener("storage", event => {
-  if (event.key === "coolanas-theme") applyTheme(event.newValue === "dark" ? "dark" : "light");
-});
+// Appearance is fixed to the light theme across Coolanas.
+window.CoolanasTheme?.apply("light");
 for (const button of document.querySelectorAll(".topic"))
   button.addEventListener("click", () => {
     for (const b of document.querySelectorAll(".topic")) {
