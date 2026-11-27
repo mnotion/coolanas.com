@@ -1007,14 +1007,14 @@ html.dark-mode .sca-guild-join-button{background:color-mix(in srgb,var(--guild-a
 .sca-guild-create-trigger:hover{width:126px!important;box-shadow:0 9px 24px rgba(0,0,0,.24)!important}
 .sca-guild-create-trigger:hover .sca-guild-create-sign{width:48px!important;min-width:48px!important;max-width:48px!important;padding:0!important}
 .sca-guild-create-trigger:hover .sca-guild-create-text{width:58px!important;opacity:1!important}
-.sca-guild-creation-overlay{opacity:0;perspective:1400px;transform:translateY(34px) scale(.94);filter:blur(7px);transition:opacity .68s ease,transform .78s cubic-bezier(.16,1,.3,1),filter .68s ease}
-.sca-guild-creation-overlay.is-open{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
-.sca-guild-creation-overlay .sca-guild-creation-panel{opacity:0;transform:translateY(42px) rotateX(7deg) scale(.94);transform-origin:50% 100%;transition:transform .82s cubic-bezier(.16,1,.3,1),opacity .58s ease;box-shadow:0 28px 90px rgba(0,0,0,.2)}
-.sca-guild-creation-overlay.is-open .sca-guild-creation-panel{opacity:1;transform:translateY(0) rotateX(0) scale(1)}
-.sca-guild-creation-overlay.is-closing{opacity:0;transform:translateY(26px) scale(.96);filter:blur(5px);pointer-events:none;transition:opacity .55s ease,transform .62s cubic-bezier(.7,0,.84,0),filter .55s ease}
-.sca-guild-creation-overlay.is-closing .sca-guild-creation-panel{opacity:0;transform:translateY(36px) rotateX(-6deg) scale(.95);transition:transform .58s ease,opacity .48s ease}
+#sca-guild-creation-overlay{opacity:0;perspective:1400px;transform:translateY(34px) scale(.94);filter:blur(7px);transition:opacity .68s ease,transform .78s cubic-bezier(.16,1,.3,1),filter .68s ease}
+#sca-guild-creation-overlay.is-open{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+#sca-guild-creation-overlay .sca-guild-creation-panel{opacity:0;transform:translateY(42px) rotateX(7deg) scale(.94);transform-origin:50% 100%;transition:transform .82s cubic-bezier(.16,1,.3,1),opacity .58s ease;box-shadow:0 28px 90px rgba(0,0,0,.2)}
+#sca-guild-creation-overlay.is-open .sca-guild-creation-panel{opacity:1;transform:translateY(0) rotateX(0) scale(1)}
+#sca-guild-creation-overlay.is-closing{opacity:0;transform:translateY(26px) scale(.96);filter:blur(5px);pointer-events:none;transition:opacity .55s ease,transform .62s cubic-bezier(.7,0,.84,0),filter .55s ease}
+#sca-guild-creation-overlay.is-closing .sca-guild-creation-panel{opacity:0;transform:translateY(36px) rotateX(-6deg) scale(.95);transition:transform .58s ease,opacity .48s ease}
 @media(max-width:760px){.sca-main[data-section="guild"]:has(.sca-guild-entry-grid) .sca-guild-public-card{height:min(64vh,600px)!important;min-height:360px!important}}
-@media(prefers-reduced-motion:reduce){.sca-guild-creation-overlay,.sca-guild-creation-overlay .sca-guild-creation-panel{transition:none!important;animation:none!important}.sca-guild-create-trigger,.sca-guild-create-sign,.sca-guild-create-text{transition:none!important}}
+@media(prefers-reduced-motion:reduce){#sca-guild-creation-overlay,#sca-guild-creation-overlay .sca-guild-creation-panel{transition:none!important;animation:none!important}.sca-guild-create-trigger,.sca-guild-create-sign,.sca-guild-create-text{transition:none!important}}
 </style>
 <link rel="stylesheet" href="/css/theme.css?v=sitewide-theme-2">
 </head>
